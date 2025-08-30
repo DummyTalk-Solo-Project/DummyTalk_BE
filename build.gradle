@@ -1,22 +1,16 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.4'
+	id 'org.springframework.boot' version '3.5.5'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
-group = 'Solo_Project'
+group = 'DummyTalk'
 version = '0.0.1-SNAPSHOT'
-description = 'Project incorporates useful core functions exclusively for college students!'
+description = 'AI 사용이 기반이 아닌, 자체 로직으로 사용자와의 대화로 간단하게 시작하며 흥미 유발 및 접속 유도의 메타픽션 사이드 프로젝트'
 
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
-	}
-}
-
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
 	}
 }
 
@@ -35,9 +29,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
-	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.mysql:mysql-connector-j'
-	annotationProcessor 'org.projectlombok:lombok'
+    implementation 'org.projectlombok:lombok'
+    runtimeOnly 'com.mysql:mysql-connector-j'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

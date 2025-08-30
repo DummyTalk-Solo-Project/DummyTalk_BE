@@ -1,10 +1,10 @@
-package Solo_Project.Uni_Core_BE;
+package DummyTalk.DummyTalk_BE;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class UniCoreBeApplicationTests {
+class DummyTalkBeApplicationTests {
 
 	@Test
 	void contextLoads() {

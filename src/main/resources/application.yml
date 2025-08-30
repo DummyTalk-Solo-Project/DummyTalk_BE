@@ -1,62 +1,31 @@
 spring:
   application:
-    name: Uni_Core_BE
+    name: DummyTalk_BE
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://(DB_HOST):(DB_PORT)/(DB_NAME)?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${}
-    password: ${}
+    url: jdbc:mysql://localhost:3306/${DB_NAME}
+    username: root
+    password: 1234
+  sql:
+    init:
+      mode: never
 
   jpa:
-    hibernate:
-      ddl-auto: update
     properties:
       hibernate:
-        format_sql: true
-        show_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
-    open-in-view: false  # Lazy Loading 성능 최적화
+        show_sql: true
+        format_sql: true
+        use_sql_comments: true
+        hbm2ddl:
+          auto: update
+        default_batch_fetch_size: 1000
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: (GOOGLE_CLIENT_ID)
-            client-secret: (GOOGLE_CLIENT_SECRET)
-            scope: ${}
-          kakao:
-            client-id: (KAKAO_CLIENT_ID)
-            client-secret: (KAKAO_CLIENT_SECRET)
-            client-authentication-method: post
-            authorization-grant-type: authorization_code
-            redirect-uri: (KAKAO_REDIRECT_URI)
-            client-name: Kakao
-        provider:
-          kakao:
-            authorization-uri: https://kauth.kakao.com/oauth/authorize
-            token-uri: https://kauth.kakao.com/oauth/token
-            user-info-uri: https://kapi.kakao.com/v2/user/me
-            user-name-attribute: id
-  data:
-    redis:
-      host: ${}
-      password: ${}
-      port: ${}
-
-# JWT(JSON Web Token) 설정
-jwt:
-  secret-key: (JWT_SECRET_KEY) # 보안을 위해 복잡하고 긴 문자열 권장
-  access-token-expiration-in-ms: 3600000 # 1시간 (밀리초)
-  refresh-token-expiration-in-ms: 604800000 # 7일 (밀리초)
-
-# OpenAI API 설정 (Spring AI 사용 시)
-openai:
-  api:
-    key: (OPENAI_API_KEY)
-    base-url: https://api.openai.com/v1
-
-# 대규모 푸시 알림 (FCM) 설정
-fcm:
-  service-account-file: classpath:(FCM_SERVICE_ACCOUNT_FILE.json)
+  ai:
+    openai:
+      api-key: ${OPENAI_KEY}
+      chat:
+        options:
+          model: gpt-3.5 turbo
+          temperature: 0.7
