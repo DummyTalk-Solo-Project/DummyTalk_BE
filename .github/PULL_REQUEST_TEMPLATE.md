@@ -1,4 +1,4 @@
-## <img src="./img.png" width="25" height="25"/> Pull Request!
+## ❗Pull Request!
 
 ### 연관 이슈
 <!--관련있는 이슈 번호(#000)을 적어주세요.
