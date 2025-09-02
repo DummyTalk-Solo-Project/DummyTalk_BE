@@ -33,12 +33,12 @@ jobs:
           script: |
             if [ -d "my-spring-boot-project" ]; then
               echo "Git repository already exists. Pulling !!"
-              cd my-spring-boot-project
+              cd dummy_talk
               sudo git pull origin main
             else
               echo "Git repository not found. Cloning !"
-              git clone https://github.com/my-user/my-spring-boot-project.git
-              cd my-spring-boot-project
+              git clone https://github.com/DummyTalk-Solo-Project/DummyTalk_BE.git
+              cd dummy_talk
             fi
             
             sudo docker-compose down || true
