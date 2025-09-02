@@ -20,8 +20,8 @@ jobs:
 
       - name: build & push docker image...
         run: |
-          docker build -t ${{secrets.DOCKER_USERNAME}}/DummyTalk .
-          docker push ${{secrets.DOCKER_USERNAME}}/DummyTalk
+          docker build -t ${{secrets.DOCKER_USERNAME}}/dummy_talk .
+          docker push ${{secrets.DOCKER_USERNAME}}/dummy_talk
 
       - name: deploy to EC2...
         uses: appleboy/ssh-action@master
