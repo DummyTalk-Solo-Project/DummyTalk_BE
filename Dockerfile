@@ -11,6 +11,8 @@ RUN ./gradlew dependencies
 
 COPY src src
 
+RUN chmod +x gradlew
+
 RUN ./gradlew bootjar
 
 FROM openjdk:21-jdk
