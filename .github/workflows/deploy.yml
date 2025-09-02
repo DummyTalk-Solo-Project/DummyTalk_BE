@@ -31,14 +31,14 @@ jobs:
           username: ${{secrets.EC2_USERNAME}}
           key: ${{secrets.EC2_PRIVATE_KEY}}
           script: |
-            if [ -d "my-spring-boot-project" ]; then
+            if [ -d "DummyTalk_BE" ]; then
               echo "Git repository already exists. Pulling !!"
-              cd dummy_talk
+              cd DummyTalk_BE
               sudo git pull origin main
             else
               echo "Git repository not found. Cloning !"
               git clone https://github.com/DummyTalk-Solo-Project/DummyTalk_BE.git
-              cd dummy_talk
+              cd DummyTalk_BE
             fi
             
             sudo docker-compose down || true
