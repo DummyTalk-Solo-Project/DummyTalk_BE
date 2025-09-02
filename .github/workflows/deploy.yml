@@ -31,6 +31,7 @@ jobs:
           username: ${{secrets.EC2_USERNAME}}
           key: ${{secrets.EC2_PRIVATE_KEY}}
           script: |
+            cd /home/ubuntu
             sudo docker-compose down || true
             
             echo "DB_HOST=${{secrets.DB_HOST}}" > .env
