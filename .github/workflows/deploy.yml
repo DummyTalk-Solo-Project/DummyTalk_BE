@@ -31,7 +31,16 @@ jobs:
           username: ${{secrets.EC2_USERNAME}}
           key: ${{secrets.EC2_PRIVATE_KEY}}
           script: |
-            cd /home/ubuntu
+            if [ -d "my-spring-boot-project" ]; then
+              echo "Git repository already exists. Pulling !!"
+              cd my-spring-boot-project
+              sudo git pull origin main
+            else
+              echo "Git repository not found. Cloning !"
+              git clone https://github.com/my-user/my-spring-boot-project.git
+              cd my-spring-boot-project
+            fi
+            
             sudo docker-compose down || true
             
             echo "DB_HOST=${{secrets.DB_HOST}}" > .env
