@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.entity.info;
 
+import DummyTalk.DummyTalk_BE.domain.entity.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Info {
+public class Info  extends CommonEntity {
     @Id
     @GeneratedValue (strategy = GenerationType.AUTO)
     private Long id;
