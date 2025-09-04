@@ -22,6 +22,19 @@ spring:
           auto: update
         default_batch_fetch_size: 1000
 
+  mail:
+    host: smtp.google.com
+    port: 587
+    username: jijysun@gmail.com
+    password: ${MAIL_SENDER_PASSWORD}
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+
   ai:
     openai:
       api-key: ${OPENAI_KEY}

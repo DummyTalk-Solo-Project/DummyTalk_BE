@@ -28,5 +28,4 @@ public class User  extends CommonEntity {
 
     @OneToOne (mappedBy = "user", cascade = CascadeType.ALL)
     private Info info;
-
 }
