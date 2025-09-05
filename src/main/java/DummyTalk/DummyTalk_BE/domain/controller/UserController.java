@@ -16,11 +16,15 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping ("email-verification")
+    @GetMapping ("/email-verification")
     public ResponseEntity<Object> sendVerificationEmail (){
         return ResponseEntity.ok(null);
     }
 
+    @PostMapping("/sign-in")
+    public ResponseEntity<Object> signIn (){
+        return ResponseEntity.ok(null);
+    }
 
     @PostMapping("/login")
     public ResponseEntity<Object> login (){
