@@ -12,4 +12,10 @@ public class UserServiceImpl implements UserService {
     public void sendEmail() {
 
     }
+
+    @Override
+    public void login() {
+
+        return;
+    }
 }
