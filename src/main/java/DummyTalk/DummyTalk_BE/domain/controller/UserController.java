@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
+import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ public class UserController {
     }
 
     @PostMapping("/sign-in")
-    public ResponseEntity<Object> signIn (){
+    public ResponseEntity<Object> signIn (@RequestBody UserRequestDTO.SignInRequestDTO request){
         return ResponseEntity.ok(null);
     }
 
