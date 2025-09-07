@@ -18,7 +18,8 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping ("/email-verification")
-    public ResponseEntity<Object> sendVerificationEmail (){
+    public ResponseEntity<Object> sendVerificationEmail (@RequestParam String email) {
+        userService.sendVerificationEmail(email);
         return ResponseEntity.ok(null);
     }
 

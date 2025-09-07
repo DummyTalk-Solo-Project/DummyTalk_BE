@@ -4,7 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 
 public interface UserService {
 
-    void sendEmail();
+    void sendVerificationEmail(String email);
 
     void signIn(UserRequestDTO.SignInRequestDTO request);
 
