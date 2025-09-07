@@ -18,7 +18,7 @@ public class User  extends CommonEntity {
     private Long id;
 
     @Column(nullable = false)
-    private String userId;
+    private String email;
 
     private String password;
 

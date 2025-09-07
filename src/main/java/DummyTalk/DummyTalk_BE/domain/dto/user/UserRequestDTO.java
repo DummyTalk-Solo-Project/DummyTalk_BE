@@ -6,14 +6,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 
-@Getter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
+
 public class UserRequestDTO {
 
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class SignInRequestDTO{
-        public String email;
-        public String password;
+        private String username;
+        private String email;
+        private String password;
     }
 }
