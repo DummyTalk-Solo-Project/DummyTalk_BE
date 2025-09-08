@@ -23,6 +23,11 @@ public class UserController {
         return ResponseEntity.ok(null);
     }
 
+    @PostMapping ()
+    public ResponseEntity<Object> verifyEmail (@RequestBody UserRequestDTO userRequestDTO) {
+        return  ResponseEntity.ok(null);
+    }
+
     @PostMapping("/sign-in")
     public ResponseEntity<Object> signIn (@RequestBody UserRequestDTO.SignInRequestDTO request){
         return ResponseEntity.ok(null);
