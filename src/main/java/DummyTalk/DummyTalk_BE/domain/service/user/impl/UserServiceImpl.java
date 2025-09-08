@@ -1,8 +1,10 @@
 package DummyTalk.DummyTalk_BE.domain.service.user.impl;
 
+import DummyTalk.DummyTalk_BE.domain.converter.EmailConverter;
 import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
 import jakarta.mail.MessagingException;
@@ -13,6 +15,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Random;
 
 @Service
@@ -25,14 +28,17 @@ public class UserServiceImpl implements UserService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
+    private final EmailRepository emailRepository;
 
     @Override
     public void sendVerificationEmail(String email) {
         MimeMessage msg = mailSender.createMimeMessage();
         MimeMessageHelper helper;
         String code;
+        LocalDateTime expireTime;
         try {
             code = generateVerificationCode();
+            expireTime = LocalDateTime.now();
             helper = new MimeMessageHelper(msg, true, "utf-8");
             helper.setTo(email);
             helper.setSubject("더미톡 인증 이메일 알림.");
@@ -116,6 +122,7 @@ public class UserServiceImpl implements UserService {
         } catch (RuntimeException e) {
             e.printStackTrace();
         }
+        emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime));
     }
 
     @Override
