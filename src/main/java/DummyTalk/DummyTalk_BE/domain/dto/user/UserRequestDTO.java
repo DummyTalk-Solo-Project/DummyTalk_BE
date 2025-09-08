@@ -16,4 +16,13 @@ public class UserRequestDTO {
         private String email;
         private String password;
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class VerificationRequestDTO{
+        private String email;
+        private String code;
+    }
 }

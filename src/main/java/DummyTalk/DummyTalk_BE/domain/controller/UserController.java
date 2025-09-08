@@ -24,7 +24,8 @@ public class UserController {
     }
 
     @PostMapping ()
-    public ResponseEntity<Object> verifyEmail (@RequestBody UserRequestDTO userRequestDTO) {
+    public ResponseEntity<Object> verifyEmail (@RequestBody UserRequestDTO.VerificationRequestDTO requestDTO) {
+        userService.verifyEmail(requestDTO);
         return  ResponseEntity.ok(null);
     }
 
