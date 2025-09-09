@@ -16,7 +16,6 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -159,10 +158,8 @@ public class UserServiceImpl implements UserService {
         StringBuilder code = new StringBuilder(CODE_LENGTH);
 
         for (int i = 0; i < CODE_LENGTH; i++) {
-            // CHARACTERS 문자열의 길이 내에서 무작위 인덱스를 선택
             int randomIndex = random.nextInt(CHARACTERS.length());
 
-            // 해당 인덱스의 문자를 가져와 StringBuilder에 추가
             code.append(CHARACTERS.charAt(randomIndex));
         }
 
