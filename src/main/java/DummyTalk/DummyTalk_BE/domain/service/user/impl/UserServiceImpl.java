@@ -1,15 +1,168 @@
 package DummyTalk.DummyTalk_BE.domain.service.user.impl;
 
+import DummyTalk.DummyTalk_BE.domain.converter.EmailConverter;
+import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
+import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.entity.email.Email;
+import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Optional;
+import java.util.Random;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    @Override
-    public void sendEmail() {
+    private final UserRepository userRepository;
+    private final JavaMailSender mailSender;
 
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final int CODE_LENGTH = 4;
+    private final EmailRepository emailRepository;
+
+    @Override
+    public void sendVerificationEmail(String email) {
+        MimeMessage msg = mailSender.createMimeMessage();
+        MimeMessageHelper helper;
+        String code;
+        LocalDateTime expireTime;
+        try {
+            code = generateVerificationCode();
+            expireTime = LocalDateTime.now();
+            helper = new MimeMessageHelper(msg, true, "utf-8");
+            helper.setTo(email);
+            helper.setSubject("더미톡 인증 이메일 알림.");
+            helper.setText("<!DOCTYPE html>\n" +
+                    "<html lang=\"ko\">\n" +
+                    "<head>\n" +
+                    "    <meta charset=\"UTF-8\">\n" +
+                    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+                    "    <style>\n" +
+                    "        body {\n" +
+                    "            font-family: Arial, sans-serif;\n" +
+                    "            background-color: #f4f4f4;\n" +
+                    "            margin: 0;\n" +
+                    "            padding: 0;\n" +
+                    "        }\n" +
+                    "        .container {\n" +
+                    "            width: 100%;\n" +
+                    "            max-width: 600px;\n" +
+                    "            margin: 0 auto;\n" +
+                    "            background-color: #ffffff;\n" +
+                    "            padding: 20px;\n" +
+                    "            border-radius: 8px;\n" +
+                    "            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);\n" +
+                    "        }\n" +
+                    "        .header {\n" +
+                    "            text-align: center;\n" +
+                    "            padding-bottom: 20px;\n" +
+                    "            border-bottom: 1px solid #eeeeee;\n" +
+                    "        }\n" +
+                    "        .content {\n" +
+                    "            padding: 20px 0;\n" +
+                    "            text-align: center;\n" +
+                    "        }\n" +
+                    "        .verification-code {\n" +
+                    "            display: inline-block;\n" +
+                    "            background-color: #e9ecef;\n" +
+                    "            padding: 10px 20px;\n" +
+                    "            font-size: 24px;\n" +
+                    "            font-weight: bold;\n" +
+                    "            letter-spacing: 2px;\n" +
+                    "            border-radius: 5px;\n" +
+                    "            color: #333333;\n" +
+                    "            margin: 20px 0;\n" +
+                    "        }\n" +
+                    "        .link-text {\n" +
+                    "            color: #007bff;\n" +
+                    "            text-decoration: none;\n" +
+                    "            font-weight: bold;\n" +
+                    "        }\n" +
+                    "        .footer {\n" +
+                    "            text-align: center;\n" +
+                    "            padding-top: 20px;\n" +
+                    "            border-top: 1px solid #eeeeee;\n" +
+                    "            font-size: 12px;\n" +
+                    "            color: #999999;\n" +
+                    "        }\n" +
+                    "    </style>\n" +
+                    "</head>\n" +
+                    "<body>\n" +
+                    "<div class=\"container\">\n" +
+                    "    <div class=\"header\">\n" +
+                    "        <h2>더미톡 이메일 인증 안내</h2>\n" +
+                    "    </div>\n" +
+                    "    <div class=\"content\">\n" +
+                    "        <p>안녕하세요, 더미톡입니다. 아래 인증 코드를 입력하여 이메일 주소를 인증해 주세요.</p>\n" +
+                    "        <span class=\"verification-code\"> "+ code + " </span>\n" +
+                    "    </div>\n" +
+                    "    <div class=\"footer\">\n" +
+                    "        <p>이 메일은 발신 전용입니다. 문의사항은 더미톡 고객센터를 이용해 주세요.</p>\n" +
+                    "    </div>\n" +
+                    "</div>\n" +
+                    "</body>\n" +
+                    "</html>", true);
+            helper.setReplyTo("no-reply@mail.com");
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
+
+        try{
+            mailSender.send(msg);
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }
+        emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime));
+    }
+
+    @Override
+    public void verifyEmail(UserRequestDTO.VerificationRequestDTO requestDTO) {
+        Optional<Email> verification = emailRepository.findByEmailAndCode(requestDTO.getEmail(), requestDTO.getCode());
+
+        if (verification.isEmpty()) {
+            throw new RuntimeException("잘못된 이메일 인증입니다.");
+        }
+        long hourDiff = ChronoUnit.HOURS.between(LocalDateTime.now(), verification.get().getExpireTime());
+        if (hourDiff >= 24) {
+            throw new RuntimeException("메세지가 만료되었습니다");
+        }
+    }
+
+    @Override
+    public void signIn(UserRequestDTO.SignInRequestDTO request) {
+        User user = UserConverter.toNewUser(request);
+        userRepository.save(user);
+    }
+
+
+    @Override
+    public void login() {
+        return;
+    }
+
+    public static String generateVerificationCode() {
+        Random random = new Random();
+        StringBuilder code = new StringBuilder(CODE_LENGTH);
+
+        for (int i = 0; i < CODE_LENGTH; i++) {
+            int randomIndex = random.nextInt(CHARACTERS.length());
+
+            code.append(CHARACTERS.charAt(randomIndex));
+        }
+
+        return code.toString();
     }
 }
