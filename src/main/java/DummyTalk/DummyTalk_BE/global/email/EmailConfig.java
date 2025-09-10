@@ -32,7 +32,8 @@ public class EmailConfig {
         javaMailSender.setPassword(password);
 
         Properties properties = new Properties();
-        properties.put("mail.smtp.auth", true);
+        properties.put("mail.smtp.starttls.enable", "true"); // STARTTLS 활성화
+        properties.put("mail.smtp.auth", "true");
         properties.put ("mail.smtp.connectiontimeout", 5000);
         properties.put ("mail.smtp.timeout", 5000);
         properties.put ("mail.smtp.writetimeout", 5000);

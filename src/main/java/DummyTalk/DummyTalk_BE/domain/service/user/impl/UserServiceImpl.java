@@ -122,10 +122,10 @@ public class UserServiceImpl implements UserService {
 
         try{
             mailSender.send(msg);
+            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime));
         } catch (RuntimeException e) {
             e.printStackTrace();
         }
-        emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime));
     }
 
     @Override

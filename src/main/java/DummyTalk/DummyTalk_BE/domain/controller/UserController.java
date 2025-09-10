@@ -20,13 +20,13 @@ public class UserController {
     @GetMapping ("/email-verification")
     public ResponseEntity<Object> sendVerificationEmail (@RequestParam String email) {
         userService.sendVerificationEmail(email);
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok("send OK");
     }
 
-    @PostMapping ()
+    @PostMapping ("/verify")
     public ResponseEntity<Object> verifyEmail (@RequestBody UserRequestDTO.VerificationRequestDTO requestDTO) {
         userService.verifyEmail(requestDTO);
-        return  ResponseEntity.ok(null);
+        return  ResponseEntity.ok("verify OK!");
     }
 
     @PostMapping("/sign-in")
