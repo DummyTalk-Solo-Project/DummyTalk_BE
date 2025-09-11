@@ -1,6 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.service.user;
 
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 
 public interface UserService {
 
@@ -10,5 +11,5 @@ public interface UserService {
 
     void signIn(UserRequestDTO.SignInRequestDTO request);
 
-    void login();
+    UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO);
 }

@@ -1,8 +1,11 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -36,9 +39,13 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Object> login (){
-        userService.login();
-        return ResponseEntity.ok(null);
+    public ResponseEntity<Object> login (@RequestBody UserRequestDTO.LoginRequestDTO requestDTO, HttpServletResponse response){
+        UserResponseDTO.LoginSuccessDTO responseDTO = userService.login(requestDTO);
+
+        response.addHeader("Authorization", "Bearer: " + responseDTO.getJwt());
+
+        // JWT 발급 메소드 호출은 어떻게?
+        return ResponseEntity.ok("LOGIN OK, Welcome " + responseDTO.getUsername() );
     }
 
     @PostMapping("/logout")

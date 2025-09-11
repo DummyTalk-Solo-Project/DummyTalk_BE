@@ -3,17 +3,23 @@ package DummyTalk.DummyTalk_BE.domain.service.user.impl;
 import DummyTalk.DummyTalk_BE.domain.converter.EmailConverter;
 import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.email.Email;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
+import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,6 +34,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final JavaMailSender mailSender;
+    private final AuthenticationManagerBuilder authenticationManagerBuilder;
+    private final JWTProvider jwtProvider;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
@@ -183,8 +191,23 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    public void login() {
-        return;
+    public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
+
+        Optional<User> loginUser = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword());
+        User user;
+        if (loginUser.isEmpty()){
+            throw new RuntimeException("cant find user!");
+        }
+
+        user = loginUser.get();
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword());
+
+        JwtToken jwtToken = jwtProvider.generateToken(authentication);
+
+        return UserResponseDTO.LoginSuccessDTO.builder()
+                .username(user.getUsername())
+                .jwt(jwtToken)
+                .build();
     }
 
     public static String generateVerificationCode() {
