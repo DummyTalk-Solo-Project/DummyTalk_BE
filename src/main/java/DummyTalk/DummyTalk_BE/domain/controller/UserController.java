@@ -31,7 +31,8 @@ public class UserController {
 
     @PostMapping("/sign-in")
     public ResponseEntity<Object> signIn (@RequestBody UserRequestDTO.SignInRequestDTO request){
-        return ResponseEntity.ok(null);
+        userService.signIn(request);
+        return ResponseEntity.ok("sign In OK!");
     }
 
     @PostMapping("/login")

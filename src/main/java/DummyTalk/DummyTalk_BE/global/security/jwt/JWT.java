@@ -4,8 +4,10 @@ import io.jsonwebtoken.Jwts;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -14,8 +16,11 @@ import java.util.Date;
 
 @Getter
 @Builder
+@Component
+@NoArgsConstructor
 @AllArgsConstructor
 public class JWT {
+
     private SecretKey secretKey;
 
     public JWT(@Value("${jwt.secret.key}") String secretKey) {
