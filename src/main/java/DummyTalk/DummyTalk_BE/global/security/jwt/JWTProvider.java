@@ -26,22 +26,21 @@ public class JWTProvider {
     private static final Long ACCESS_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;
     private static final Long REFRESH_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;
     private final Key key;
-    private final UserDetailsService userDetailsService;
 
 
-    public JWTProvider(@Value("${jwt.secret.key}") String key, UserDetailsService userDetailsService) {
+    public JWTProvider(@Value("${jwt.secret.key}") String key) {
         byte[] encodeKey = Base64.getEncoder().encode(key.getBytes());
         this.key = Keys.hmacShaKeyFor(encodeKey);
-
-        this.userDetailsService = userDetailsService;
     }
 
     // 사용자 정보를 통해 토큰 생성.
     public JwtToken generateToken(Authentication authentication) {
 
         String authorities = authentication.getAuthorities().stream()
-                .map(grantedAuthority -> grantedAuthority.getAuthority())
+                .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
+
+        log.info("generateToken.authorities: {}", authorities);
 
         String username = authentication.getName();
 
@@ -52,38 +51,32 @@ public class JWTProvider {
         String refreshToken = generateNewToken(username, null, refreshTokenExpire);
 
         return JwtToken.builder()
-                .grantType("Bearer")
+                .grantType("ROLE_USER")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
     }
 
-
-
     private String generateNewToken(String email, String authorities, Date expireDate) {
 
-        if (authorities == null) {
-            return Jwts.builder()
-                    .claim("username", email)
-                    .claim("role", "ROLE_USER")
-                    .expiration(expireDate)
-                    .signWith(key)
-                    .compact();
-        } else {
-            return Jwts.builder()
-                    .claim("username", email)
-                    .claim("role", "ROLE_USER")
-                    .claim("auth", authorities)
-                    .expiration(expireDate)
-                    .signWith(key)
-                    .compact();
-        }
+        String authClaim = authorities != null ? authorities : "ROLE_USER";
+
+        return Jwts.builder()
+                .claim("username", email)
+                .claim("role", "ROLE_USER")
+                .claim("auth", authClaim)
+                .expiration(expireDate)
+                .signWith(key)
+                .compact();
     }
 
     public Authentication getAuthentication(String accessToken) {
         Claims claims = parseClaims(accessToken);
 
-        if (claims.get("auth") == null) {
+        Object authClaimObject = claims.get("auth");
+        String authoritiesString = (authClaimObject != null) ? authClaimObject.toString() : "";
+
+        if (authoritiesString.isEmpty() || claims.get("auth") == null) {
             throw new RuntimeException("권한 정보가 없는 이상한 토큰입니다");
         }
 
@@ -93,18 +86,21 @@ public class JWTProvider {
 
         UserDetails principal = new User(claims.getSubject(), "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
-
     }
 
     private Claims parseClaims(String accessToken) {
         try {
-            return Jwts.parser()
+            Claims claims = Jwts.parser()
                     .verifyWith((SecretKey) this.key)
                     .build()
                     .parseSignedClaims(accessToken)
                     .getPayload();
-        } catch (ExpiredJwtException e) {
-            return e.getClaims();
+
+            log.info("claims! {}", claims.toString());
+            log.info("claims.getSubject: {}", claims.getSubject());
+            return claims;
+        } catch (Exception e) {
+            throw new RuntimeException("파싱이 잘못되었습니다");
         }
     }
 
@@ -114,7 +110,6 @@ public class JWTProvider {
                     .verifyWith((SecretKey) key)
                     .build()
                     .parseSignedClaims(token);
-
             return true;
         } catch (SecurityException | MalformedJwtException e) {
             log.info("Invalid JWT Token", e);

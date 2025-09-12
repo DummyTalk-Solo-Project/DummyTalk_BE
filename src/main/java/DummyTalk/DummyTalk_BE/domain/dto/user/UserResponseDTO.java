@@ -1,6 +1,5 @@
 package DummyTalk.DummyTalk_BE.domain.dto.user;
 
-import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,6 +13,6 @@ public class UserResponseDTO {
     @AllArgsConstructor
     public static class LoginSuccessDTO{
         private String username;
-        private JwtToken jwt;
+        private String accessToken;
     }
 }
