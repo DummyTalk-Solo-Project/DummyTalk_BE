@@ -84,7 +84,9 @@ public class JWTProvider {
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 
-        UserDetails principal = new User(claims.getSubject(), "", authorities);
+        String email = claims.get("username", String.class);
+
+        UserDetails principal = new User(email, "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
     }
 
