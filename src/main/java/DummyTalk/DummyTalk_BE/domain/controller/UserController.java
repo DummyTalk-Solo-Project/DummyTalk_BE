@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -60,8 +61,8 @@ public class UserController {
     }
 
     @GetMapping("/my-page")
-    public ResponseEntity<Object> mypage (@AuthenticationPrincipal User user){
-        return ResponseEntity.ok(user.getUsername());
+    public ResponseEntity<Object> mypage (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return ResponseEntity.ok(userDetails.getUser());
     }
 
     @PatchMapping("/withdrawal")
