@@ -23,10 +23,18 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         String accessToken = resolveToken(request);
+        log.info("Extracted Token: {}", accessToken);
 
         if(accessToken != null && jwtProvider.validateToken(accessToken)){
             Authentication authentication = jwtProvider.getAuthentication(accessToken);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (authentication != null) {
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.info("인증 정보 SecurityContextHolder에 저장 완료. User: {}", authentication.getName());
+            } else {
+                log.info("유효하지 않은 토큰입니다. 인증 정보를 저장하지 않습니다.");
+            }
+        } else {
+            log.info("요청 헤더에 유효한 JWT 토큰이 없습니다.");
         }
 
         filterChain.doFilter(request, response);
@@ -42,6 +50,4 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
         }
         return null;
     }
-
-
 }

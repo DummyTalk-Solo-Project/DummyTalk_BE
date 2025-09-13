@@ -40,9 +40,10 @@ public class JWTProvider {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
-        log.info("generateToken.authorities: {}", authorities);
 
         String username = authentication.getName();
+        log.info("generateToken.authorities: {}", authorities);
+        log.info ("generateToken.username: {}", username);
 
         long now = (new Date()).getTime();
         Date accessTokenExpire = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
@@ -86,6 +87,8 @@ public class JWTProvider {
 
         String email = claims.get("username", String.class);
 
+        log.info("email: {}", email);
+
         UserDetails principal = new User(email, "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, "", authorities);
     }
@@ -123,31 +126,5 @@ public class JWTProvider {
             log.info("JWT claims string is empty", e);
         }
         return false;
-    }
-
-    public String getUsernameFromToken(String token) {
-        try {
-            // 토큰 파싱해서 클레임 얻기
-            Claims claims = Jwts.parser()
-                    .verifyWith((SecretKey) key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-
-            // 사용자 이름(subject) 반환
-            return claims.getSubject();
-        } catch (ExpiredJwtException e) {
-            // 토큰이 만료되어도 클레임 내용을 가져올 수 있음
-            return e.getClaims().getSubject();
-        }
-    }
-
-    public void deleteRefreshToken(String username) {
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Username cannot be null or empty");
-        }
-
-        // 로그아웃 시 Redis에서 RefreshToken 삭제
-//        redisDao.deleteValues(username);
     }
 }
