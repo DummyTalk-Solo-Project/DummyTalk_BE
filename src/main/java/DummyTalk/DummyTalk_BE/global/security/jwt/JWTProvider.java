@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.security.jwt;
 
+import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetailsService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +26,15 @@ public class JWTProvider {
 
     private static final Long ACCESS_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;
     private static final Long REFRESH_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;
+
+    private final CustomUserDetailsService customUserDetailsService;
     private final Key key;
 
 
-    public JWTProvider(@Value("${jwt.secret.key}") String key) {
+    public JWTProvider(@Value("${jwt.secret.key}") String key, CustomUserDetailsService customUserDetailsService) {
         byte[] encodeKey = Base64.getEncoder().encode(key.getBytes());
         this.key = Keys.hmacShaKeyFor(encodeKey);
+        this.customUserDetailsService = customUserDetailsService;
     }
 
     // 사용자 정보를 통해 토큰 생성.
@@ -89,8 +93,8 @@ public class JWTProvider {
 
         log.info("email: {}", email);
 
-        UserDetails principal = new User(email, "", authorities);
-        return new UsernamePasswordAuthenticationToken(principal, "", authorities);
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+        return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }
 
     private Claims parseClaims(String accessToken) {
