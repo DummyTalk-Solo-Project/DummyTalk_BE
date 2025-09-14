@@ -1,11 +1,16 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,24 +25,29 @@ public class UserController {
     @GetMapping ("/email-verification")
     public ResponseEntity<Object> sendVerificationEmail (@RequestParam String email) {
         userService.sendVerificationEmail(email);
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok("send OK");
     }
 
-    @PostMapping ()
+    @PostMapping ("/verify")
     public ResponseEntity<Object> verifyEmail (@RequestBody UserRequestDTO.VerificationRequestDTO requestDTO) {
         userService.verifyEmail(requestDTO);
-        return  ResponseEntity.ok(null);
+        return  ResponseEntity.ok("verify OK!");
     }
 
     @PostMapping("/sign-in")
     public ResponseEntity<Object> signIn (@RequestBody UserRequestDTO.SignInRequestDTO request){
-        return ResponseEntity.ok(null);
+        userService.signIn(request);
+        return ResponseEntity.ok("sign In OK!");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Object> login (){
-        userService.login();
-        return ResponseEntity.ok(null);
+    public ResponseEntity<Object> login (@RequestBody UserRequestDTO.LoginRequestDTO requestDTO, HttpServletResponse response){
+        UserResponseDTO.LoginSuccessDTO responseDTO = userService.login(requestDTO);
+
+        response.addHeader("Authorization", "Bearer: " + responseDTO.getAccessToken());
+
+        // JWT 발급 메소드 호출은 어떻게?
+        return ResponseEntity.ok("LOGIN OK, Welcome " + responseDTO.getUsername() );
     }
 
     @PostMapping("/logout")
@@ -50,9 +60,9 @@ public class UserController {
         return ResponseEntity.ok(null);
     }
 
-    @GetMapping("/mypage")
-    public ResponseEntity<Object> mypage (){
-        return ResponseEntity.ok(null);
+    @GetMapping("/my-page")
+    public ResponseEntity<Object> mypage (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return ResponseEntity.ok(userDetails.getUser());
     }
 
     @PatchMapping("/withdrawal")
