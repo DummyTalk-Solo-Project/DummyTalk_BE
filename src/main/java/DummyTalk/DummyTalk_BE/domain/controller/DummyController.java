@@ -2,6 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "더미 API", description = "일반적인 잡지식을 보게 되는 단방향 대화 API 입니다")
 public class DummyController {
 
-    @GetMapping ("/get-dummy")
-    public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+    private final DummyService dummyService;
 
-        User user = userDetails.getUser();
+    @GetMapping ("/get-dummy")
+    public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails/*, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO*/) {
+
+
+        if (userDetails == null){
+            dummyService.getDummyDataForGuest(null);
+            return ResponseEntity.ok("게스트 사용자에 대한 AI 답변 완료");
+        }
+
+        dummyService.GetDummyDateForNormal(null, null);
         
         // 일반 요청인 경우
         

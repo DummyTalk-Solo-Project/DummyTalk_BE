@@ -30,7 +30,7 @@ public class SecurityConfig{
                 })
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests((auth) ->
-                        auth.requestMatchers("/api/users/login", "/api/users/logout", "/api/users/email-verification", "/api/users/verify","/api/users/sign-in", "/favicon.ico").permitAll()
+                        auth.requestMatchers("/api/dummies/**","/api/users/login", "/api/users/logout", "/api/users/email-verification", "/api/users/verify","/api/users/sign-in", "/favicon.ico").permitAll()
                                 .anyRequest().authenticated());
         return http.build();
 
