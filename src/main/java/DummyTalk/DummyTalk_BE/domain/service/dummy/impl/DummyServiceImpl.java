@@ -53,6 +53,10 @@ public class DummyServiceImpl implements DummyService {
 
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
+        if (user.getInfo().getReqCount() >= 10){
+            return "무료 이용 횟수를 모두 이용하셨네요. 다음을 기약해주세요 :)";
+        }
+
         String userContent, userInfo;
         boolean isUserContent = false;
         try {
