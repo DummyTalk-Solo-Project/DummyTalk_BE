@@ -24,24 +24,18 @@ public class DummyController {
     private final DummyService dummyService;
 
     @GetMapping ("/get-dummy")
-    public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails/*, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO*/) {
+    public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
+        // 판단하는 거 따로 짜자.
 
-        if (userDetails == null){
-            dummyService.getDummyDataForGuest(null);
-            return ResponseEntity.ok("게스트 사용자에 대한 AI 답변 완료");
-        }
-
-        dummyService.GetDummyDateForNormal(null, null);
-        
-        // 일반 요청인 경우
-        
-        // 개발자, 고급 요청인 경우
-        
-        // 악의적 접근인 경우
-
-        return ResponseEntity.ok("AI 메세지 삽입 예정");
+        String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
+        return ResponseEntity.ok(aiText);
     }
     
-    
+    private void getTypeOfUser (DummyRequestDTO.RequestInfoDTO requestInfoDTO){
+        DummyRequestDTO.RequestInfo reqInfo = requestInfoDTO.getRequestInfo();
+
+        String requestURL = reqInfo.getRequestURL();
+        Boolean isF12 = reqInfo.getIsF12();
+    }
 }

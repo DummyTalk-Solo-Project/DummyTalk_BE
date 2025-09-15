@@ -30,4 +30,8 @@ public class Info  extends CommonEntity {
     private String preReqCnt;
 
     private LocalDateTime subsExprDate;
+
+    public void updateReqCount(){
+        this.reqCount++;
+    }
 }

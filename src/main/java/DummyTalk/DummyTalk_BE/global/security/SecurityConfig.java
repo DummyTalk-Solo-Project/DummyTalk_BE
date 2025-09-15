@@ -29,8 +29,8 @@ public class SecurityConfig{
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
                 })
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests((auth) ->
-                        auth.requestMatchers("/api/dummies/**","/api/users/login", "/api/users/logout", "/api/users/email-verification", "/api/users/verify","/api/users/sign-in", "/favicon.ico").permitAll()
+                .authorizeHttpRequests((auth) -> // 일단 비사용자 기준 요청은 막기
+                        auth.requestMatchers(/*"/api/dummies/**",*/"/api/users/login", "/api/users/logout", "/api/users/email-verification", "/api/users/verify","/api/users/sign-in", "/favicon.ico").permitAll()
                                 .anyRequest().authenticated());
         return http.build();
 
