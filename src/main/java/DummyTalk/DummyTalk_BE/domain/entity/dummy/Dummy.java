@@ -20,6 +20,9 @@ public class Dummy extends CommonEntity {
 
     private Boolean isUserContent;
 
+    @Column(columnDefinition = "TEXT")
+    private String request;
+
     private String response;
 
     @ManyToOne (fetch = FetchType.LAZY)

@@ -49,6 +49,10 @@ public class DummyServiceImpl implements DummyService {
     @Transactional
     public String GetDummyDateForNormal(User reqUser, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
+        String userContent, userInfo, newRequest = null;
+        Random random = new Random();
+        boolean isUserContent = false;
+
         log.info("{}", reqUser.toString());
 
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
@@ -58,28 +62,26 @@ public class DummyServiceImpl implements DummyService {
             return "무료 이용 횟수를 모두 이용하셨네요. 다음을 기약해주세요 :)";
         }
 
-        String userContent, userInfo;
-        boolean isUserContent = false;
-        try {
-            userContent = mapper.writeValueAsString(requestInfoDTO);
-            userInfo = mapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
 
-            log.info("userContent: {}", userContent);
-            log.info("userInfo: {}", userInfo);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-
-        Random random = new Random();
         random.setSeed(System.currentTimeMillis());
 
-        if (random.nextInt(4) == 0){ // 20%의 확률로
+        if (random.nextInt(3) == 0){ // 20%의 확률로
+            try {
+                userContent = mapper.writeValueAsString(requestInfoDTO);
+                userInfo = mapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
+
+                log.info("userContent: {}", userContent);
+                log.info("userInfo: {}", userInfo);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+
             log.info("사용자의 정보를 사용합니다.");
             isUserContent = true;
-            content.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent);
+            newRequest = content.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
         }
 
-        ChatResponse resp = chatModel.call(new Prompt(content,
+        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? content:newRequest,
                 OpenAiChatOptions.builder()
                         .model(OpenAiApi.ChatModel.GPT_4_O)
                         .maxTokens(100)
@@ -88,13 +90,13 @@ public class DummyServiceImpl implements DummyService {
         Dummy newDummy = Dummy.builder()
                 .user(user)
                 .isUserContent(isUserContent)
+                .request(content)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
 
         user.getDummyList().add(newDummy);
         user.getInfo().updateReqCount();
-
 
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
