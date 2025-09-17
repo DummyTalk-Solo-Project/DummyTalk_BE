@@ -2,6 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,19 +21,21 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "더미 API", description = "일반적인 잡지식을 보게 되는 단방향 대화 API 입니다")
 public class DummyController {
 
+    private final DummyService dummyService;
+
     @GetMapping ("/get-dummy")
     public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
-        User user = userDetails.getUser();
-        
-        // 일반 요청인 경우
-        
-        // 개발자, 고급 요청인 경우
-        
-        // 악의적 접근인 경우
+        // 판단하는 거 따로 짜자.
 
-        return ResponseEntity.ok("AI 메세지 삽입 예정");
+        String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
+        return ResponseEntity.ok(aiText);
     }
     
-    
+    private void getTypeOfUser (DummyRequestDTO.RequestInfoDTO requestInfoDTO){
+        DummyRequestDTO.RequestInfo reqInfo = requestInfoDTO.getRequestInfo();
+
+        String requestURL = reqInfo.getRequestURL();
+        Boolean isF12 = reqInfo.getIsF12();
+    }
 }

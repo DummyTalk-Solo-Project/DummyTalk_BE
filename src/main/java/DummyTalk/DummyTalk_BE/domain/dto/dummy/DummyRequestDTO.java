@@ -22,7 +22,11 @@ public class DummyRequestDTO {
         private RequestInfo requestInfo;
     }
 
-    static class RequestInfo {
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RequestInfo {
         private String requestURL;
         private String requestTimeStamp;
         private Boolean isF12;

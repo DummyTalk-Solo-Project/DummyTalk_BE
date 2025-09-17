@@ -34,9 +34,8 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                 log.info("유효하지 않은 토큰입니다. 인증 정보를 저장하지 않습니다.");
             }
         } else {
-            log.info("요청 헤더에 유효한 JWT 토큰이 없습니다.");
+            log.info("요청 헤더에 유효한 JWT 토큰이 없습니다, 비로그인 사용자일 수   있습니다.");
         }
-
         filterChain.doFilter(request, response);
     }
 

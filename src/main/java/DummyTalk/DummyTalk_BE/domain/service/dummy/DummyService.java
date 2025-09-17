@@ -5,6 +5,8 @@ import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 
 public interface DummyService {
 
+    String getDummyDataForGuest (DummyRequestDTO.RequestInfoDTO requestInfoDTO);
+
     String GetDummyDateForNormal(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO);
 
     String GetDummyDateForAdvanced (User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO);

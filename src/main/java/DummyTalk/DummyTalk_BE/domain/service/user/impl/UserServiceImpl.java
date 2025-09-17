@@ -5,8 +5,10 @@ import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.email.Email;
+import DummyTalk.DummyTalk_BE.domain.entity.info.Info;
 import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
@@ -23,6 +25,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -44,6 +47,7 @@ public class UserServiceImpl implements UserService {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
     private final EmailRepository emailRepository;
+    private final InfoRepository infoRepository;
 
     @Override
     public void sendVerificationEmail(String email) {
@@ -188,9 +192,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void signIn(UserRequestDTO.SignInRequestDTO request) {
+
         User user = UserConverter.toNewUser(request);
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        Info info = Info.builder()
+                .user(savedUser)
+                .isSubscribe(false)
+                .reqCount(0)
+                .build();
+        Info savedInfo = infoRepository.save(info);
+        user.setInfo(savedInfo);
     }
 
 

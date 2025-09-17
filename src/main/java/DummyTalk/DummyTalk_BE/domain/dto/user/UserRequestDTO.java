@@ -1,5 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.dto.user;
 
+import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
+import DummyTalk.DummyTalk_BE.domain.entity.info.Info;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,5 +35,16 @@ public class UserRequestDTO {
     public static class LoginRequestDTO{
         private String email;
         private String password;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class AIRequestDTO{
+        private String email;
+        private String username;
+        private Login login;
+        private Info info;
     }
 }
