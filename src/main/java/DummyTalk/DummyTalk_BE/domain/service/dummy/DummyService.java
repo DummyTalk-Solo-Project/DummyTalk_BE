@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.entity.User;
 
 public interface DummyService {
 

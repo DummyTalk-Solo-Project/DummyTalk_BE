@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.dto.user;
 
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
-import DummyTalk.DummyTalk_BE.domain.entity.info.Info;
+import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

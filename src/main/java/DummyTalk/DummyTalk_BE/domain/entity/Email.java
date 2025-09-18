@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.entity.email;
+package DummyTalk.DummyTalk_BE.domain.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

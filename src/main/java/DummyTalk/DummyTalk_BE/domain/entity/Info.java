@@ -1,7 +1,6 @@
-package DummyTalk.DummyTalk_BE.domain.entity.info;
+package DummyTalk.DummyTalk_BE.domain.entity;
 
-import DummyTalk.DummyTalk_BE.domain.entity.CommonEntity;
-import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

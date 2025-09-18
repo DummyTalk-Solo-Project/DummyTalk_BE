@@ -1,7 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.user.User;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;

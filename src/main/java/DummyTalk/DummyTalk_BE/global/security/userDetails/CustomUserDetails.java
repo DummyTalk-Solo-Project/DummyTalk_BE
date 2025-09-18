@@ -1,6 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.security.userDetails;
 
-import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

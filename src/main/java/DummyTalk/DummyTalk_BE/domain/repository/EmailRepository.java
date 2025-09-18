@@ -1,6 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.repository;
 
-import DummyTalk.DummyTalk_BE.domain.entity.email.Email;
+import DummyTalk.DummyTalk_BE.domain.entity.Email;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
