@@ -20,6 +20,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User_Quiz extends CommonEntity {
+
     @Id
     private Long id;
 
@@ -30,6 +31,6 @@ public class User_Quiz extends CommonEntity {
     private User user;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "quiz_id")
     private Quiz quiz;
 }

@@ -4,6 +4,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.User_Quiz;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
@@ -32,5 +33,6 @@ public class Quiz extends CommonEntity {
     private LocalDateTime endTime;
 
     @OneToMany(mappedBy = "quiz")
+    @JsonManagedReference
     private ArrayList<User_Quiz> userQuizList;
 }

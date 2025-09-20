@@ -38,11 +38,9 @@ public class DummyServiceImpl implements DummyService {
             "2. 답변의 말투는 ~~요를 사용하여 친근하면서도 차갑지 않은 중립적의 말투를 사용할 것\n" +
             "3. 또한 사용자 데이터 사용 시 사용자를 아는 척 하지 말고, ";
 
-    @Override
-    public String getDummyDataForGuest(DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-        return "";
-    }
 
+    
+    ///  TODO 개느려, 성능 개선할 것
     @Override
     @Transactional
     public String GetDummyDateForNormal(User reqUser, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
@@ -101,14 +99,6 @@ public class DummyServiceImpl implements DummyService {
         return text;
     }
 
-    @Override
-    public String GetDummyDateForAdvanced(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-        return "";
-    }
 
-    @Override
-    public String GetDummyDateForDanger(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-        return "";
-    }
 
 }

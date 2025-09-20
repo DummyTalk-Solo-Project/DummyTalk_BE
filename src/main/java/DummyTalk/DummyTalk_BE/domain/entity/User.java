@@ -40,6 +40,7 @@ public class User extends CommonEntity {
     private List<Dummy> dummyList = new ArrayList<Dummy>();
 
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
     private List<User_Quiz> userQuizList = new ArrayList<>();
 
     @Override
