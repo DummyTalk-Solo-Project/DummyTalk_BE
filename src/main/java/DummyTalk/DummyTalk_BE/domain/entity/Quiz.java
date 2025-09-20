@@ -4,6 +4,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
+import DummyTalk.DummyTalk_BE.global.converter.StringListConverter;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -27,6 +28,7 @@ public class Quiz extends CommonEntity {
 
     private String title;
 
+    @Convert(converter =  StringListConverter.class)
     private List<String> answerList = new ArrayList<>();
 
     private Integer answer;
