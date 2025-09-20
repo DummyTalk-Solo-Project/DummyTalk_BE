@@ -2,6 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.User_Quiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
@@ -37,6 +38,9 @@ public class User extends CommonEntity {
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Dummy> dummyList = new ArrayList<Dummy>();
+
+    @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<User_Quiz> userQuizList = new ArrayList<>();
 
     @Override
     public String toString() {
