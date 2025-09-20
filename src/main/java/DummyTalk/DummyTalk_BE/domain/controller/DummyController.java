@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @RestController
@@ -33,7 +34,10 @@ public class DummyController {
     }
 
     @PostMapping("/open-quiz")
-    public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam (value = "date", required = true) @DateTimeFormat (pattern = "yyyy-MM-dd") Date date) {
+    public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
+                                       @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
+
+        dummyService.openQuiz(userDetails.getUser(), date);
 
         return ResponseEntity.ok("open Quiz Success!");
     }

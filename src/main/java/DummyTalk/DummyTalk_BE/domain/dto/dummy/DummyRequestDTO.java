@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Builder
 public class DummyRequestDTO {
 
@@ -30,6 +32,25 @@ public class DummyRequestDTO {
         private String requestURL;
         private String requestTimeStamp;
         private Boolean isF12;
+    }
+
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GetDummyQuizDTO {
+        private String model;
+        private List <Message> messages;
+        private Integer max_tokens;
+    }
+
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Message {
+        private String role;
+        private String content;
     }
 
 }

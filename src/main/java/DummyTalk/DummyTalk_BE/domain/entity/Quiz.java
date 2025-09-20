@@ -3,11 +3,9 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.User_Quiz;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,6 +13,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -23,8 +22,16 @@ import java.util.ArrayList;
 @AllArgsConstructor
 public class Quiz extends CommonEntity {
 
-    @Id
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private String title;
+
+    private List<String> answerList = new ArrayList<>();
+
+    private Integer answer;
+
+    private String description;
 
     private QuizStatus status;
 
@@ -34,5 +41,5 @@ public class Quiz extends CommonEntity {
 
     @OneToMany(mappedBy = "quiz")
     @JsonManagedReference
-    private ArrayList<User_Quiz> userQuizList;
+    private ArrayList<UserQuiz> userQuizList;
 }
