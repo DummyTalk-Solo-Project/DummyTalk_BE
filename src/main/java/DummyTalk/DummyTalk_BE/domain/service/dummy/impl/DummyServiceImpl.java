@@ -22,6 +22,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class DummyServiceImpl implements DummyService {
     private final OpenAiChatModel chatModel;
     private final ObjectMapper mapper;
     private final UserQuizRepository userQuizRepository;
+    private final RedisTemplate<Object, Object> redisTemplate;
 
     String content = "현 요청은 메타픽션 Spring 프로젝트에서 비회원 사용자가 잡상식을 구하는 요청이다. \n 사이트 컨셉은 계속해서 새로고침 하다가 보면 일정 확률로 사용자 기반 데이터를 가지고 잡상식을 요청하면서 메타픽션을 다루게 될 것.\n" +
             "사전 설정을 일단 잘 알아두고, 수많은 주제에 대한 랜덤의 잡상식을 요청한다. 응답 잡상식은 다음 사항을 무조건 따라야 한다.\n" +
@@ -146,6 +148,17 @@ public class DummyServiceImpl implements DummyService {
     @Override
     public void solveQuiz(User user, Integer answer) {
 
+        Quiz quiz = quizRepository.findLastestQuiz();
+
+        /// TODO 만든 퀴즈에 대해서는 빠른 접근을 통해 Redis화 할 것.
+
+        redisTemplate.opsForHash().put("quiz:"+quiz.getId(), "user:"+user.getId()+"answer", answer); // 퀴즈의 사용자 별 답안
+        redisTemplate.opsForHash().increment("quiz:"+quiz.getId(), "solutionCount", 1);
+        
+        // 제한도 있지만 일단 열어두기
+/*        if ((Integer)redisTemplate.opsForHash().get("quiz:"+quiz.getId(), "solutionCount") >= 3){
+            return;
+        }*/
     }
 
 }

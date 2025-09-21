@@ -172,7 +172,7 @@ public class UserServiceImpl implements UserService {
 
         try{
             mailSender.send(msg);
-            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime));
+            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
         } catch (RuntimeException e) {
             e.printStackTrace();
         }
