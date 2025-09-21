@@ -1,6 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.converter;
 
-import DummyTalk.DummyTalk_BE.domain.entity.email.Email;
+import DummyTalk.DummyTalk_BE.domain.entity.Email;
 
 import java.time.LocalDateTime;
 

@@ -2,8 +2,8 @@ package DummyTalk.DummyTalk_BE.domain.converter;
 
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
-import DummyTalk.DummyTalk_BE.domain.entity.info.Info;
-import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Info;
+import DummyTalk.DummyTalk_BE.domain.entity.User;
 
 public class UserConverter {
 

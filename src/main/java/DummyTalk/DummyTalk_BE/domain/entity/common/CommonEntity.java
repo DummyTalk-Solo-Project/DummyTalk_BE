@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.entity;
+package DummyTalk.DummyTalk_BE.domain.entity.common;
 
 
 import jakarta.persistence.EntityListeners;

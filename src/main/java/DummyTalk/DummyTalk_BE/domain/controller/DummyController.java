@@ -1,18 +1,19 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.user.User;
+import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.Date;
 
 @RestController
 @Slf4j
@@ -30,6 +31,15 @@ public class DummyController {
 
         String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
         return ResponseEntity.ok(aiText);
+    }
+
+    @PostMapping("/open-quiz")
+    public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
+                                       @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
+
+        dummyService.openQuiz(userDetails.getUser(), date);
+
+        return ResponseEntity.ok("open Quiz Success!");
     }
     
     private void getTypeOfUser (DummyRequestDTO.RequestInfoDTO requestInfoDTO){
