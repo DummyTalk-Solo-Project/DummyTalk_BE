@@ -37,4 +37,11 @@ public class DummyController {
         String requestURL = reqInfo.getRequestURL();
         Boolean isF12 = reqInfo.getIsF12();
     }
+
+    @GetMapping("/quiz")
+    public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+
+        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));
+
+    }
 }

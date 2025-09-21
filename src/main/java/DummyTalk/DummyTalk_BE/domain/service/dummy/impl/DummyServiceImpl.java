@@ -2,9 +2,15 @@ package DummyTalk.DummyTalk_BE.domain.service.dummy.impl;
 
 import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
+import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.User_Quiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -19,6 +25,8 @@ import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Random;
 
 
@@ -29,8 +37,10 @@ public class DummyServiceImpl implements DummyService {
 
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
+    private final QuizRepository quizRepository;
     private final OpenAiChatModel chatModel;
     private final ObjectMapper mapper;
+    private final UserQuizRepository userQuizRepository;
 
     String content = "현 요청은 메타픽션 Spring 프로젝트에서 비회원 사용자가 잡상식을 구하는 요청이다. \n 사이트 컨셉은 계속해서 새로고침 하다가 보면 일정 확률로 사용자 기반 데이터를 가지고 잡상식을 요청하면서 메타픽션을 다루게 될 것.\n" +
             "사전 설정을 일단 잘 알아두고, 수많은 주제에 대한 랜덤의 잡상식을 요청한다. 응답 잡상식은 다음 사항을 무조건 따라야 한다.\n" +
@@ -109,6 +119,31 @@ public class DummyServiceImpl implements DummyService {
     @Override
     public String GetDummyDateForDanger(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
         return "";
+    }
+
+    @Override
+    public DummyResponseDTO.GetQuizResponseDTO getQuiz(User user) {
+
+        Quiz quiz = quizRepository.findLastestQuiz();
+        if (quiz.getStatus().equals(QuizStatus.NOT_OPEN) || LocalDateTime.now().isBefore(quiz.getStartTime())){
+            // 아직 퀴즈가 열리지 않았습니다.
+            throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
+        }
+
+        else if (quiz.getStatus().equals(QuizStatus.CLOSE)){
+            // 사용자 별 이전 퀴즈 등수 확인
+            Optional<User_Quiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
+
+            if (userQuiz.isEmpty()) throw new RuntimeException("해당 사용자가 풀었던 문제가 없습니다.");
+
+//            return userQuiz.get().getUserGrade();
+        }
+
+            return DummyResponseDTO.GetQuizResponseDTO.builder()
+//                    .title(quiz.getTitle())
+//                    .answerList(quiz.getAnswerList())
+                    .build();
+
     }
 
 }
