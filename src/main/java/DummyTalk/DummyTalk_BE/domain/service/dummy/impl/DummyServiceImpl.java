@@ -162,8 +162,6 @@ public class DummyServiceImpl implements DummyService {
 
         log.info("responseDTO.toString(): {}", responseDTO);
 
-//        redisTemplate.opsForHash().put("quiz:" + quiz.getId(), "user:" + user.getId() + "answer", answer); // 퀴즈의 사용자 별 답안
-//        redisTemplate.opsForHash().increment("quiz:" + quiz.getId(), "solutionCount", 1);
 
         Quiz savedQuiz = quizRepository.save(Quiz.builder()
                 .startTime(openQuizDate)

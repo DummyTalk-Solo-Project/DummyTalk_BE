@@ -38,7 +38,7 @@ public class User extends CommonEntity {
 
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
-    private List<Dummy> dummyList = new ArrayList<Dummy>();
+    private List<Dummy> dummyList = new ArrayList<>();
 
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference

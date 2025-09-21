@@ -1,8 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.dto.quiz;
 
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.global.converter.StringListConverter;
-import jakarta.persistence.Convert;
+
 import lombok.*;
 
 import java.time.LocalDateTime;

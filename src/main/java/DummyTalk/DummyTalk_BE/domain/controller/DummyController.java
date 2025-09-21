@@ -1,7 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -56,7 +54,8 @@ public class DummyController {
     }
 
     @PostMapping("/quiz")
-    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long id,@RequestParam("answer") Integer answer){
-        return ResponseEntity.ok(dummyService.solveQuiz(userDetails.getUser(), answer));
+    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
+        dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
+        return ResponseEntity.ok("성공적으로 처리 완료!");
     }
 }
