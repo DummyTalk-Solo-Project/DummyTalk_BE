@@ -56,7 +56,7 @@ public class DummyController {
     }
 
     @PostMapping("/quiz")
-    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("answer") Integer answer){
+    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long id,@RequestParam("answer") Integer answer){
         return ResponseEntity.ok(dummyService.solveQuiz(userDetails.getUser(), answer));
     }
 }

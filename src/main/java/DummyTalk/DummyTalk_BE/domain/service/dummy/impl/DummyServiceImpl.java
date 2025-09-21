@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
@@ -32,10 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
@@ -163,24 +162,42 @@ public class DummyServiceImpl implements DummyService {
 
         log.info("responseDTO.toString(): {}", responseDTO);
 
-        quizRepository.save(Quiz.builder()
+//        redisTemplate.opsForHash().put("quiz:" + quiz.getId(), "user:" + user.getId() + "answer", answer); // 퀴즈의 사용자 별 답안
+//        redisTemplate.opsForHash().increment("quiz:" + quiz.getId(), "solutionCount", 1);
+
+        Quiz savedQuiz = quizRepository.save(Quiz.builder()
                 .startTime(openQuizDate)
                 .status(QuizStatus.OPEN)
                 .title(responseDTO.getTitle())
                 .answerList(responseDTO.getAnswerList())
                 .description(responseDTO.getDescription())
                 .answer(responseDTO.getAnswer())
+                .startTime(openQuizDate)
+                .endTime(openQuizDate.plusMinutes(3))
                 .build());
+
+        // 해당 해쉬 키에 대한 만료 시간 정하기!!!
+
+        Map<String, Object> quizData = new HashMap<>();
+        quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
+        quizData.put("title", savedQuiz.getTitle());
+        quizData.put("description", savedQuiz.getDescription());
+        quizData.put("answer", savedQuiz.getAnswer());
+        quizData.put("answerList", savedQuiz.getAnswerList());
+        quizData.put("startTime", savedQuiz.getStartTime().toString());
+        quizData.put("endTime", savedQuiz.getStartTime().plusMinutes(3).toString());// 최대 3분동안
+
+        redisTemplate.opsForHash().putAll("quiz", quizData);
+        redisTemplate.expire("quiz", 24, TimeUnit.HOURS); // 안전장치
     }
 
 
     @Override
     public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user) {
 
-        Quiz quiz = quizRepository.findLastestQuiz();
-        if (quiz.getStatus().equals(QuizStatus.NOT_OPEN) || LocalDateTime.now().isBefore(quiz.getStartTime())) {
-            throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
-        } else if (quiz.getStatus().equals(QuizStatus.CLOSE)) {
+        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+
+        if (quiz.isEmpty()) {
             // 사용자 별 이전 퀴즈 등수 확인
             Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
 
@@ -192,26 +209,38 @@ public class DummyServiceImpl implements DummyService {
                     .build();
         }
 
+        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz,  QuizResponseDTO.QuizRedisDTO.class);
+        dto.setAnswerList((List<String>) quiz.get("answerList"));
+
+        if (LocalDateTime.now().isBefore(dto.getStartTime())) {
+            throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
+        }
+
+        // QuizStatus.OPEN
         return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
-                .title(quiz.getTitle())
-                .answerList(quiz.getAnswerList())
+                .title(dto.getTitle())
+                .answerList(dto.getAnswerList())
                 .build();
     }
 
     @Override
-    public void solveQuiz(User user, Integer answer) {
+    public void solveQuiz(User user, Long quizId, Integer answer) {
 
-        Quiz quiz = quizRepository.findLastestQuiz();
+        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz,  QuizResponseDTO.QuizRedisDTO.class);
+        dto.setAnswerList((List<String>) quiz.get("answerList"));
 
-        /// TODO 만든 퀴즈에 대해서는 빠른 접근을 통해 Redis화 할 것.
+        /*if (status.equals(QuizStatus.NOT_OPEN)) {
+            throw new RuntimeException("아직 퀴즈가 열리지 않았습니다!");
+        }*/
 
-        redisTemplate.opsForHash().put("quiz:" + quiz.getId(), "user:" + user.getId() + "answer", answer); // 퀴즈의 사용자 별 답안
-        redisTemplate.opsForHash().increment("quiz:" + quiz.getId(), "solutionCount", 1);
+        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new RuntimeException("아직 퀴즈가 열리지 않았습니다!");
 
-        // 제한도 있지만 일단 열어두기
-/*        if ((Integer)redisTemplate.opsForHash().get("quiz:"+quiz.getId(), "solutionCount") >= 3){
+        /*if ((Integer) redisTemplate.opsForHash().get("quiz:" + quizId, "solutionCount") >= 3) {
             return;
         }*/
+
+        redisTemplate.opsForList().rightPush("quiz:answer",  user.getId()+ ":" + answer); // 따로 삭제 및 동기화 필요!!
     }
 
 }

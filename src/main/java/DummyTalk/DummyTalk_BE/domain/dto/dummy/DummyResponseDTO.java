@@ -32,6 +32,7 @@ public class DummyResponseDTO {
         private QuizStatus status;
         private Integer userGrade;
 
+        private Long quizId;
         private String title;
         private List<String> answerList = new ArrayList<>();
     }

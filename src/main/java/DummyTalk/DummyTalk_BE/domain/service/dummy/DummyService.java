@@ -14,6 +14,6 @@ public interface DummyService {
 
     DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user);
 
-    void solveQuiz(User user, Integer answer);
+    void solveQuiz(User user, Long quizId,Integer answer);
 
 }
