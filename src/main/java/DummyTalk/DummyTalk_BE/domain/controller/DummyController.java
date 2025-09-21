@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
@@ -41,11 +42,21 @@ public class DummyController {
 
         return ResponseEntity.ok("open Quiz Success!");
     }
-    
+
     private void getTypeOfUser (DummyRequestDTO.RequestInfoDTO requestInfoDTO){
         DummyRequestDTO.RequestInfo reqInfo = requestInfoDTO.getRequestInfo();
 
         String requestURL = reqInfo.getRequestURL();
         Boolean isF12 = reqInfo.getIsF12();
+    }
+
+    @GetMapping("/quiz")
+    public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));
+    }
+
+    @PostMapping("/quiz")
+    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("answer") Integer answer){
+        return ResponseEntity.ok(dummyService.solveQuiz(userDetails.getUser(), answer));
     }
 }

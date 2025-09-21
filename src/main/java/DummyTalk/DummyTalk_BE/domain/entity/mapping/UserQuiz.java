@@ -22,6 +22,8 @@ public class UserQuiz extends CommonEntity {
 
     private Integer userGrade;
 
+    private Integer answer;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
