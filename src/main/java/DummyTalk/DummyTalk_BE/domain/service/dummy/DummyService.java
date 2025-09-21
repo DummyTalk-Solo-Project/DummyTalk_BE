@@ -11,11 +11,8 @@ public interface DummyService {
     String GetDummyDateForNormal(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO);
 
     void openQuiz(User user, LocalDateTime openQuizDate);
-    String GetDummyDateForAdvanced (User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO);
 
-    String GetDummyDateForDanger(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO);
-
-    DummyResponseDTO.GetQuizResponseDTO getQuiz(User user);
+    DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user);
 
     void solveQuiz(User user, Integer answer);
 

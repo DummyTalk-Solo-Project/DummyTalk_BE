@@ -9,10 +9,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.User_Quiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
@@ -37,7 +34,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Random;
 
@@ -47,16 +43,14 @@ import java.util.Random;
 @RequiredArgsConstructor
 public class DummyServiceImpl implements DummyService {
 
-    private final QuizRepository quizRepository;
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
 
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
-    private final QuizRepository quizRepository;
     private final OpenAiChatModel chatModel;
     private final ObjectMapper objectMapper;
-    private final ObjectMapper mapper;
+    private final QuizRepository quizRepository;
     private final UserQuizRepository userQuizRepository;
     private final RedisTemplate<Object, Object> redisTemplate;
 
@@ -79,7 +73,7 @@ public class DummyServiceImpl implements DummyService {
 
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
-        if (user.getInfo().getReqCount() >= 10){
+        if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
             return "무료 이용 횟수를 모두 이용하셨네요. 다음을 기약해주세요 :)";
         }
@@ -87,7 +81,7 @@ public class DummyServiceImpl implements DummyService {
 
         random.setSeed(System.currentTimeMillis());
 
-        if (random.nextInt(3) == 0){ // 20%의 확률로
+        if (random.nextInt(3) == 0) { // 20%의 확률로
             try {
                 userContent = objectMapper.writeValueAsString(requestInfoDTO);
                 userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
@@ -103,7 +97,7 @@ public class DummyServiceImpl implements DummyService {
             newRequest = content.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
         }
 
-        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? content:newRequest,
+        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? content : newRequest,
                 OpenAiChatOptions.builder()
                         .model(OpenAiApi.ChatModel.GPT_4_O)
                         .maxTokens(100)
@@ -129,7 +123,7 @@ public class DummyServiceImpl implements DummyService {
     public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
-        if (!Objects.equals(user.getEmail(), "jijysun@naver.com")){
+        if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
             throw new RuntimeException("권한이 부족합니다.");
         }
 
@@ -142,7 +136,7 @@ public class DummyServiceImpl implements DummyService {
                                 "3. 답변 속의 문제와 4개의 보기는 title과 answerList, answer에 정확히 담을 것, 또한 ```json 등의 코드 블록 문자도 제거할 것, " +
                                 "4. 최소 70 글자 이상의 문제를 낼 것. 이 규칙을 제일 중요하게 여길 것. " +
                                 "5. 정답에 대한 설명을 간단하게 적고 description 에 담을 것, " +
-                        "이후 JSON은 Java class {String title, List<String> answerList, Integer answer} 로 파싱할 예정이니 형식을 엄수할 것")))
+                                "이후 JSON은 Java class {String title, List<String> answerList, Integer answer} 로 파싱할 예정이니 형식을 엄수할 것")))
                 .max_tokens(200)
                 .build();
 
@@ -158,11 +152,11 @@ public class DummyServiceImpl implements DummyService {
                 .retrieve()
                 .bodyToFlux(ChatCompletionResponseDTO.class)
                 .map(resp -> resp.getChoices().get(0).getMessage().getContent())
-                        .blockLast();
+                .blockLast();
 
-        DummyResponseDTO.GetDummyQuizResponseDTO responseDTO;
+        DummyResponseDTO.GetQuizFromAIResponseDTO responseDTO;
         try {
-            responseDTO = objectMapper.readValue(text, DummyResponseDTO.GetDummyQuizResponseDTO.class);
+            responseDTO = objectMapper.readValue(text, DummyResponseDTO.GetQuizFromAIResponseDTO.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("AI 퀴즈 파싱 도중 오류가 발생하였습니다!");
         }
@@ -177,28 +171,30 @@ public class DummyServiceImpl implements DummyService {
                 .description(responseDTO.getDescription())
                 .answer(responseDTO.getAnswer())
                 .build());
-
     }
-}
+
+
     @Override
-    public DummyResponseDTO.GetQuizResponseDTO getQuiz(User user) {
+    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user) {
 
         Quiz quiz = quizRepository.findLastestQuiz();
         if (quiz.getStatus().equals(QuizStatus.NOT_OPEN) || LocalDateTime.now().isBefore(quiz.getStartTime())) {
-            // 아직 퀴즈가 열리지 않았습니다.
             throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
         } else if (quiz.getStatus().equals(QuizStatus.CLOSE)) {
             // 사용자 별 이전 퀴즈 등수 확인
-            Optional<User_Quiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
+            Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
 
             if (userQuiz.isEmpty()) throw new RuntimeException("해당 사용자가 풀었던 문제가 없습니다.");
 
-//            return userQuiz.get().getUserGrade();
+            return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
+                    .status(QuizStatus.CLOSE)
+                    .userGrade(userQuiz.get().getUserGrade())
+                    .build();
         }
 
-        return DummyResponseDTO.GetQuizResponseDTO.builder()
-//                    .title(quiz.getTitle())
-//                    .answerList(quiz.getAnswerList())
+        return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
+                .title(quiz.getTitle())
+                .answerList(quiz.getAnswerList())
                 .build();
     }
 
@@ -209,8 +205,8 @@ public class DummyServiceImpl implements DummyService {
 
         /// TODO 만든 퀴즈에 대해서는 빠른 접근을 통해 Redis화 할 것.
 
-        redisTemplate.opsForHash().put("quiz:"+quiz.getId(), "user:"+user.getId()+"answer", answer); // 퀴즈의 사용자 별 답안
-        redisTemplate.opsForHash().increment("quiz:"+quiz.getId(), "solutionCount", 1);
+        redisTemplate.opsForHash().put("quiz:" + quiz.getId(), "user:" + user.getId() + "answer", answer); // 퀴즈의 사용자 별 답안
+        redisTemplate.opsForHash().increment("quiz:" + quiz.getId(), "solutionCount", 1);
 
         // 제한도 있지만 일단 열어두기
 /*        if ((Integer)redisTemplate.opsForHash().get("quiz:"+quiz.getId(), "solutionCount") >= 3){
