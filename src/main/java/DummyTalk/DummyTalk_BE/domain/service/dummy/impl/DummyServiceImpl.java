@@ -65,7 +65,7 @@ public class DummyServiceImpl implements DummyService {
 
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
-        if (user.getInfo().getReqCount() >= 10){
+        if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
             return "무료 이용 횟수를 모두 이용하셨네요. 다음을 기약해주세요 :)";
         }
@@ -73,7 +73,7 @@ public class DummyServiceImpl implements DummyService {
 
         random.setSeed(System.currentTimeMillis());
 
-        if (random.nextInt(3) == 0){ // 20%의 확률로
+        if (random.nextInt(3) == 0) { // 20%의 확률로
             try {
                 userContent = mapper.writeValueAsString(requestInfoDTO);
                 userInfo = mapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
@@ -89,7 +89,7 @@ public class DummyServiceImpl implements DummyService {
             newRequest = content.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
         }
 
-        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? content:newRequest,
+        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? content : newRequest,
                 OpenAiChatOptions.builder()
                         .model(OpenAiApi.ChatModel.GPT_4_O)
                         .maxTokens(100)
@@ -125,12 +125,10 @@ public class DummyServiceImpl implements DummyService {
     public DummyResponseDTO.GetQuizResponseDTO getQuiz(User user) {
 
         Quiz quiz = quizRepository.findLastestQuiz();
-        if (quiz.getStatus().equals(QuizStatus.NOT_OPEN) || LocalDateTime.now().isBefore(quiz.getStartTime())){
+        if (quiz.getStatus().equals(QuizStatus.NOT_OPEN) || LocalDateTime.now().isBefore(quiz.getStartTime())) {
             // 아직 퀴즈가 열리지 않았습니다.
             throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
-        }
-
-        else if (quiz.getStatus().equals(QuizStatus.CLOSE)){
+        } else if (quiz.getStatus().equals(QuizStatus.CLOSE)) {
             // 사용자 별 이전 퀴즈 등수 확인
             Optional<User_Quiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
 
@@ -139,10 +137,14 @@ public class DummyServiceImpl implements DummyService {
 //            return userQuiz.get().getUserGrade();
         }
 
-            return DummyResponseDTO.GetQuizResponseDTO.builder()
+        return DummyResponseDTO.GetQuizResponseDTO.builder()
 //                    .title(quiz.getTitle())
 //                    .answerList(quiz.getAnswerList())
-                    .build();
+                .build();
+    }
+
+    @Override
+    public void solveQuiz(User user, Integer answer) {
 
     }
 
