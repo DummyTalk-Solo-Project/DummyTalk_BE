@@ -15,6 +15,8 @@ import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -72,9 +74,8 @@ public class DummyServiceImpl implements DummyService {
 
         if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
-            return "무료 이용 횟수를 모두 이용하셨네요. 다음을 기약해주세요 :)";
+            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
         }
-
 
         random.setSeed(System.currentTimeMillis());
 
@@ -82,11 +83,8 @@ public class DummyServiceImpl implements DummyService {
             try {
                 userContent = objectMapper.writeValueAsString(requestInfoDTO);
                 userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
-
-                log.info("userContent: {}", userContent);
-                log.info("userInfo: {}", userInfo);
             } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+                throw new DummyHandler(ErrorCode.PARSING_ERROR);
             }
 
             log.info("사용자의 정보를 사용합니다.");
@@ -96,7 +94,7 @@ public class DummyServiceImpl implements DummyService {
 
         ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? content : newRequest,
                 OpenAiChatOptions.builder()
-                        .model(OpenAiApi.ChatModel.GPT_4_O)
+                        .model(OpenAiApi.ChatModel.GPT_4_O_MINI)
                         .maxTokens(100)
                         .build()));
 
@@ -121,7 +119,7 @@ public class DummyServiceImpl implements DummyService {
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
         if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
-            throw new RuntimeException("권한이 부족합니다.");
+            throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
         }
 
         DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
@@ -155,11 +153,10 @@ public class DummyServiceImpl implements DummyService {
         try {
             responseDTO = objectMapper.readValue(text, DummyResponseDTO.GetQuizFromAIResponseDTO.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("AI 퀴즈 파싱 도중 오류가 발생하였습니다!");
+            throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
         }
 
         log.info("responseDTO.toString(): {}", responseDTO);
-
 
         Quiz savedQuiz = quizRepository.save(Quiz.builder()
                 .startTime(openQuizDate)
@@ -172,8 +169,6 @@ public class DummyServiceImpl implements DummyService {
                 .endTime(openQuizDate.plusMinutes(3))
                 .build());
 
-        // 해당 해쉬 키에 대한 만료 시간 정하기!!!
-
         Map<String, Object> quizData = new HashMap<>();
         quizData.put("id", savedQuiz.getId());
         quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
@@ -185,7 +180,7 @@ public class DummyServiceImpl implements DummyService {
         quizData.put("endTime", savedQuiz.getStartTime().plusMinutes(3).toString());// 최대 3분동안
 
         redisTemplate.opsForHash().putAll("quiz", quizData);
-        redisTemplate.expire("quiz", 24, TimeUnit.HOURS); // 안전장치
+        redisTemplate.expire("quiz", 24, TimeUnit.HOURS); // 안전장치, 해당 해쉬 키에 대한 만료 시간 정하기!!!
     }
 
 
@@ -195,11 +190,10 @@ public class DummyServiceImpl implements DummyService {
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
 
         if (quiz.isEmpty()) {
-            // 사용자 별 이전 퀴즈 등수 확인
-            log.info("quiz is empty!");
+            log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
             Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
 
-            if (userQuiz.isEmpty()) throw new RuntimeException("해당 사용자가 풀었던 문제가 없습니다.");
+            if (userQuiz.isEmpty()) throw new DummyHandler(ErrorCode.NO_SOLVED_QUIZ);
 
             return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
                     .status(QuizStatus.CLOSE)
@@ -213,7 +207,7 @@ public class DummyServiceImpl implements DummyService {
         if (LocalDateTime.now().isBefore(dto.getStartTime())) {
             log.info("LocalDateTime.now(): {}", LocalDateTime.now());
             log.info("dto.getStartTime(): {}", dto.getStartTime());
-            throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
+            throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
         }
 
         // QuizStatus.OPEN
@@ -236,24 +230,26 @@ public class DummyServiceImpl implements DummyService {
 
         if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
             log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
-            throw new RuntimeException("옳지 않은 퀴즈 id 입니다");
+            throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (answer >= 5 || answer <= 0) {
-            throw new RuntimeException("옳지 않은 정답 값입니다");
+            throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null){
-            throw new RuntimeException("이미 답안을 제출하셨습니다~");
+            throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
         QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
+
+        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
+
         dto.setAnswerList((List<String>) quiz.get("answerList"));
 
         /*if (status.equals(QuizStatus.NOT_OPEN)) {
             throw new RuntimeException("아직 퀴즈가 열리지 않았습니다!");
         }*/
 
-        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new RuntimeException("아직 퀴즈가 열리지 않았습니다!");
 
         /*if ((Integer) redisTemplate.opsForHash().get("quiz:" + quizId, "solutionCount") >= 3) {
             return;
