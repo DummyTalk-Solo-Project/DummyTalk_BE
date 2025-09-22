@@ -15,6 +15,8 @@ public class QuizResponseDTO {
     @AllArgsConstructor
     public static class QuizRedisDTO {
 
+        private Long id;
+
         private QuizStatus status;
 
         private String title;

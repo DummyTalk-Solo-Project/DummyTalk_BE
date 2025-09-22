@@ -42,9 +42,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class DummyServiceImpl implements DummyService {
 
-    @Value("${spring.ai.openai.api-key}")
-    private String openAiKey;
-
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
     private final OpenAiChatModel chatModel;
@@ -52,12 +49,13 @@ public class DummyServiceImpl implements DummyService {
     private final QuizRepository quizRepository;
     private final UserQuizRepository userQuizRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-
     String content = "현 요청은 메타픽션 Spring 프로젝트에서 비회원 사용자가 잡상식을 구하는 요청이다. \n 사이트 컨셉은 계속해서 새로고침 하다가 보면 일정 확률로 사용자 기반 데이터를 가지고 잡상식을 요청하면서 메타픽션을 다루게 될 것.\n" +
             "사전 설정을 일단 잘 알아두고, 수많은 주제에 대한 랜덤의 잡상식을 요청한다. 응답 잡상식은 다음 사항을 무조건 따라야 한다.\n" +
             "1. 답변은 최소 90자 이상 120 글자 내로 답해야 한다, 또한 문장를 완벽하게 끝마무리 지어야 한다.\n" +
             "2. 답변의 말투는 ~~요를 사용하여 친근하면서도 차갑지 않은 중립적의 말투를 사용할 것\n" +
             "3. 또한 사용자 데이터 사용 시 사용자를 아는 척 하지 말고, ";
+    @Value("${spring.ai.openai.api-key}")
+    private String openAiKey;
 
     ///  TODO 개느려, 성능 개선할 것
     @Override
@@ -177,6 +175,7 @@ public class DummyServiceImpl implements DummyService {
         // 해당 해쉬 키에 대한 만료 시간 정하기!!!
 
         Map<String, Object> quizData = new HashMap<>();
+        quizData.put("id", savedQuiz.getId());
         quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
         quizData.put("title", savedQuiz.getTitle());
         quizData.put("description", savedQuiz.getDescription());
@@ -197,6 +196,7 @@ public class DummyServiceImpl implements DummyService {
 
         if (quiz.isEmpty()) {
             // 사용자 별 이전 퀴즈 등수 확인
+            log.info("quiz is empty!");
             Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
 
             if (userQuiz.isEmpty()) throw new RuntimeException("해당 사용자가 풀었던 문제가 없습니다.");
@@ -207,25 +207,46 @@ public class DummyServiceImpl implements DummyService {
                     .build();
         }
 
-        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz,  QuizResponseDTO.QuizRedisDTO.class);
+        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
         dto.setAnswerList((List<String>) quiz.get("answerList"));
 
         if (LocalDateTime.now().isBefore(dto.getStartTime())) {
+            log.info("LocalDateTime.now(): {}", LocalDateTime.now());
+            log.info("dto.getStartTime(): {}", dto.getStartTime());
             throw new RuntimeException("퀴즈가 아직 열리지 않았습니다.");
         }
 
         // QuizStatus.OPEN
+        log.info("return quiz!, {}, {}", dto.getTitle(), dto.getAnswerList());
         return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
+                .quizId(dto.getId())
                 .title(dto.getTitle())
                 .answerList(dto.getAnswerList())
                 .build();
     }
 
+
+    /**
+     * 문제 요청 로직 검사 추가!!!!
+     * quizId AND Answer 검사
+     *
+     */
     @Override
     public void solveQuiz(User user, Long quizId, Integer answer) {
 
+        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
+            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
+            throw new RuntimeException("옳지 않은 퀴즈 id 입니다");
+        }
+        if (answer >= 5 || answer <= 0) {
+            throw new RuntimeException("옳지 않은 정답 값입니다");
+        }
+        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null){
+            throw new RuntimeException("이미 답안을 제출하셨습니다~");
+        }
+
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
-        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz,  QuizResponseDTO.QuizRedisDTO.class);
+        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
         dto.setAnswerList((List<String>) quiz.get("answerList"));
 
         /*if (status.equals(QuizStatus.NOT_OPEN)) {
@@ -238,7 +259,8 @@ public class DummyServiceImpl implements DummyService {
             return;
         }*/
 
-        redisTemplate.opsForList().rightPush("quiz:answer",  user.getId()+ ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
     }
 
 }
