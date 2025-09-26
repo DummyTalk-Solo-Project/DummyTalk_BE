@@ -7,9 +7,18 @@ spring:
     url: jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
   sql:
     init:
       mode: never
+
+  batch:
+    jdbc:
+      initialize-schema: always
+
+    job:
+      enabled: true
+
 
   jpa:
     properties:
