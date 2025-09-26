@@ -246,15 +246,6 @@ public class DummyServiceImpl implements DummyService {
 
         dto.setAnswerList((List<String>) quiz.get("answerList"));
 
-        /*if (status.equals(QuizStatus.NOT_OPEN)) {
-            throw new RuntimeException("아직 퀴즈가 열리지 않았습니다!");
-        }*/
-
-
-        /*if ((Integer) redisTemplate.opsForHash().get("quiz:" + quizId, "solutionCount") >= 3) {
-            return;
-        }*/
-
         redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
     }
