@@ -55,4 +55,8 @@ public class User extends CommonEntity {
                 ", login=" + login +
                 '}';
     }
+
+    public void setLastLogin(LocalDateTime lastLogin) {
+        this.lastLogin = lastLogin;
+    }
 }

@@ -211,15 +211,14 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
+    @Transactional
     public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
 
-        Optional<User> loginUser = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword());
-        User user;
-        if (loginUser.isEmpty()){
-            throw new UserHandler(ErrorCode.CANT_FIND_USER);
-        }
 
-        user = loginUser.get();
+        User user = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+
+        user.setLastLogin(LocalDateTime.now());
+
         Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
         Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword(), authorities);
 
