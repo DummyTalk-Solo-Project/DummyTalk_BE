@@ -1,6 +1,5 @@
 package DummyTalk.DummyTalk_BE.global.batch;
 
-import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +29,6 @@ public class BatchConfig {
     private final EntityManagerFactory emf;
     private final JobRepository jobRepository;
     private final PlatformTransactionManager  transactionManager;
-
 
     @Bean
     public Job resetCountJob(){
