@@ -1,3 +1,4 @@
+# Spring Batch MetaData Table Init SQL
 
 CREATE TABLE BATCH_JOB_INSTANCE  (
                                      JOB_INSTANCE_ID BIGINT  NOT NULL PRIMARY KEY ,
