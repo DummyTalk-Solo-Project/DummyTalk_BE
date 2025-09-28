@@ -43,7 +43,6 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final JavaMailSender mailSender;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final JWTProvider jwtProvider;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

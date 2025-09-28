@@ -41,13 +41,6 @@ public class DummyController {
         return ResponseEntity.ok("open Quiz Success!");
     }
 
-    private void getTypeOfUser (DummyRequestDTO.RequestInfoDTO requestInfoDTO){
-        DummyRequestDTO.RequestInfo reqInfo = requestInfoDTO.getRequestInfo();
-
-        String requestURL = reqInfo.getRequestURL();
-        Boolean isF12 = reqInfo.getIsF12();
-    }
-
     @GetMapping("/quiz")
     public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
         return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));

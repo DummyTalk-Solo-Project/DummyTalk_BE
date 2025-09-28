@@ -7,19 +7,6 @@ spring:
     url: jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-
-  sql:
-    init:
-      mode: never
-
-  batch:
-    jdbc:
-      initialize-schema: always
-
-    job:
-      enabled: true
-
-
   jpa:
     properties:
       hibernate:
@@ -30,13 +17,21 @@ spring:
         hbm2ddl:
           auto: update
         default_batch_fetch_size: 1000
+  sql:
+    init:
+      mode: never
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: true
 
   mail:
     host: ${MAIL_SENDER_HOST}
     port: 587
     username: ${MAIL_SENDER_USERNAME}
     password: ${MAIL_SENDER_PASSWORD}
-
     properties:
       mail:
         smtp:
