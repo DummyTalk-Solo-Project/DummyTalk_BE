@@ -11,6 +11,8 @@ import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
 import jakarta.mail.MessagingException;
@@ -41,7 +43,6 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final JavaMailSender mailSender;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final JWTProvider jwtProvider;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -167,14 +168,14 @@ public class UserServiceImpl implements UserService {
                     "</html>", true);
             helper.setReplyTo("no-reply@mail.com");
         } catch (MessagingException e) {
-            throw new RuntimeException(e);
+            throw new UserHandler(ErrorCode.CANT_MAKE_EMAIL);
         }
 
         try{
             mailSender.send(msg);
-            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime));
+            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
         } catch (RuntimeException e) {
-            e.printStackTrace();
+            throw new UserHandler(ErrorCode.CANT_SEND_EMAIL);
         }
     }
 
@@ -183,11 +184,11 @@ public class UserServiceImpl implements UserService {
         Optional<Email> verification = emailRepository.findByEmailAndCode(requestDTO.getEmail(), requestDTO.getCode());
 
         if (verification.isEmpty()) {
-            throw new RuntimeException("잘못된 이메일 인증입니다.");
+            throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
         long hourDiff = ChronoUnit.HOURS.between(LocalDateTime.now(), verification.get().getExpireTime());
         if (hourDiff >= 24) {
-            throw new RuntimeException("메세지가 만료되었습니다");
+            throw new UserHandler(ErrorCode.EMAIL_EXPIRED);
         }
     }
 
@@ -209,15 +210,14 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
+    @Transactional
     public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
 
-        Optional<User> loginUser = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword());
-        User user;
-        if (loginUser.isEmpty()){
-            throw new RuntimeException("cant find user!");
-        }
 
-        user = loginUser.get();
+        User user = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+
+        user.setLastLogin(LocalDateTime.now());
+
         Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
         Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword(), authorities);
 

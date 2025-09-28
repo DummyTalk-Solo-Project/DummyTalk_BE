@@ -37,4 +37,8 @@ public class Info  extends CommonEntity {
     public void updateReqCount(){
         this.reqCount++;
     }
+
+    public void resetReqCount(){
+        this.reqCount = 0;
+    }
 }

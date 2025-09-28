@@ -11,10 +11,6 @@ import java.util.List;
 @Builder
 public class DummyRequestDTO {
 
-    public static class GetDummyData{
-        private String msg;
-    }
-
     @Builder
     @Getter
     @NoArgsConstructor

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +31,7 @@ public class User extends CommonEntity {
 
     private Login login;
 
+    private LocalDateTime lastLogin;
 
     @Setter
     @OneToOne (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
@@ -38,7 +40,7 @@ public class User extends CommonEntity {
 
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
-    private List<Dummy> dummyList = new ArrayList<Dummy>();
+    private List<Dummy> dummyList = new ArrayList<>();
 
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
@@ -54,4 +56,7 @@ public class User extends CommonEntity {
                 '}';
     }
 
+    public void setLastLogin(LocalDateTime lastLogin) {
+        this.lastLogin = lastLogin;
+    }
 }

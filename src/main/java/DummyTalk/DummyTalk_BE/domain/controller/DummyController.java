@@ -1,7 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,7 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Date;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
@@ -41,11 +40,15 @@ public class DummyController {
 
         return ResponseEntity.ok("open Quiz Success!");
     }
-    
-    private void getTypeOfUser (DummyRequestDTO.RequestInfoDTO requestInfoDTO){
-        DummyRequestDTO.RequestInfo reqInfo = requestInfoDTO.getRequestInfo();
 
-        String requestURL = reqInfo.getRequestURL();
-        Boolean isF12 = reqInfo.getIsF12();
+    @GetMapping("/quiz")
+    public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));
+    }
+
+    @PostMapping("/quiz")
+    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
+        dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
+        return ResponseEntity.ok("성공적으로 처리 완료!");
     }
 }
