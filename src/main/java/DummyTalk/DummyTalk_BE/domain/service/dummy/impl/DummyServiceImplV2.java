@@ -8,6 +8,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
@@ -27,9 +28,9 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -38,16 +39,13 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_DUMMY_PROMPT;
-import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_QUIZ_PROMPT;
-
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DummyServiceImpl implements DummyService {
+public class DummyServiceImplV2 implements DummyService {
 
-    // 1. 기본 Redis 인메모리 활용을 통한 동시성 테스트
+    // 2. 퀴즈 조회 로직 -> Redis 캐싱을 통한 빠른 조회 도입
 
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
@@ -90,10 +88,10 @@ public class DummyServiceImpl implements DummyService {
 
             log.info("사용자의 정보를 사용합니다.");
             isUserContent = true;
-            newRequest = GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
+            newRequest = AIPrompt.GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
         }
 
-        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? GET_DUMMY_PROMPT : newRequest,
+        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? AIPrompt.GET_DUMMY_PROMPT : newRequest,
                 OpenAiChatOptions.builder()
                         .model(OpenAiApi.ChatModel.GPT_4_O_MINI)
                         .maxTokens(100)
@@ -102,7 +100,7 @@ public class DummyServiceImpl implements DummyService {
         Dummy newDummy = Dummy.builder()
                 .user(user)
                 .isUserContent(isUserContent)
-                .request(GET_DUMMY_PROMPT)
+                .request(AIPrompt.GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
@@ -115,6 +113,13 @@ public class DummyServiceImpl implements DummyService {
         return text;
     }
 
+
+    /**
+     * 퀴즈를 만든 후 Redis 저장 및 캐시화
+     * @param reqUser
+     * @param openQuizDate
+     */
+
     @Override
     public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
@@ -126,7 +131,7 @@ public class DummyServiceImpl implements DummyService {
         DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(new DummyRequestDTO.Message("user",
-                        GET_QUIZ_PROMPT)))
+                        AIPrompt.GET_QUIZ_PROMPT)))
                 .max_tokens(200)
                 .build();
 

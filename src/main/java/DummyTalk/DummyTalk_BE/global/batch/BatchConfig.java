@@ -28,10 +28,10 @@ public class BatchConfig {
 
     private final EntityManagerFactory emf;
     private final JobRepository jobRepository;
-    private final PlatformTransactionManager  transactionManager;
+    private final PlatformTransactionManager transactionManager;
 
     @Bean
-    public Job resetCountJob(){
+    public Job resetCountJob() {
         return new JobBuilder("resetCountJob", jobRepository)
                 .start(userDataStep())
                 .build();
@@ -48,7 +48,7 @@ public class BatchConfig {
     }
 
     @Bean
-    public JpaPagingItemReader<User> userDataReader(){
+    public JpaPagingItemReader<User> userDataReader() {
         return new JpaPagingItemReaderBuilder<User>()
                 .name("userDataReader")
                 .entityManagerFactory(emf)
@@ -58,11 +58,11 @@ public class BatchConfig {
     }
 
     @Bean
-    public ItemProcessor<User, User> userDataProcessor(){
+    public ItemProcessor<User, User> userDataProcessor() {
         return user -> {
             user.getInfo().resetReqCount();
 
-            if (ChronoUnit.DAYS.between(user.getLastLogin(), LocalDateTime.now()) >= 5){
+            if (ChronoUnit.DAYS.between(user.getLastLogin(), LocalDateTime.now()) >= 5) {
                 // 메세지 발송 로직
             }
             return user;
@@ -70,7 +70,7 @@ public class BatchConfig {
     }
 
     @Bean
-    public JpaItemWriter<User> userDataWriter(){
+    public JpaItemWriter<User> userDataWriter() {
         return new JpaItemWriterBuilder<User>()
                 .entityManagerFactory(emf)
                 .build();

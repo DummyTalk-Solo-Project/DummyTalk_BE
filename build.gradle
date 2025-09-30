@@ -23,29 +23,35 @@ ext {
 }
 
 dependencies {
+    // Spring Framework
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-batch' // Spring Batch!
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai' // 0922 기준 안쓰고 있음, 모델 낮추면 좀 될지도..?
 
-	implementation 'org.springframework.ai:spring-ai-starter-model-openai' // 0922 기준 안쓰고 있음, 모델 낮추면 좀 될지도..?
-
+    // jwt
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5' // 또는 최신 버전
     implementation 'io.jsonwebtoken:jjwt-impl:0.12.5' // 또는 최신 버전
     implementation 'io.jsonwebtoken:jjwt-jackson:0.12.5' // 또는 최신 버전 (Jackson JSON 파서)
 
+    // lombok
     implementation 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.batch:spring-batch-test'
     annotationProcessor 'org.projectlombok:lombok'
-    runtimeOnly 'com.mysql:mysql-connector-j'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // Spring test
+    testImplementation 'org.springframework.batch:spring-batch-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-    testCompileOnly 'org.projectlombok:lombok'
-    testAnnotationProcessor 'org.projectlombok:lombok'
+    // mysql
+    runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
 dependencyManagement {
