@@ -44,6 +44,8 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class DummyServiceImpl implements DummyService {
 
+    // 1. 기본 Redis 인메모리 활용을 통한 동시성 테스트
+
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
     private final OpenAiChatModel chatModel;
@@ -51,7 +53,7 @@ public class DummyServiceImpl implements DummyService {
     private final QuizRepository quizRepository;
     private final UserQuizRepository userQuizRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    String content = "현 요청은 메타픽션 Spring 프로젝트에서 비회원 사용자가 잡상식을 구하는 요청이다. \n 사이트 컨셉은 계속해서 새로고침 하다가 보면 일정 확률로 사용자 기반 데이터를 가지고 잡상식을 요청하면서 메타픽션을 다루게 될 것.\n" +
+    private String content = "현 요청은 메타픽션 Spring 프로젝트에서 비회원 사용자가 잡상식을 구하는 요청이다. \n 사이트 컨셉은 계속해서 새로고침 하다가 보면 일정 확률로 사용자 기반 데이터를 가지고 잡상식을 요청하면서 메타픽션을 다루게 될 것.\n" +
             "사전 설정을 일단 잘 알아두고, 수많은 주제에 대한 랜덤의 잡상식을 요청한다. 응답 잡상식은 다음 사항을 무조건 따라야 한다.\n" +
             "1. 답변은 최소 90자 이상 120 글자 내로 답해야 한다, 또한 문장를 완벽하게 끝마무리 지어야 한다.\n" +
             "2. 답변의 말투는 ~~요를 사용하여 친근하면서도 차갑지 않은 중립적의 말투를 사용할 것\n" +
@@ -220,11 +222,6 @@ public class DummyServiceImpl implements DummyService {
     }
 
 
-    /**
-     * 문제 요청 로직 검사 추가!!!!
-     * quizId AND Answer 검사
-     *
-     */
     @Override
     public void solveQuiz(User user, Long quizId, Integer answer) {
 
@@ -235,7 +232,7 @@ public class DummyServiceImpl implements DummyService {
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null){
+        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
