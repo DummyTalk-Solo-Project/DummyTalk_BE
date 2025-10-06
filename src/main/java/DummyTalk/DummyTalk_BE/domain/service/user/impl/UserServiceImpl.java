@@ -9,6 +9,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.InfoRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
@@ -49,6 +50,7 @@ public class UserServiceImpl implements UserService {
     private static final int CODE_LENGTH = 4;
     private final EmailRepository emailRepository;
     private final InfoRepository infoRepository;
+    private final UserQuizRepository userQuizRepository;
 
     @Override
     public void sendVerificationEmail(String email) {
@@ -240,5 +242,16 @@ public class UserServiceImpl implements UserService {
         }
 
         return code.toString();
+    }
+
+    @Override
+    @Transactional
+    public void withdraw(String email) {
+
+        // User와 관계된 엔티티 먼저 제거
+        userQuizRepository.deleteByEmail(email);
+        infoRepository.deleteByEmail(email);
+
+        userRepository.deleteByEmail(email); // HARD DELETE!
     }
 }
