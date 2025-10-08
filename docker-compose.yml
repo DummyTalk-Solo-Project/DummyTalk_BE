@@ -26,9 +26,29 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-        # 배치 테이블 초기화 스크립트 마운트 (옵션)
+      # 배치 테이블 초기화 스크립트 마운트 (옵션)
       - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
+  prometheus: # Prometheus 서비스 추가
+    image: prom/prometheus:latest
+    container_name: DummyTalk_Prometheus
+    ports:
+      - "9090:9090" # EC2 외부에서 접근할 포트
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml # 설정 파일 마운트
+    command: --config.file=/etc/prometheus/prometheus.yml
+
+  grafana: # Grafana 서비스 추가
+    image: grafana/grafana:latest
+    container_name: DummyTalk_Grafana
+    ports:
+      - "3000:3000" # EC2 외부에서 접근할 포트
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus # Prometheus에 의존성 추가
+
 volumes:
   mysql_data: # 데이터 영속성을 위한 볼륨 정의
+  grafana_data: # Grafana 데이터 영속성을 위한 볼륨 정의
