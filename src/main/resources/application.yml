@@ -7,10 +7,6 @@ spring:
     url: jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-  sql:
-    init:
-      mode: never
-
   jpa:
     properties:
       hibernate:
@@ -21,11 +17,49 @@ spring:
         hbm2ddl:
           auto: update
         default_batch_fetch_size: 1000
+  sql:
+    init:
+      mode: never
+
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: true
+
+  mail:
+    host: ${MAIL_SENDER_HOST}
+    port: 587
+    username: ${MAIL_SENDER_USERNAME}
+    password: ${MAIL_SENDER_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+      auth-code-expiration-millis: 300000
 
   ai:
     openai:
       api-key: ${OPENAI_KEY}
       chat:
         options:
-          model: gpt-3.5 turbo
+          model: gpt-4o
           temperature: 0.7
+
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY}
+
+management:
+  endpoint:
+    # 1. Prometheus 엔드포인트 자체를 활성화합니다. (Spring Boot 3.x 권장 방식)
+    prometheus:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        # 2. 웹을 통해 노출할 Actuator 엔드포인트를 지정합니다.
+        include: health, info, prometheus
