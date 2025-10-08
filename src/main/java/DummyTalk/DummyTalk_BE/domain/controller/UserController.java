@@ -65,7 +65,8 @@ public class UserController {
     }
 
     @PatchMapping("/withdrawal")
-    public ResponseEntity<Object> withdrawal (){
+    public ResponseEntity<Object> withdrawal (@AuthenticationPrincipal CustomUserDetails userDetails){
+        userService.withdraw(userDetails.getUser().getEmail());
         return ResponseEntity.ok(null);
     }
 }

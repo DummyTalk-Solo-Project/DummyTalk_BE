@@ -69,7 +69,7 @@ public class DummyServiceImplV2 implements DummyService {
 
         log.info("{}", reqUser.toString());
 
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+        User user = userRepository.findByEmailFetchInfoWithLock(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
         if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());

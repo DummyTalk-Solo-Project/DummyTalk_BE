@@ -12,4 +12,6 @@ public interface UserService {
     void signIn(UserRequestDTO.SignInRequestDTO request);
 
     UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO);
+
+    void withdraw (String email);
 }

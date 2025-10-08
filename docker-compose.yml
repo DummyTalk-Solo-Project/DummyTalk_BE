@@ -7,7 +7,28 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=${DB_HOST}
+      - DB_HOST=mysql-db
       - DB_NAME=${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      - mysql-db
+
+  mysql-db:
+    image: mysql:8.0
+    container_name: DummyTalk_MySQL
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+        # 배치 테이블 초기화 스크립트 마운트 (옵션)
+      - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+volumes:
+  mysql_data: # 데이터 영속성을 위한 볼륨 정의
