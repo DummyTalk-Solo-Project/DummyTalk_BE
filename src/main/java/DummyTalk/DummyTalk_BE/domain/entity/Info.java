@@ -23,8 +23,9 @@ public class Info  extends CommonEntity {
 
     @OneToOne
     @JoinColumn(name = "user_id")
-    @JsonBackReference
     private User user;
+
+    //    @JsonBackReference
 
     private Integer reqCount;
 

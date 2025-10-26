@@ -43,7 +43,6 @@ jobs:
             
             sudo docker-compose down || true
 
-#           이름 고정
             echo "DB_HOST=mysql-db" > .env 
             echo "DB_NAME=${{secrets.DB_NAME}}" >> .env
             echo "DB_USERNAME=${{secrets.DB_USERNAME}}" >> .env

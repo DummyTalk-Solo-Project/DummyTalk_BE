@@ -3,6 +3,8 @@ package DummyTalk.DummyTalk_BE.domain.service.user;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 
+import java.util.List;
+
 public interface UserService {
 
     void sendVerificationEmail(String email);
@@ -14,4 +16,6 @@ public interface UserService {
     UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO);
 
     void withdraw (String email);
+
+    List<UserResponseDTO.GetUserResponseDTO> getAllData();
 }

@@ -4,9 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.converter.EmailConverter;
 import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.Email;
-import DummyTalk.DummyTalk_BE.domain.entity.Info;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
@@ -16,6 +14,8 @@ import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
+import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -32,10 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -51,6 +48,8 @@ public class UserServiceImpl implements UserService {
     private final EmailRepository emailRepository;
     private final InfoRepository infoRepository;
     private final UserQuizRepository userQuizRepository;
+
+    private final JPAQueryFactory queryFactory;
 
     @Override
     public void sendVerificationEmail(String email) {
@@ -156,7 +155,7 @@ public class UserServiceImpl implements UserService {
                     "    <div class=\"content\">\n" +
                     "        <p>안녕하세요, 더미톡입니다. 이메일 주소 인증을 위해 아래 코드를 사용해 주세요.</p>\n" +
                     "        <div class=\"verification-code-container\">\n" +
-                    "            <span class=\"verification-code\">  "+code+"  </span>\n" +
+                    "            <span class=\"verification-code\">  " + code + "  </span>\n" +
                     "        </div>\n" +
                     "        <p>이 코드는 10분 동안 유효합니다.</p>\n" +
                     "        <p class=\"instruction\">코드를 복사하여 앱에 붙여넣어 주세요.</p>\n" +
@@ -173,7 +172,7 @@ public class UserServiceImpl implements UserService {
             throw new UserHandler(ErrorCode.CANT_MAKE_EMAIL);
         }
 
-        try{
+        try {
             mailSender.send(msg);
             emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
         } catch (RuntimeException e) {
@@ -253,5 +252,36 @@ public class UserServiceImpl implements UserService {
         infoRepository.deleteByEmail(email);
 
         userRepository.deleteByEmail(email); // HARD DELETE!
+    }
+
+
+    public List<UserResponseDTO.GetUserResponseDTO> getAllData() {
+        List<UserResponseDTO.GetUserResponseDTO> dtoList = new ArrayList<>();
+        userRepository.findAll().forEach(user ->
+        dtoList.add(UserResponseDTO.GetUserResponseDTO.builder()
+                .email(user.getEmail())
+                .username(user.getUsername())
+                .reqCount(user.getInfo().getReqCount())
+                .isSubscribe(user.getInfo().getIsSubscribe())
+                .subsExprDate(user.getInfo().getSubsExprDate())
+                .build())
+        );
+        return dtoList;
+
+        /*QUser user = QUser.user;
+        QInfo info = QInfo.info;
+
+        return queryFactory
+                .select(Projections.constructor(
+                        UserResponseDTO.GetUserResponseDTO.class,
+                        user.email,
+                        user.username,
+                        info.reqCount,
+                        info.isSubscribe,
+                        info.subsExprDate
+                ))
+                .from(user)
+                .leftJoin(user.info, info)
+                .fetch();*/
     }
 }

@@ -43,7 +43,7 @@ import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_QUIZ_PR
 
 
 @Slf4j
-@Service
+//@Service
 @RequiredArgsConstructor
 public class DummyServiceImpl implements DummyService {
 
