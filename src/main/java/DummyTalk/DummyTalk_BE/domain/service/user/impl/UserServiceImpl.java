@@ -14,8 +14,6 @@ import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
-import com.querydsl.core.types.Projections;
-import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +47,6 @@ public class UserServiceImpl implements UserService {
     private final InfoRepository infoRepository;
     private final UserQuizRepository userQuizRepository;
 
-    private final JPAQueryFactory queryFactory;
 
     @Override
     public void sendVerificationEmail(String email) {
@@ -257,7 +254,7 @@ public class UserServiceImpl implements UserService {
 
     public List<UserResponseDTO.GetUserResponseDTO> getAllData() {
         List<UserResponseDTO.GetUserResponseDTO> dtoList = new ArrayList<>();
-        userRepository.findAll().forEach(user ->
+        userRepository.findAllJoinFetchInfo().forEach(user ->
         dtoList.add(UserResponseDTO.GetUserResponseDTO.builder()
                 .email(user.getEmail())
                 .username(user.getUsername())
@@ -266,22 +263,8 @@ public class UserServiceImpl implements UserService {
                 .subsExprDate(user.getInfo().getSubsExprDate())
                 .build())
         );
+
+        log.info("data count : {}",  dtoList.size());
         return dtoList;
-
-        /*QUser user = QUser.user;
-        QInfo info = QInfo.info;
-
-        return queryFactory
-                .select(Projections.constructor(
-                        UserResponseDTO.GetUserResponseDTO.class,
-                        user.email,
-                        user.username,
-                        info.reqCount,
-                        info.isSubscribe,
-                        info.subsExprDate
-                ))
-                .from(user)
-                .leftJoin(user.info, info)
-                .fetch();*/
     }
 }
