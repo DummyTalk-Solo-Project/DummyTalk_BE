@@ -16,6 +16,7 @@ services:
     depends_on:
       - mysql-db
       - redis-cache
+    restart: always
 
   mysql-db:
     image: mysql:8.0
@@ -67,4 +68,4 @@ services:
 volumes:
   mysql_data: # 데이터 영속성을 위한 볼륨 정의
   grafana_data: # Grafana 데이터 영속성을 위한 볼륨 정의
-  redis_data: 
+  redis_data: # 볼륨 정의의
