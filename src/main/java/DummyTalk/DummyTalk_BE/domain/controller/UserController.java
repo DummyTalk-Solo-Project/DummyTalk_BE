@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @Slf4j
 @RequestMapping("/api/users")
@@ -68,5 +70,10 @@ public class UserController {
     public ResponseEntity<Object> withdrawal (@AuthenticationPrincipal CustomUserDetails userDetails){
         userService.withdraw(userDetails.getUser().getEmail());
         return ResponseEntity.ok(null);
+    }
+
+    @GetMapping("/get-all-data")
+    public List<UserResponseDTO.GetUserResponseDTO> getAllData () {
+        return userService.getAllData();
     }
 }

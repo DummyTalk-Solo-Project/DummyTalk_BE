@@ -1,9 +1,8 @@
 package DummyTalk.DummyTalk_BE.domain.dto.user;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.time.LocalDateTime;
 
 public class UserResponseDTO {
 
@@ -14,5 +13,20 @@ public class UserResponseDTO {
     public static class LoginSuccessDTO{
         private String username;
         private String accessToken;
+    }
+
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ToString
+    public static class GetUserResponseDTO {
+        private String username;
+        private String email;
+
+        // user - info
+        private Integer reqCount;
+        private Boolean isSubscribe;
+        private LocalDateTime subsExprDate;
     }
 }

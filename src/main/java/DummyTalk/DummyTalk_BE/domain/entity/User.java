@@ -19,7 +19,7 @@ import java.util.List;
 public class User extends CommonEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(nullable = false)
@@ -35,8 +35,9 @@ public class User extends CommonEntity {
 
     @Setter
     @OneToOne (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JsonManagedReference
     private Info info;
+
+    // @JsonManagedReference
 
     @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference

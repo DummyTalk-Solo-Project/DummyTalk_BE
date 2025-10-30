@@ -57,6 +57,26 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
+/*
+def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
+
+sourceSets {
+    main {
+        java {
+            srcDirs += querydslDir
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.annotationProcessorGeneratedSourcesDirectory = file("$buildDir/generated/querydsl")
+    options.compilerArgs += [
+            '-Aquerydsl.generatedAnnotationClass=jakarta.annotation.Generated'
+    ]
+}
+*/
+
+
 dependencyManagement {
 	imports {
 		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
