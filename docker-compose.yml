@@ -32,6 +32,7 @@ services:
       # 배치 테이블 초기화 스크립트 마운트 (옵션)
       - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: always
 
   redis-cache:
     image: redis:7-alpine # 가벼운 alpine 이미지 사용
@@ -50,6 +51,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml # 설정 파일 마운트
     command: --config.file=/etc/prometheus/prometheus.yml
+    restart: always
 
   grafana: # Grafana 서비스 추가
     image: grafana/grafana:latest
@@ -60,7 +62,9 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus # Prometheus에 의존성 추가
+    restart: always
 
 volumes:
   mysql_data: # 데이터 영속성을 위한 볼륨 정의
   grafana_data: # Grafana 데이터 영속성을 위한 볼륨 정의
+  redis_data: 
