@@ -18,6 +18,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 public class DummyServiceImplV3 implements DummyService {
 
     // 3. 동시성 관련 로직 or @Async 추가
+    // Security 잠시 빼기
 
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
@@ -222,6 +224,32 @@ public class DummyServiceImplV3 implements DummyService {
     // 3. 동시성 관련 로직 or @Async 추가
     @Override
     public void solveQuiz(User user, Long quizId, Integer answer) {
+
+        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
+            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
+            throw new DummyHandler(ErrorCode.WRONG_QUIZ);
+        }
+        if (answer >= 5 || answer <= 0) {
+            throw new DummyHandler(ErrorCode.WRONG_ANSWER);
+        }
+        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+            throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
+        }
+
+        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
+
+        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
+
+        dto.setAnswerList((List<String>) quiz.get("answerList"));
+
+        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+    }
+
+    public void solveQuiz(String email, Long quizId, Integer answer) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
             log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
