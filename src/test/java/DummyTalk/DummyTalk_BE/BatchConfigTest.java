@@ -26,6 +26,7 @@ public class BatchConfigTest {
     @Autowired
     private UserRepository userRepository;
 
+
     @Test
     void testBatchJob() throws Exception {
         // given -> nothing

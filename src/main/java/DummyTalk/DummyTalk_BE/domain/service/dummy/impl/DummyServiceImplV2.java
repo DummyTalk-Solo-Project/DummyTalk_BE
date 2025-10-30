@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
-@Service
+//@Service
 @RequiredArgsConstructor
 public class DummyServiceImplV2 implements DummyService {
 

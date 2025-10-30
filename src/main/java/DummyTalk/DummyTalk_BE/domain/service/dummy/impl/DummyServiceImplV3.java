@@ -8,6 +8,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
@@ -17,6 +18,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,9 +29,9 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -38,16 +40,14 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_DUMMY_PROMPT;
-import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_QUIZ_PROMPT;
-
 
 @Slf4j
-//@Service
+@Service
 @RequiredArgsConstructor
-public class DummyServiceImpl implements DummyService {
+public class DummyServiceImplV3 implements DummyService {
 
-    // 1. 기본 Redis 인메모리 활용을 통한 동시성 테스트
+    // 3. 동시성 관련 로직 or @Async 추가
+    // Security 잠시 빼기
 
     private final UserRepository userRepository;
     private final DummyRepository dummyRepository;
@@ -71,7 +71,7 @@ public class DummyServiceImpl implements DummyService {
 
         log.info("{}", reqUser.toString());
 
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+        User user = userRepository.findByEmailFetchInfoWithLock(reqUser.getEmail()).orElseThrow(RuntimeException::new);
 
         if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
@@ -90,10 +90,10 @@ public class DummyServiceImpl implements DummyService {
 
             log.info("사용자의 정보를 사용합니다.");
             isUserContent = true;
-            newRequest = GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
+            newRequest = AIPrompt.GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
         }
 
-        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? GET_DUMMY_PROMPT : newRequest,
+        ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? AIPrompt.GET_DUMMY_PROMPT : newRequest,
                 OpenAiChatOptions.builder()
                         .model(OpenAiApi.ChatModel.GPT_4_O_MINI)
                         .maxTokens(100)
@@ -102,7 +102,7 @@ public class DummyServiceImpl implements DummyService {
         Dummy newDummy = Dummy.builder()
                 .user(user)
                 .isUserContent(isUserContent)
-                .request(GET_DUMMY_PROMPT)
+                .request(AIPrompt.GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
@@ -115,6 +115,13 @@ public class DummyServiceImpl implements DummyService {
         return text;
     }
 
+
+    /**
+     * 퀴즈를 만든 후 Redis 저장 및 캐시화
+     * @param reqUser
+     * @param openQuizDate
+     */
+
     @Override
     public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
         User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
@@ -126,7 +133,7 @@ public class DummyServiceImpl implements DummyService {
         DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
                 .model("gpt-4o-mini")
                 .messages(List.of(new DummyRequestDTO.Message("user",
-                        GET_QUIZ_PROMPT)))
+                        AIPrompt.GET_QUIZ_PROMPT)))
                 .max_tokens(200)
                 .build();
 
@@ -215,8 +222,35 @@ public class DummyServiceImpl implements DummyService {
     }
 
 
+    // 3. 동시성 관련 로직 or @Async 추가
     @Override
     public void solveQuiz(User user, Long quizId, Integer answer) {
+
+        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
+            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
+            throw new DummyHandler(ErrorCode.WRONG_QUIZ);
+        }
+        if (answer >= 5 || answer <= 0) {
+            throw new DummyHandler(ErrorCode.WRONG_ANSWER);
+        }
+        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+            throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
+        }
+
+        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
+
+        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
+
+        dto.setAnswerList((List<String>) quiz.get("answerList"));
+
+        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+    }
+
+    public void solveQuiz(String email, Long quizId, Integer answer) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
             log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
