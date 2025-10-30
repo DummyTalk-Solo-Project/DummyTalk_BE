@@ -26,14 +26,14 @@ public class Quiz extends CommonEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
+    private String title; // 문제
 
     @Convert(converter =  StringListConverter.class)
-    private List<String> answerList = new ArrayList<>();
+    private List<String> answerList = new ArrayList<>(); // 답안
 
-    private Integer answer;
+    private Integer answer; // 정답
 
-    private String description;
+    private String description; // 답에 대한 설명
 
     private QuizStatus status;
 

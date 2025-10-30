@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
-@RestController
+//@RestController
 @Slf4j
 @RequestMapping("/api/dummies")
 @RequiredArgsConstructor
