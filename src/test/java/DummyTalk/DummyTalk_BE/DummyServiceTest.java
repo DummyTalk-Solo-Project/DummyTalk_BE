@@ -36,7 +36,7 @@ public class DummyServiceTest {
     private final Integer threadCount = 100;
     private static final String TEST_EMAIL = "user1";
     private static final Long TEST_USER_ID = 1L;
-    private static final Long TEST_QUIZ_ID = 100L;
+    private static final Long TEST_QUIZ_ID = 1L;
     private static final String QUIZ_HASH_KEY = "quiz";
     private static final String QUIZ_ANSWER_LIST_KEY = "quiz:answer";
 
