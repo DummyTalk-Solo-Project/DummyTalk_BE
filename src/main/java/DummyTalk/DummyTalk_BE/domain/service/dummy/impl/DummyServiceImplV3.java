@@ -252,8 +252,9 @@ public class DummyServiceImplV3 implements DummyService {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
-        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
-            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
+        // 테스트 시 null 오류
+        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", quizId.toString()).toString())) {
+            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", quizId.toString()));
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (answer >= 5 || answer <= 0) {
