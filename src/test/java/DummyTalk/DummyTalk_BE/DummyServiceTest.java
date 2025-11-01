@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 @SpringBootTest
-public class ServiceTest {
+public class DummyServiceTest {
 
     @Autowired
     private DummyServiceImplV3 dummyService;
@@ -36,7 +36,7 @@ public class ServiceTest {
     private final Integer threadCount = 100;
     private static final String TEST_EMAIL = "user1";
     private static final Long TEST_USER_ID = 1L;
-    private static final Long TEST_QUIZ_ID = 100L;
+    private static final Long TEST_QUIZ_ID = 1L;
     private static final String QUIZ_HASH_KEY = "quiz";
     private static final String QUIZ_ANSWER_LIST_KEY = "quiz:answer";
 
@@ -44,7 +44,7 @@ public class ServiceTest {
     @DisplayName("동일 유저 동시성 테스트")
     void solveQuizConcurrencyTest() throws InterruptedException {
 
-        // given
+        /// given
         final ExecutorService executorService = Executors.newFixedThreadPool(32); // 32개의 멀티 스레드 환경 허용
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount); // 일단 100개 정도
 
@@ -54,7 +54,7 @@ public class ServiceTest {
         AtomicInteger failCount = new AtomicInteger(0);
 
 
-        // when
+        /// when
         for (int i =0; i< threadCount; i++){
             executorService.submit(() -> {
                 try{
@@ -76,7 +76,7 @@ public class ServiceTest {
             });
         }
 
-        // then
+        /// then
 
         // 모든 스레드가 끝날 때까지 10초간 대기
         boolean finished = countDownLatch.await(10, TimeUnit.SECONDS);
