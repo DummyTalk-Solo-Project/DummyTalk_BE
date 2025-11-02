@@ -36,7 +36,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
         } else {
             log.info("요청 헤더에 유효한 JWT 토큰이 없습니다, 비로그인 사용자일 수   있습니다.");
         }
-        filterChain.doFilter(request, response);
+//        filterChain.doFilter(request, response);
     }
 
     private String resolveToken(HttpServletRequest request){

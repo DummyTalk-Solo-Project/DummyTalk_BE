@@ -82,10 +82,8 @@ public class DummyServiceTest {
         boolean finished = countDownLatch.await(10, TimeUnit.SECONDS);
         executorService.shutdown();
 
-        // then
         assertThat(finished).isTrue(); // 10초 안에 모든 작업이 끝나야 함
 
-        // --- 검증 ---
         // 1. Redis List (순위)에 몇 건이 쌓였는지 확인
         Long answerListSize = redisTemplate.opsForList().size(QUIZ_ANSWER_LIST_KEY);
 
@@ -100,11 +98,8 @@ public class DummyServiceTest {
         System.out.println("Redis List 저장 개수: " + answerListSize);
         System.out.println("Redis Hash 제출 기록: " + submitRecord);
 
-        // [핵심] Race Condition 증명
-        // 만약 로직이 완벽했다면, successCount는 1, failCount는 99, answerListSize는 1이 되어야 합니다.
-        // 하지만 Race Condition 때문에 여러 스레드가 'check'를 통과합니다.
 
-        // **이 테스트의 통과 조건은 "버그가 발생했는가?"입니다.**
+        // 테스트 통과 조건 == "버그가 발생했는가?"
         assertThat(successCount.get()).isGreaterThan(1); // 1번보다 많이 성공 (버그)
         assertThat(answerListSize).isGreaterThan(1L);  // List에도 1개보다 많이 쌓임 (버그)
 
