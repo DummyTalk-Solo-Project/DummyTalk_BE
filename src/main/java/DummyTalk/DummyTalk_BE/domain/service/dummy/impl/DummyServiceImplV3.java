@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DummyServiceImplV3 implements DummyService {
+public class DummyServiceImplV3  {
 
     // 3. 동시성 관련 로직 or @Async 추가
     // Security 잠시 빼기
@@ -61,17 +61,15 @@ public class DummyServiceImplV3 implements DummyService {
     private String openAiKey;
 
     ///  TODO 개느려, 성능 개선할 것
-    @Override
+
     @Transactional
-    public String GetDummyDateForNormal(User reqUser, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+    public String GetDummyDateForNormal(String email, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
         String userContent, userInfo, newRequest = null;
         Random random = new Random();
         boolean isUserContent = false;
 
-        log.info("{}", reqUser.toString());
-
-        User user = userRepository.findByEmailFetchInfoWithLock(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+        User user = userRepository.findByEmailFetchInfoWithLock(email).orElseThrow(RuntimeException::new);
 
         if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
@@ -90,7 +88,7 @@ public class DummyServiceImplV3 implements DummyService {
 
             log.info("사용자의 정보를 사용합니다.");
             isUserContent = true;
-            newRequest = AIPrompt.GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
+            newRequest = AIPrompt.GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + email + ", " + userContent + ", userInfo: " + userInfo);
         }
 
         ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? AIPrompt.GET_DUMMY_PROMPT : newRequest,
@@ -118,13 +116,13 @@ public class DummyServiceImplV3 implements DummyService {
 
     /**
      * 퀴즈를 만든 후 Redis 저장 및 캐시화
-     * @param reqUser
+     * @param email
      * @param openQuizDate
      */
 
-    @Override
-    public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+
+    public void openQuiz(String email, LocalDateTime openQuizDate) {
+        User user = userRepository.findByEmail(email).orElseThrow(RuntimeException::new);
 
         if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
@@ -186,10 +184,11 @@ public class DummyServiceImplV3 implements DummyService {
     }
 
 
-    @Override
-    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user) {
+    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(String email) {
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (quiz.isEmpty()) {
             log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
@@ -223,7 +222,6 @@ public class DummyServiceImplV3 implements DummyService {
 
 
     // 3. 동시성 관련 로직 or @Async 추가
-    @Override
     public void solveQuiz(User user, Long quizId, Integer answer) {
 
         if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
@@ -256,8 +254,14 @@ public class DummyServiceImplV3 implements DummyService {
         
         
         // 테스트 시 null 오류
-        Object quiz1 = redisTemplate.opsForHash().get("quiz", quizId.toString());
-        if (quiz1 ==  null) {
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries("quiz");
+        for(Map.Entry<Object, Object> elem : entries.entrySet()){
+            log.info("{} : {}", elem.getKey().toString(), elem.getValue().toString());
+        }
+
+//        Object quiz1 = redisTemplate.opsForHash().get("quiz", quizId.toString());
+        String s = redisTemplate.<String, String>opsForHash().get("quiz", quizId.toString());
+        if (s ==  null) {
             log.info("알 수 없는 퀴즈입니다");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }

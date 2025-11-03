@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE;
+package DummyTalk.DummyTalk_BE.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 @SpringBootTest
-public class DummyServiceTest {
+public class DummyServiceTrafficTest {
 
     @Autowired
     private DummyServiceImplV3 dummyService;
