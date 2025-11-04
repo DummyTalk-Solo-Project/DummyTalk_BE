@@ -15,7 +15,7 @@ COPY src src
 
 RUN ./gradlew bootjar
 
-FROM openjdk:21-jre
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
