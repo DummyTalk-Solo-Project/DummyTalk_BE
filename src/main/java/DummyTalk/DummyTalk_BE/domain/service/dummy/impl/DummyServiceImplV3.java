@@ -15,7 +15,6 @@ import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
-import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
@@ -253,34 +252,20 @@ public class DummyServiceImplV3  {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
-//        log.info("email: {}, quizId: {}, answer: {}", email, quizId, answer);
-        
-        
-        // 테스트 시 null 오류
-        Map<Object, Object> entries = redisTemplate.opsForHash().entries("quiz");
-        for(Map.Entry<Object, Object> elem : entries.entrySet()){
-            log.info("{} : {}", elem.getKey().toString(), elem.getValue().toString());
-        }
+        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+        log.info ("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
 
-        Object quiz1 = redisTemplate.opsForHash().get("quiz", quizId.toString());
-//        String s = redisTemplate.<String, String>opsForHash().get("quiz", quizId.toString());
-        if (entries ==  null) {
-            log.info("알 수 없는 퀴즈입니다");
+        if (quiz ==  null) {
+            log.info("Wrong quiz!");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+            log.info("{} -> already submit", email);
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
-
-        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
-        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
-
-        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
-
-        dto.setAnswerList((List<String>) quiz.get("answerList"));
 
         redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
