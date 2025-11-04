@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.controller;
+package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
@@ -18,11 +18,7 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/dummies")
 @RequiredArgsConstructor
 @Tag(name = "더미 API", description = "일반적인 잡지식을 보게 되는 단방향 대화 API 입니다")
-public class DummyControllerV3 {
-    
-    // Security 인증 제거
-
-
+public class DummyController {
 
     private final DummyService dummyService;
 

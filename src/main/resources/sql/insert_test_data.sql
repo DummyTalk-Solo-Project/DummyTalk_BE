@@ -1,2 +1,6 @@
+
+# 퀴즈
 insert into quiz (answer, status, created_at, end_time, start_time, updated_at, answer_list, description, title)
 values (1, 1, now(), now() + INTERVAL 7 DAY, now(), now(), '["a", "b", "c", "d"]', '테스트 문제 입니다. 답은 a 입니다', '테스트 문제를 푸시오, 답은 1');
+
+# 사용자 데이터 - 한 100개 정도 미리 만들어두기

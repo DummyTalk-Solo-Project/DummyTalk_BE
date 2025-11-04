@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.controller;
+package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
-@RestController
+//@RestController
 @Slf4j
 @RequestMapping("/api/dummies")
 @RequiredArgsConstructor
