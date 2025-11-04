@@ -25,7 +25,7 @@ public class DummyServiceSolveTest {
     @Autowired
     private UserRepository userRepository;
 
-    private static final String TEST_EMAIL = "user1";
+    private static final String TEST_EMAIL = "jijysun@naver.com";
     private static final Long TEST_USER_ID = 1L;
     private static final Long TEST_QUIZ_ID = 1L;
     private static final String QUIZ_HASH_KEY = "quiz";
@@ -36,7 +36,6 @@ public class DummyServiceSolveTest {
     @DisplayName("문제 풀이 테스트")
     public void solveQuizTest(){
         User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
-
         dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1);
     }
 }

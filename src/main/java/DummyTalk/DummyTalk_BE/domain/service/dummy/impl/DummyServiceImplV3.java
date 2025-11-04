@@ -249,7 +249,6 @@ public class DummyServiceImplV3  {
     }
 
     public void solveQuiz(String email, Long quizId, Integer answer) {
-
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");

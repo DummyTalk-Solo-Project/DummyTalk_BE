@@ -194,6 +194,11 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void signIn(UserRequestDTO.SignInRequestDTO request) {
 
+        Optional<User> byEmail = userRepository.findByEmail(request.getEmail());
+        if (byEmail.isPresent()){
+            throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
+        }
+
         User user = UserConverter.toNewUser(request);
         User savedUser = userRepository.save(user);
 
