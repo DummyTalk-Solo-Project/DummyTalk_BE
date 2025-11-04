@@ -1,8 +1,7 @@
-package DummyTalk.DummyTalk_BE.domain.controller;
+package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
-import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -19,39 +18,36 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/dummies")
 @RequiredArgsConstructor
 @Tag(name = "더미 API", description = "일반적인 잡지식을 보게 되는 단방향 대화 API 입니다")
-public class DummyControllerV3 {
-    
-    // Security 인증 제거
+public class DummyController {
 
-    private final DummyServiceImplV3 dummyService;
+    private final DummyService dummyService;
 
     @GetMapping ("/get-dummy")
-    public ResponseEntity<Object> dummyTalk (@RequestParam("email") String email, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+    public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
         // 판단하는 거 따로 짜자.
 
-        String aiText = dummyService.GetDummyDateForNormal(email, null);
+        String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
         return ResponseEntity.ok(aiText);
     }
 
     @PostMapping("/open-quiz")
-    public ResponseEntity<?> openQuiz (@RequestParam("email") String email,
+    public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
                                        @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
 
-        dummyService.openQuiz(email, date);
+        dummyService.openQuiz(userDetails.getUser(), date);
 
         return ResponseEntity.ok("open Quiz Success!");
     }
 
     @GetMapping("/quiz")
-    public ResponseEntity<?> getQuiz (@RequestParam("email") String email){
-        return ResponseEntity.ok(dummyService.getQuiz(email));
+    public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));
     }
 
     @PostMapping("/quiz")
-    public ResponseEntity<?> solveQuiz (@RequestParam("email") String email, @RequestParam("answer") Integer answer){
-//        dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
-        dummyService.solveQuiz(email, 1L, answer);
+    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
+        dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
         return ResponseEntity.ok("성공적으로 처리 완료!");
     }
 }

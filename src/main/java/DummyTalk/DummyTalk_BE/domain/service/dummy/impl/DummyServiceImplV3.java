@@ -170,12 +170,15 @@ public class DummyServiceImplV3  {
                 .build());
 
         Map<String, Object> quizData = new HashMap<>();
+
+        log.info("quiz: {}, {}", savedQuiz.getTitle(), savedQuiz.getDescription());
+
         quizData.put("id", savedQuiz.getId());
         quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
         quizData.put("title", savedQuiz.getTitle());
         quizData.put("description", savedQuiz.getDescription());
         quizData.put("answer", savedQuiz.getAnswer());
-        quizData.put("answerList", savedQuiz.getAnswerList());
+        quizData.put("answerList", savedQuiz.getAnswerList()); // json 타입
         quizData.put("startTime", savedQuiz.getStartTime().toString());
         quizData.put("endTime", savedQuiz.getStartTime().plusMinutes(3).toString());// 최대 3분동안
 
@@ -259,9 +262,9 @@ public class DummyServiceImplV3  {
             log.info("{} : {}", elem.getKey().toString(), elem.getValue().toString());
         }
 
-//        Object quiz1 = redisTemplate.opsForHash().get("quiz", quizId.toString());
-        String s = redisTemplate.<String, String>opsForHash().get("quiz", quizId.toString());
-        if (s ==  null) {
+        Object quiz1 = redisTemplate.opsForHash().get("quiz", quizId.toString());
+//        String s = redisTemplate.<String, String>opsForHash().get("quiz", quizId.toString());
+        if (entries ==  null) {
             log.info("알 수 없는 퀴즈입니다");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
