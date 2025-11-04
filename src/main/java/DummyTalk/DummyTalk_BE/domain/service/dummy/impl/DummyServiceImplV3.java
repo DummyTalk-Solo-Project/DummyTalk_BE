@@ -20,6 +20,7 @@ import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -248,6 +249,7 @@ public class DummyServiceImplV3  {
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
     }
 
+    @Timed("quiz.solve.requests")
     public void solveQuiz(String email, Long quizId, Integer answer) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
