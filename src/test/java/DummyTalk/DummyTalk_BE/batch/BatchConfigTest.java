@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE;
+package DummyTalk.DummyTalk_BE.batch;
 
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
