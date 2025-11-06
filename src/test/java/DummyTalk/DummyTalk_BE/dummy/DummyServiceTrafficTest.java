@@ -74,7 +74,7 @@ public class DummyServiceTrafficTest {
     }
 
     @Test
-    @DisplayName("동일 유저 동시성 테스트")
+    @DisplayName("동일 유저 동시성 테스트 (Local)")
     void solveQuizConcurrencyTest() throws InterruptedException {
 
         /// given

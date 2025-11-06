@@ -15,4 +15,3 @@ scrape_configs:
       # Docker Compose 네트워크 내의 Spring Boot 서비스 이름과 포트 사용
       - targets: ['spring-app:8080']
 
-m
