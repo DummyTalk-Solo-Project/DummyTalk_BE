@@ -54,12 +54,12 @@ public class DummyServiceTrafficTest {
 
     private final Integer threadCount = 100;
     private static final String TEST_EMAIL = "jijysun@naver.com";
-    private static final Long TEST_USER_ID = 1L;
     private static final Long TEST_QUIZ_ID = 1L;
     private static final String QUIZ_HASH_KEY = "quiz";
     private static final String QUIZ_ANSWER_LIST_KEY = "quiz:answer";
 
 
+    // @BeforeEach
     void createTestUser(){
         for (int i = 1; i< 101; i++){
             String username = "user" + i;
@@ -150,7 +150,7 @@ public class DummyServiceTrafficTest {
 
     @Test
     @DisplayName("동일 유저 동시성 테스트 (WebClient API 호출)")
-    void solveQuizApiConcurrencyTest() throws InterruptedException {
+    void solveQuizApiConcurrencyTest() {
 
         /// given
         final ExecutorService executorService = Executors.newFixedThreadPool(32);
