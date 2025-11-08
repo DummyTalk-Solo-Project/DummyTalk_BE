@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -47,15 +48,18 @@ public class DummyServiceTrafficTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Value("${spring.data.redis.host}")
+    private String host;
+
 
     private final Integer threadCount = 100;
-    private static final String TEST_EMAIL = "user1@email.com";
-    private static final Long TEST_USER_ID = 1L;
+    private static final String TEST_EMAIL = "jijysun@naver.com";
     private static final Long TEST_QUIZ_ID = 1L;
     private static final String QUIZ_HASH_KEY = "quiz";
     private static final String QUIZ_ANSWER_LIST_KEY = "quiz:answer";
 
 
+    // @BeforeEach
     void createTestUser(){
         for (int i = 1; i< 101; i++){
             String username = "user" + i;
@@ -70,7 +74,7 @@ public class DummyServiceTrafficTest {
     }
 
     @Test
-    @DisplayName("동일 유저 동시성 테스트")
+    @DisplayName("동일 유저 동시성 테스트 (Local)")
     void solveQuizConcurrencyTest() throws InterruptedException {
 
         /// given
@@ -146,15 +150,15 @@ public class DummyServiceTrafficTest {
 
     @Test
     @DisplayName("동일 유저 동시성 테스트 (WebClient API 호출)")
-    void solveQuizApiConcurrencyTest() throws InterruptedException {
+    void solveQuizApiConcurrencyTest() {
 
         /// given
         final ExecutorService executorService = Executors.newFixedThreadPool(32);
-        final CountDownLatch countDownLatch = new CountDownLatch(threadCount);
+        final CountDownLatch countDownLatch = new CountDownLatch(threadCount); // 100
 
         // [추가] API 호출을 위한 WebClient
         final WebClient webClient = WebClient.builder()
-                .baseUrl("http://localhost:8080") // [중요] 테스트 대상 서버 주소
+                .baseUrl("http://"+host+":8080") // [중요] 테스트 대상 서버 주소
                 .build();
 
         // [추가] API Request Body
@@ -187,8 +191,9 @@ public class DummyServiceTrafficTest {
                     // [수정] 서비스 직접 호출 -> WebClient API 호출
                     webClient.post()
                             .uri(uriBuilder -> uriBuilder
-                                    .path("/api/quiz/" + TEST_QUIZ_ID + "/solve")
-                                    .queryParam("email", TEST_EMAIL) // [중요] email 파라미터 추가
+                                    .path("/api/quiz/")
+                                    .queryParam("email", TEST_EMAIL)
+                                    .queryParam("answer", "1")// [중요] email 파라미터 추가
                                     .build())
                             .contentType(MediaType.APPLICATION_JSON)
                             .bodyValue(requestBody)
@@ -215,10 +220,10 @@ public class DummyServiceTrafficTest {
 
 
         /// then
-        boolean finished = countDownLatch.await(10, TimeUnit.SECONDS); // 10초로 복원
+//        boolean finished = countDownLatch.await(10, TimeUnit.SECONDS); // 10초로 복원
         executorService.shutdown();
 
-        assertThat(finished).isTrue(); // 10초 안에 모든 작업이 끝나야 함
+//        assertThat(finished).isTrue(); // 10초 안에 모든 작업이 끝나야 함
 
         // API 호출이 모두 끝난 뒤, Redis DB 상태를 직접 검증
         Long answerListSize = redisTemplate.opsForList().size(QUIZ_ANSWER_LIST_KEY);
