@@ -1,52 +1,74 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { SharedArray } from 'k6/data';
+import { execution } from 'k6/execution'; // VU/iteration 정보를 가져오기 위해 import
 
-// 1. 테스트 데이터 불러오기
-// SharedArray를 사용해 모든 가상 유저(VU)가 메모리에서 데이터를 공유합니다.
-const data = new SharedArray('quizData', function () {
-    // 9999개의 데이터가 담긴 JSON 파일을 엽니다.
-    return JSON.parse(open('./data.json'));
-});
+// const BASE_URL = 'http://<EC2_퍼블릭_IP>:8080';
+const BASE_URL = 'http://localhost:8080';
 
-// 2. 테스트 옵션 설정
+const TOTAL_USERS = 100; // 총 유저
+const REQS_PER_USER = 5; // 유저 당 n번 요청
+const CONCURRENT_VUS = 100; // 100개의 스레드로 동시 실행
+
+function shuffle(array) {
+    let currentIndex = array.length, randomIndex;
+    while (currentIndex != 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
+    }
+    return array;
+}
+
+// 1. [Init Context] 테스트 시작 전에 딱 한 번 실행됩니다.
+// 토탈 유저 * 유저 당 n번의 요청 데이터 미리 생성
+const allRequests = [];
+for (let i = 1; i <= TOTAL_USERS; i++) {
+    const email = `user${i}@email.com`;
+    for (let j = 0; j < REQS_PER_USER; j++) {
+        allRequests.push({
+            email: email,
+            answer: 1, // answer는 1로 통일
+        });
+    }
+}
+shuffle(allRequests);
+
+
+// 2. [Options] 테스트 옵션 설정
 export const options = {
-    stages: [
-        // '거의 동시적으로'를 구현하기 위해 짧은 시간 안에 9999명까지 ramp-up합니다.
-        { duration: '10s', target: 9999 }, // 10초 동안 9999명까지 트래픽 증가
-        { duration: '30s', target: 9999 }, // 30초 동안 9999명 유지
-    ],
+    // 'shared-iterations'는 여러 VU(스레드)가 iterations(총 작업량)을 공유하는 방식입니다.
+    // 100개의 스레드가 500개의 작업을 나눠서 처리합니다.
+    scenarios: {
+        quiz_stress: {
+            executor: 'shared-iterations',
+            vus: CONCURRENT_VUS,        // 동시 실행 스레드 수 (100)
+            iterations: allRequests.length, // 총 실행할 작업 수 (500)
+            maxDuration: '10m',         // (안전장치) 10분 이상 걸리면 테스트 중지
+        },
+    },
 };
 
-// 3. 메인 테스트 함수 (각 VU가 실행)
+// 3. [Default Function] 각 VU(스레드)가 반복 실행하는 메인 로직
 export default function () {
-    // __VU는 1부터 시작하는 가상 유저 ID입니다.
-    // data 배열은 0부터 시작하므로 인덱스를 맞춥니다 (user1 -> data[0])
-    const vuIndex = __VU - 1;
+    // execution.scenario.iterationInTest는 0부터 499까지 증가하는 고유 ID입니다.
+    // 섞여있는 요청 데이터에서 이번 스레드가 처리할 데이터를 순서대로 하나 꺼냅니다.
+    const requestData = allRequests[execution.scenario.iterationInTest];
 
-    // 9999명을 초과하는 VU가 실행될 경우를 대비 (데이터가 없으면 테스트 중단)
-    if (vuIndex >= data.length) {
-        return;
-    }
+    // POST 요청할 URL
+    const url = `${BASE_URL}/api/quiz2`;
 
-    // 1:1로 매핑된 고유 데이터 가져오기
-    const uniqueData = data[vuIndex];
-
-    // POST 요청할 URL (컨트롤러와 일치)
-    const url = 'http://localhost:8080/api/quiz';
-
-    // @RequestParam을 사용하는 POST 요청은 'application/x-www-form-urlencoded' 형식입니다.
-    // k6는 객체를 body로 전달하면 자동으로 이 형식으로 변환해줍니다.
-    // (컨트롤러 메서드의 @RequestParam("id")와 @RequestParam("answer")에 맞게 키 이름을 설정)
+    // @RequestParam은 'application/x-www-form-urlencoded' 형식을 사용합니다.
+    // k6는 JS 객체를 body로 넘기면 자동으로 이 형식으로 변환해줍니다.
     const payload = {
-        id: uniqueData.quizId,
-        answer: uniqueData.answer,
+        email: requestData.email,
+        answer: requestData.answer,
     };
 
     // 4. POST 요청 실행
     const res = http.post(url, payload);
 
-    // 5. 응답 확인 (선택 사항이지만 권장)
+    // 5. 응답 확인 (결과에 'checks'로 집계됨)
     check(res, {
         'status is 200': (r) => r.status === 200,
     });

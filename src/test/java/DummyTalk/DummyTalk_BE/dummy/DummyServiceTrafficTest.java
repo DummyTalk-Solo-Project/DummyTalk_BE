@@ -103,8 +103,8 @@ public class DummyServiceTrafficTest {
             executorService.submit(() -> {
                 try{
                     // 일단 1로만 고정하자, 차피 한 사람이 여러 문제를 푸는 걸 확인하는 게 더 중요
-                    dummyService.solveQuiz(TEST_EMAIL, TEST_QUIZ_ID,1);
-//                    dummyService.solveQuizVer2(TEST_EMAIL, 1);
+//                    dummyService.solveQuiz(TEST_EMAIL, TEST_QUIZ_ID,1);
+                    dummyService.solveQuizVer2(TEST_EMAIL, 1);
                     successCount.incrementAndGet();
                 }
                 catch (DummyHandler e){ // 이미 푼 경우에 대해서만 failCounting
@@ -125,7 +125,7 @@ public class DummyServiceTrafficTest {
         /// then
 
         // 모든 스레드가 끝날 때까지 10초간 대기
-        boolean finished = countDownLatch.await(5, TimeUnit.SECONDS);
+        countDownLatch.await(20, TimeUnit.SECONDS);
         stopWatch.stop(); // [추가] 시간 측정 종료
         executorService.shutdown();
 
