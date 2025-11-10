@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { execution } from 'k6/execution'; // VU/iteration 정보를 가져오기 위해 import
+import execution from 'k6/execution'; // VU/iteration 정보를 가져오기 위해 import
 
 // const BASE_URL = 'http://<EC2_퍼블릭_IP>:8080';
 const BASE_URL = 'http://localhost:8080';
@@ -56,7 +56,7 @@ export default function () {
     const requestData = allRequests[execution.scenario.iterationInTest];
 
     // POST 요청할 URL
-    const url = `${BASE_URL}/api/quiz2`;
+    const url = `${BASE_URL}/api/dummies/quiz2`;
 
     // @RequestParam은 'application/x-www-form-urlencoded' 형식을 사용합니다.
     // k6는 JS 객체를 body로 넘기면 자동으로 이 형식으로 변환해줍니다.
