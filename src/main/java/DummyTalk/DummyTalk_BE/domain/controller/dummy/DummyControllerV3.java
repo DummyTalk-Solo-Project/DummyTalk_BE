@@ -51,4 +51,11 @@ public class DummyControllerV3 {
         dummyService.solveQuiz(email, 1L, answer);
         return ResponseEntity.ok("성공적으로 처리 완료!");
     }
+
+    // synchronized 사용
+    @PostMapping("/quiz2")
+    public ResponseEntity<?> solveQuizVer2 (@RequestParam("email") String email, @RequestParam("answer") Integer answer){
+        dummyService.solveQuizVer2(email, answer);
+        return ResponseEntity.ok("성공적으로 처리 완료!");
+    }
 }
