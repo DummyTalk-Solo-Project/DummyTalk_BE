@@ -58,4 +58,10 @@ public class DummyControllerV3 {
         dummyService.solveQuizVer2(email, answer);
         return ResponseEntity.ok("성공적으로 처리 완료!");
     }
+    // DistributedLock 사용
+    @PostMapping("/quiz3")
+    public ResponseEntity<?> solveQuizVer3 (@RequestParam("email") String email, @RequestParam("answer") Integer answer){
+        dummyService.solveQuizVer3(email, answer);
+        return ResponseEntity.ok("성공적으로 처리 완료!");
+    }
 }

@@ -49,7 +49,7 @@ public class DistributedLockAspect {
             throw new RuntimeException(e);
         }
         finally {
-            if (isLocked && lock.isHeldByCurrentThread()){
+            if (isLocked && lock.isHeldByCurrentThread()){ // 현 스레드가 락 보유 중인 지 확인하는 메소드.
 
                 try{
                     lock.unlock();
@@ -78,5 +78,4 @@ public class DistributedLockAspect {
 
         return expressionParser.parseExpression(keyExpression).getValue(context, String.class);
     }
-
 }
