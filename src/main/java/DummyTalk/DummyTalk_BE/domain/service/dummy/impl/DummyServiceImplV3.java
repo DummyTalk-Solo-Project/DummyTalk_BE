@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
@@ -56,6 +58,7 @@ public class DummyServiceImplV3  {
     private final QuizRepository quizRepository;
     private final UserQuizRepository userQuizRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
@@ -298,6 +301,47 @@ public class DummyServiceImplV3  {
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
 
         log.info("-- {}의 문제 풀이 작업 종료 --", email);
+    }
+
+    // Redisson 사용
+    @Timed("quiz.solve.requests")
+    public synchronized void solveQuizVer3(String email, Integer answer) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+
+
+        RLock lock = redissonClient.getLock("quiz");// 고유 Lock Key 값
+
+
+        try{
+            log.info("-- {}의 문제 풀이 작업 시작 --", email);
+
+            Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+            log.info ("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
+
+            if (quiz ==  null) {
+                log.info("Wrong quiz!");
+                throw new DummyHandler(ErrorCode.WRONG_QUIZ);
+            }
+            if (answer >= 5 || answer <= 0) {
+                throw new DummyHandler(ErrorCode.WRONG_ANSWER);
+            }
+            if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+                log.info("{} -> already submit", email);
+                throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
+            }
+
+            redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+            redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+
+            log.info("-- {}의 문제 풀이 작업 종료 --", email);
+
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+
+
     }
 
 }
