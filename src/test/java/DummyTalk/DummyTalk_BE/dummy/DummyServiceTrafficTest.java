@@ -111,8 +111,9 @@ public class DummyServiceTrafficTest {
             executorService.submit(() -> {
                 try{
                     // 일단 1로만 고정하자, 차피 한 사람이 여러 문제를 푸는 걸 확인하는 게 더 중요
-                    dummyService.solveQuiz(TEST_EMAIL, TEST_QUIZ_ID,1);
+//                    dummyService.solveQuiz(TEST_EMAIL, TEST_QUIZ_ID,1);
 //                    dummyService.solveQuizVer2(TEST_EMAIL, 1);
+                    dummyService.solveQuizVer3(TEST_EMAIL, 1);
                     successCount.incrementAndGet();
                 }
                 catch (DummyHandler e){ // 이미 푼 경우에 대해서만 failCounting
