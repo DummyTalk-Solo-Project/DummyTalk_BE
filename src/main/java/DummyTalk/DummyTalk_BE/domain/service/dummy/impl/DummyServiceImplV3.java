@@ -306,7 +306,7 @@ public class DummyServiceImplV3 {
     }
 
     // Redisson 사용
-    @DistributedLock(key = "quiz")
+    @DistributedLock(key = "'quiz'")
     @Timed("quiz.solve.requests")
     public void solveQuizVer3(String email, Integer answer) {
 
