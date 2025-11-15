@@ -229,31 +229,7 @@ public class DummyServiceImplV3 {
     }
 
 
-    // 3. 동시성 관련 로직 or @Async 추가
-    public void solveQuiz(User user, Long quizId, Integer answer) {
-
-        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
-            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
-            throw new DummyHandler(ErrorCode.WRONG_QUIZ);
-        }
-        if (answer >= 5 || answer <= 0) {
-            throw new DummyHandler(ErrorCode.WRONG_ANSWER);
-        }
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
-        }
-
-        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
-        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
-
-        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
-
-        dto.setAnswerList((List<String>) quiz.get("answerList"));
-
-        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
-    }
-
+    // 이전 기본 로직 메소드
     @Timed("quiz.solve.requests")
     public void solveQuiz(String email, Long quizId, Integer answer) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
@@ -277,6 +253,9 @@ public class DummyServiceImplV3 {
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
     }
 
+    /**
+     * Synchronized를 통한 동시성 해결 메소드
+     * */
     @Timed("quiz.solve.requests")
     public synchronized void solveQuizVer2(String email, Integer answer) {
 
@@ -305,13 +284,14 @@ public class DummyServiceImplV3 {
         log.info("-- {}의 문제 풀이 작업 종료 --", email);
     }
 
-    // Redisson 사용
+    /**
+    * Redisson 분산 락 적용
+    * */
     @DistributedLock(key = "quiz")
     @Timed("quiz.solve.requests")
     public void solveQuizVer3(String email, Integer answer) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
-
 
         log.info("-- {}의 문제 풀이 작업 시작 --", email);
 
@@ -333,6 +313,35 @@ public class DummyServiceImplV3 {
         redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
 
+        log.info("-- {}의 문제 풀이 작업 종료 --", email);
+    }
+
+    /**
+     * MySQL 단 락 적용
+     * Quiz 엔티티의 ticket 에 대한 동시성 해결 메소드
+     * */
+    @Timed("quiz.solve.requests")
+    @Transactional
+    public void solveQuizVer4(String email, Long quizId, Integer answer) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ)); /
+
+        log.info("-- {}의 문제 풀이 작업 시작 --", email);
+        log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), answer);
+
+        if (quiz == null) {
+            log.info("Wrong quiz!");
+            throw new DummyHandler(ErrorCode.WRONG_QUIZ);
+        }
+        if (answer >= 5 || answer <= 0) {
+            throw new DummyHandler(ErrorCode.WRONG_ANSWER);
+        }
+        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+            log.info("{} -> already submit", email);
+            throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
+        }
+        
         log.info("-- {}의 문제 풀이 작업 종료 --", email);
     }
 
