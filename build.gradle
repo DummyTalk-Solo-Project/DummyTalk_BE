@@ -34,6 +34,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.ai:spring-ai-starter-model-openai' // 0922 기준 안쓰고 있음, 모델 낮추면 좀 될지도..?
 
+    // Redisson
+    implementation 'org.redisson:redisson-spring-boot-starter:3.18.0'
+
     // Prometheus
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
