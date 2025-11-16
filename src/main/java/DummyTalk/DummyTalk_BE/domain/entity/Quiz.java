@@ -34,6 +34,8 @@ public class Quiz extends CommonEntity {
     private Integer answer; // 정답
 
     private String description; // 답에 대한 설명
+    
+    private Integer ticket; // 구독권 제한
 
     private QuizStatus status;
 
