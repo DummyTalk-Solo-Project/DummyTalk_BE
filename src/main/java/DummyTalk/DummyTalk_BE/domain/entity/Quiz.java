@@ -46,4 +46,13 @@ public class Quiz extends CommonEntity {
     @OneToMany(mappedBy = "quiz")
     @JsonManagedReference
     private ArrayList<UserQuiz> userQuizList;
+
+
+    public Boolean decreaseTicket(){
+        if (this.ticket > 0){
+            this.ticket--;
+            return true;
+        }
+        return false;
+    }
 }

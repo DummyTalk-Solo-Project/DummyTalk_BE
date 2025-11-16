@@ -316,33 +316,41 @@ public class DummyServiceImplV3 {
         log.info("-- {}의 문제 풀이 작업 종료 --", email);
     }
 
+
     /**
      * MySQL 단 락 적용
      * Quiz 엔티티의 ticket 에 대한 동시성 해결 메소드
      * */
     @Timed("quiz.solve.requests")
     @Transactional
-    public void solveQuizVer4(String email, Long quizId, Integer answer) {
+    public void solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO dto) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
-        Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ)); /
+        User user = userRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Quiz quiz = quizRepository.findQuizByIdForDecrease(dto.getQuizId()).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ));
 
-        log.info("-- {}의 문제 풀이 작업 시작 --", email);
-        log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), answer);
+        log.info("-- {}의 문제 풀이 작업 시작 --", user.getEmail());
+        log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), dto.getAnswer());
 
         if (quiz == null) {
             log.info("Wrong quiz!");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
-        if (answer >= 5 || answer <= 0) {
+        if (dto.getAnswer() >= 5 || dto.getAnswer() <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
+
+        // 중복 제출 방지
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            log.info("{} -> already submit", email);
+            log.info("{} -> already submit", dto.getEmail());
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
+        redisTemplate.opsForHash().put("quiz", user.getId().toString(), dto.getAnswer());
+
+        if (!quiz.decreaseTicket()){ // ek
+            log.warn("{} -> quiz has NO TICKET!",  dto.getEmail());
+        }
         
-        log.info("-- {}의 문제 풀이 작업 종료 --", email);
+        log.info("-- {}의 문제 풀이 작업 종료 --", user.getEmail());
     }
 
 }
