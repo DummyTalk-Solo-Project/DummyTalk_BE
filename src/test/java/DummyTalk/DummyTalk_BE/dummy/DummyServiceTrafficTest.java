@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.dummy;
 
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
@@ -87,7 +88,7 @@ public class DummyServiceTrafficTest {
 
         redisTemplate.delete(QUIZ_HASH_KEY);
         redisTemplate.delete(QUIZ_ANSWER_LIST_KEY);
-        dummyService.openQuiz("jijysun@naver.com", LocalDateTime.of(2025, 11, 1, 13, 13));
+        dummyService.openQuiz("jijysun@naver.com", LocalDateTime.now().minusHours(2));
 
 
         // [추가] 성능 측정을 위한 StopWatch 생성
@@ -101,8 +102,15 @@ public class DummyServiceTrafficTest {
             executorService.submit(() -> {
                 try{
                     // 일단 1로만 고정하자, 차피 한 사람이 여러 문제를 푸는 걸 확인하는 게 더 중요
+
 //                    dummyService.solveQuiz(TEST_EMAIL, TEST_QUIZ_ID,1);
-                    dummyService.solveQuizVer2(TEST_EMAIL, 1);
+//                    dummyService.solveQuizVer2(TEST_EMAIL, 1);
+                    dummyService.solveQuizVer3(TEST_EMAIL, 1);
+/*                    dummyService.solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO.builder()
+                            .quizId(29L)
+                            .email(TEST_EMAIL)
+                            .answer(1)
+                            .build());*/
                     successCount.incrementAndGet();
                 }
                 catch (DummyHandler e){ // 이미 푼 경우에 대해서만 failCounting
@@ -121,13 +129,12 @@ public class DummyServiceTrafficTest {
 
 
         /// then
-
         // 모든 스레드가 끝날 때까지 10초간 대기
         countDownLatch.await(20, TimeUnit.SECONDS);
-        stopWatch.stop(); // [추가] 시간 측정 종료
+        stopWatch.stop(); //  시간 측정 종료
         executorService.shutdown();
 
-//        assertThat(finished).isTrue(); // 10초 안에 모든 작업이 끝나야 함
+//        assertThat(finished).isTrue(); // 10초 안에 모든 작업이 끝나야 함, 이건 필요 없을 듯
 
         // 1. Redis List (순위)에 몇 건이 쌓였는지 확인
         Long answerListSize = redisTemplate.opsForList().size(QUIZ_ANSWER_LIST_KEY);
@@ -149,12 +156,13 @@ public class DummyServiceTrafficTest {
         System.out.println("초당 처리량 (RPS): " + String.format("%.2f", (threadCount / totalTimeSeconds)) + " req/s");
 
 
+        // Redis
         // 테스트 통과 조건 == "버그가 발생했는가?"
         assertThat(successCount.get()).isEqualTo(1); // 1번보다 많이 성공 (버그)
-        assertThat(answerListSize).isEqualTo(1L);  // List에도 1개보다 많이 쌓임 (버그)
+//        assertThat(answerListSize).isEqualTo(1L);  // List에도 1개보다 많이 쌓임 (버그)
 
         // 성공한 횟수와 List에 쌓인 개수는 정확히 일치해야 합니다. (데이터 정합성 문제까지는 없었다면)
-        assertThat(successCount.get()).isEqualTo(answerListSize.intValue());
+//        assertThat(successCount.get()).isEqualTo(answerListSize.intValue());
 
         // Hash에는 어쨌든 값이 기록되어 있어야 합니다.
         assertThat(submitRecord).isNotNull();

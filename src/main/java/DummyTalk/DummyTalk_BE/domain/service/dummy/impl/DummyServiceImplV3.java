@@ -267,14 +267,14 @@ public class DummyServiceImplV3 {
         log.info("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
 
         if (quiz == null) {
-            log.info("Wrong quiz!");
+            log.warn("Wrong quiz!");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            log.info("{} -> already submit", email);
+            log.warn("{} -> already submit", email);
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
@@ -287,7 +287,7 @@ public class DummyServiceImplV3 {
     /**
     * Redisson 분산 락 적용
     * */
-    @DistributedLock(key = "quiz")
+    @DistributedLock(key = "'quiz'")
     @Timed("quiz.solve.requests")
     public void solveQuizVer3(String email, Integer answer) {
 
@@ -299,14 +299,14 @@ public class DummyServiceImplV3 {
         log.info("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
 
         if (quiz == null) {
-            log.info("Wrong quiz!");
+            log.warn("Wrong quiz!");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            log.info("{} -> already submit", email);
+            log.warn("{} -> already submit", email);
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
@@ -332,7 +332,7 @@ public class DummyServiceImplV3 {
         log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), dto.getAnswer());
 
         if (quiz == null) {
-            log.info("Wrong quiz!");
+            log.warn("Wrong quiz!");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (dto.getAnswer() >= 5 || dto.getAnswer() <= 0) {
@@ -341,7 +341,7 @@ public class DummyServiceImplV3 {
 
         // 중복 제출 방지
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            log.info("{} -> already submit", dto.getEmail());
+            log.warn("{} -> already submit", dto.getEmail());
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
         redisTemplate.opsForHash().put("quiz", user.getId().toString(), dto.getAnswer());

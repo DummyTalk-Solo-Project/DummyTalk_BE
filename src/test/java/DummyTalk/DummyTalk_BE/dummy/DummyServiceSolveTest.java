@@ -35,8 +35,7 @@ public class DummyServiceSolveTest {
     @Test
     @DisplayName("문제 풀이 테스트")
     public void solveQuizTest(){
-//        User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
-//        dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1);
+//        User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() ->//        dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1); new UserHandler(ErrorCode.CANT_FIND_USER));
 
         dummyService.solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO.builder()
                 .quizId(TEST_QUIZ_ID)
