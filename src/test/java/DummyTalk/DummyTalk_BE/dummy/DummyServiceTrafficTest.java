@@ -102,7 +102,7 @@ public class DummyServiceTrafficTest {
 
         redisTemplate.delete(QUIZ_HASH_KEY);
         redisTemplate.delete(QUIZ_ANSWER_LIST_KEY);
-        dummyService.openQuiz("jijysun@naver.com", LocalDateTime.now().minusHours(2));
+        dummyService.openQuiz("jijysun@naver.com", LocalDateTime.now().minusHours(2)); // quiz open
 
 
         // [추가] 성능 측정을 위한 StopWatch 생성
@@ -144,7 +144,7 @@ public class DummyServiceTrafficTest {
 
         /// then
         // 모든 스레드가 끝날 때까지 10초간 대기
-        countDownLatch.await(20, TimeUnit.SECONDS);
+        countDownLatch.await(30, TimeUnit.SECONDS);
         stopWatch.stop(); //  시간 측정 종료
         executorService.shutdown();
 

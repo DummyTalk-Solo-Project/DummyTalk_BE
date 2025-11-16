@@ -165,7 +165,7 @@ public class DummyServiceImplV3 {
                 .startTime(openQuizDate)
                 .status(QuizStatus.OPEN)
                 .title(responseDTO.getTitle())
-                        .ticket(5)
+                .ticket(5)
                 .answerList(responseDTO.getAnswerList())
                 .description(responseDTO.getDescription())
                 .answer(responseDTO.getAnswer())
@@ -255,7 +255,8 @@ public class DummyServiceImplV3 {
 
     /**
      * Synchronized를 통한 동시성 해결 메소드
-     * */
+     *
+     */
     @Timed("quiz.solve.requests")
     public synchronized void solveQuizVer2(String email, Integer answer) {
 
@@ -285,35 +286,42 @@ public class DummyServiceImplV3 {
     }
 
     /**
-    * Redisson 분산 락 적용
-    * */
+     * Redisson 분산 락 적용
+     *
+     */
     @Timed("quiz.solve.requests")
-    @DistributedLock(key = "'quiz'")
+    @DistributedLock(key = "'quiz_lock'")
     public void solveQuizVer3(String email, Integer answer) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", email);
+        try {
+            Thread.sleep(5); // 락 획득 대기 시간과 같게
 
-        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
-        log.info("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
+            Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
+            log.info("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
 
-        if (quiz == null) {
-            log.warn("Wrong quiz!");
-            throw new DummyHandler(ErrorCode.WRONG_QUIZ);
+            if (quiz == null) {
+                log.warn("Wrong quiz!");
+                throw new DummyHandler(ErrorCode.WRONG_QUIZ);
+            }
+            if (answer >= 5 || answer <= 0) {
+                throw new DummyHandler(ErrorCode.WRONG_ANSWER);
+            }
+            if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+                log.warn("{} -> already submit", email);
+                throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
+            }
+
+            redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+            redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
-        if (answer >= 5 || answer <= 0) {
-            throw new DummyHandler(ErrorCode.WRONG_ANSWER);
+        finally {
+            log.info("-- {}의 문제 풀이 작업 종료 --", email);
         }
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            log.warn("{} -> already submit", email);
-            throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
-        }
-
-        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
-
-        log.info("-- {}의 문제 풀이 작업 종료 --", email);
     }
 
 

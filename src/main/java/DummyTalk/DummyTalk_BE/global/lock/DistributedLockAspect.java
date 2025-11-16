@@ -39,20 +39,18 @@ public class DistributedLockAspect {
 
         try{
             isLocked = lock.tryLock(waitTime, leaseTime, TimeUnit.SECONDS);
-            if (!isLocked){
+            if (!isLocked){ // 여기서 false
                 log.warn("락 획득 실패 - {}", lockKey);
                 throw new RuntimeException("락 획득 오류!");
             }
             log.info("락 획득 성공 - {}", lockKey);
             return joinPoint.proceed();
-
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+            throw new IllegalStateException("lock 획득 실패: {} ", e);
         }
         finally {
             if (isLocked && lock.isHeldByCurrentThread()){ // 현 스레드가 락 보유 중인 지 확인하는 메소드.
-
                 try{
                     lock.unlock();
                     log.info("락 반납 성공 - {}", lockKey);
@@ -62,7 +60,6 @@ public class DistributedLockAspect {
                 }
             }
         }
-
     }
 
 
