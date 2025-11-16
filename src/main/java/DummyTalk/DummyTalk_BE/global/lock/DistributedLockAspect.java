@@ -28,6 +28,8 @@ public class DistributedLockAspect {
 
     @Around("@annotation(distributedLock)")
     public Object around(ProceedingJoinPoint joinPoint, DistributedLock distributedLock) throws Throwable {
+
+        log.info ("distributedLock! -> key: {}, waitTime: {}, leaseTime: {} ", distributedLock.key(), distributedLock.waitTime(), distributedLock.leaseTime());
         String lockKey = parseKey(joinPoint, distributedLock.key());
         long waitTime = distributedLock.waitTime();
         long leaseTime = distributedLock.leaseTime();
@@ -59,7 +61,6 @@ public class DistributedLockAspect {
                     log.warn ("락 반납 실패 -> 이미 해제된 락 or 불일치, {} / {}", lockKey, e);
                 }
             }
-
         }
 
     }

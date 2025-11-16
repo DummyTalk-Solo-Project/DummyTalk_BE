@@ -1,11 +1,8 @@
 package DummyTalk.DummyTalk_BE.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
-import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -349,7 +349,7 @@ public class DummyServiceImplV3 {
         if (!quiz.decreaseTicket()){ // ek
             log.warn("{} -> quiz has NO TICKET!",  dto.getEmail());
         }
-        
+
         log.info("-- {}의 문제 풀이 작업 종료 --", user.getEmail());
     }
 

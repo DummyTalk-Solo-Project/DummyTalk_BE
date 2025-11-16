@@ -74,6 +74,14 @@ public class DummyServiceTrafficTest {
     }
 
     @Test
+    @DisplayName("문제 풀이 테스트")
+    public void solveQuizTest(){
+        User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+//        dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1);
+        dummyService.solveQuizVer3(user.getEmail(), 1);
+    }
+
+    @Test
     @DisplayName("동일 유저 동시성 테스트 (Local)")
     void solveQuizConcurrencyTest() throws InterruptedException {
 
