@@ -287,8 +287,8 @@ public class DummyServiceImplV3 {
     /**
     * Redisson 분산 락 적용
     * */
-    @DistributedLock(key = "'quiz'")
     @Timed("quiz.solve.requests")
+    @DistributedLock(key = "'quiz'")
     public void solveQuizVer3(String email, Integer answer) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));

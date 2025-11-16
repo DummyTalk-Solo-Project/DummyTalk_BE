@@ -74,6 +74,12 @@ public class DummyServiceTrafficTest {
     }
 
     @Test
+    @DisplayName("문제 오픈 테스트")
+    public void openQuizTest(){
+        dummyService.openQuiz(TEST_EMAIL, LocalDateTime.of(2021, 11, 1, 12, 1)); // 테스트용 오픈
+    }
+
+    @Test
     @DisplayName("문제 풀이 테스트")
     public void solveQuizTest(){
         User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
