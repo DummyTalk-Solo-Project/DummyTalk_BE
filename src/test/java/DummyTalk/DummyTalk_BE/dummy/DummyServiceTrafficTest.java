@@ -39,7 +39,6 @@ public class DummyServiceTrafficTest {
     @Autowired
     private UserServiceImpl userService;
 
-
     @Autowired
     private DummyServiceImplV3 dummyService;
 
@@ -55,7 +54,6 @@ public class DummyServiceTrafficTest {
 
     private final Integer threadCount = 500;
     private static final String TEST_EMAIL = "jijysun@naver.com";
-    private static final Long TEST_QUIZ_ID = 1L;
     private static final String QUIZ_HASH_KEY = "quiz";
     private static final String QUIZ_ANSWER_LIST_KEY = "quiz:answer";
 

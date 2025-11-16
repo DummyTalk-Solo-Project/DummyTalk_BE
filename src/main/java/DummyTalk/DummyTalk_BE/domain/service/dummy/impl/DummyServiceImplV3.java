@@ -124,8 +124,6 @@ public class DummyServiceImplV3 {
      * @param email
      * @param openQuizDate
      */
-
-
     public void openQuiz(String email, LocalDateTime openQuizDate) {
         User user = userRepository.findByEmail(email).orElseThrow(RuntimeException::new);
 
@@ -167,6 +165,7 @@ public class DummyServiceImplV3 {
                 .startTime(openQuizDate)
                 .status(QuizStatus.OPEN)
                 .title(responseDTO.getTitle())
+                        .ticket(5)
                 .answerList(responseDTO.getAnswerList())
                 .description(responseDTO.getDescription())
                 .answer(responseDTO.getAnswer())
@@ -182,6 +181,7 @@ public class DummyServiceImplV3 {
         quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
         quizData.put("title", savedQuiz.getTitle());
         quizData.put("description", savedQuiz.getDescription());
+        quizData.put("ticket", savedQuiz.getTicket());
         quizData.put("answer", savedQuiz.getAnswer());
         quizData.put("answerList", savedQuiz.getAnswerList()); // json 타입
         quizData.put("startTime", savedQuiz.getStartTime().toString());
