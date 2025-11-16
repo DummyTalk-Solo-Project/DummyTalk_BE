@@ -72,3 +72,8 @@ management:
       exposure:
         # 2. 웹을 통해 노출할 Actuator 엔드포인트를 지정합니다.
         include: health, info, prometheus
+
+# application.yml
+discord:
+  webhook:
+    url: ${DISCORD_WEBHOOK} # 디스코드 웹훅 URL

@@ -34,6 +34,8 @@ public class Quiz extends CommonEntity {
     private Integer answer; // 정답
 
     private String description; // 답에 대한 설명
+    
+    private Integer ticket; // 구독권 제한
 
     private QuizStatus status;
 
@@ -43,5 +45,14 @@ public class Quiz extends CommonEntity {
 
     @OneToMany(mappedBy = "quiz")
     @JsonManagedReference
-    private ArrayList<UserQuiz> userQuizList;
+    private List<UserQuiz> userQuizList; // Hibernate 가 프록시 클래스를 사용할 수 없게 해서 변경
+
+
+    public Boolean decreaseTicket(){
+        if (this.ticket > 0){
+            this.ticket--;
+            return true;
+        }
+        return false;
+    }
 }
