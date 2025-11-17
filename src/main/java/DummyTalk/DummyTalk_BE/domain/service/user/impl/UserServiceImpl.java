@@ -18,6 +18,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -46,6 +48,7 @@ public class UserServiceImpl implements UserService {
     private final EmailRepository emailRepository;
     private final InfoRepository infoRepository;
     private final UserQuizRepository userQuizRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
 
 
     @Override
@@ -170,8 +173,19 @@ public class UserServiceImpl implements UserService {
         }
 
         try {
+
+            // 만료 전 재요청 시 거절 로직
+            if (redisTemplate.opsForValue().get("email:"+email) != null){
+                throw new UserHandler(ErrorCode.ALREADY_SEND);
+            }
+
+            if(userRepository.findByEmail(email).isPresent()){
+                throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
+            }
+
             mailSender.send(msg);
-            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
+//            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
+            redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 5분으로 설정.
         } catch (RuntimeException e) {
             throw new UserHandler(ErrorCode.CANT_SEND_EMAIL);
         }
@@ -179,15 +193,16 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void verifyEmail(UserRequestDTO.VerificationRequestDTO requestDTO) {
-        Optional<Email> verification = emailRepository.findByEmailAndCode(requestDTO.getEmail(), requestDTO.getCode());
+//        Optional<Email> verification = emailRepository.findByEmailAndCode(requestDTO.getEmail(), requestDTO.getCode());
+        Object code = redisTemplate.opsForValue().get("email:" + requestDTO.getEmail());
 
-        if (verification.isEmpty()) {
-            throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
-        }
-        long hourDiff = ChronoUnit.HOURS.between(LocalDateTime.now(), verification.get().getExpireTime());
-        if (hourDiff >= 24) {
+        if (code == null) {
             throw new UserHandler(ErrorCode.EMAIL_EXPIRED);
         }
+        if (code.toString().equals(requestDTO.getCode()) ) {
+            throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
+        }
+//        long hourDiff = ChronoUnit.HOURS.between(LocalDateTime.now(), verification.get().getExpireTime());
     }
 
     @Override
