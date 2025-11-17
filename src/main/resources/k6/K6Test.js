@@ -6,7 +6,7 @@ import execution from 'k6/execution'; // VU/iteration 정보를 가져오기 위
 const BASE_URL = 'http://localhost:8080';
 
 const TOTAL_USERS = 100; // 총 유저
-const REQS_PER_USER = 5; // 유저 당 n번 요청
+const REQS_PER_USER = 2; // 유저 당 n번 요청
 const CONCURRENT_VUS = 100; // 100개의 스레드로 동시 실행
 
 function shuffle(array) {
@@ -56,7 +56,7 @@ export default function () {
     const requestData = allRequests[execution.scenario.iterationInTest];
 
     // POST 요청할 URL
-    const url = `${BASE_URL}/api/dummies/quiz2`;
+    const url = `${BASE_URL}/api/dummies/quiz3`;
 
     // @RequestParam은 'application/x-www-form-urlencoded' 형식을 사용합니다.
     // k6는 JS 객체를 body로 넘기면 자동으로 이 형식으로 변환해줍니다.

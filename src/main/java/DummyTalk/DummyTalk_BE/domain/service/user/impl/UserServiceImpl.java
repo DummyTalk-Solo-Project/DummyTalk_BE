@@ -172,20 +172,19 @@ public class UserServiceImpl implements UserService {
             throw new UserHandler(ErrorCode.CANT_MAKE_EMAIL);
         }
 
+        // 만료 전 재요청 시 거절 로직
+        if (redisTemplate.opsForValue().get("email:"+email) != null){
+            throw new UserHandler(ErrorCode.ALREADY_SEND);
+        }
+
+        if(userRepository.findByEmail(email).isPresent()){
+            throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
+        }
+
         try {
-
-            // 만료 전 재요청 시 거절 로직
-            if (redisTemplate.opsForValue().get("email:"+email) != null){
-                throw new UserHandler(ErrorCode.ALREADY_SEND);
-            }
-
-            if(userRepository.findByEmail(email).isPresent()){
-                throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
-            }
-
             mailSender.send(msg);
 //            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
-            redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 5분으로 설정.
+            redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
         } catch (RuntimeException e) {
             throw new UserHandler(ErrorCode.CANT_SEND_EMAIL);
         }
@@ -193,16 +192,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void verifyEmail(UserRequestDTO.VerificationRequestDTO requestDTO) {
-//        Optional<Email> verification = emailRepository.findByEmailAndCode(requestDTO.getEmail(), requestDTO.getCode());
-        Object code = redisTemplate.opsForValue().get("email:" + requestDTO.getEmail());
+        String code = redisTemplate.opsForValue().get("email:" + requestDTO.getEmail()).toString();
 
         if (code == null) {
             throw new UserHandler(ErrorCode.EMAIL_EXPIRED);
         }
-        if (code.toString().equals(requestDTO.getCode()) ) {
+        log.info("code: {}", code);
+        if (!code.equals(requestDTO.getCode()) ) {
             throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
-//        long hourDiff = ChronoUnit.HOURS.between(LocalDateTime.now(), verification.get().getExpireTime());
     }
 
     @Override
