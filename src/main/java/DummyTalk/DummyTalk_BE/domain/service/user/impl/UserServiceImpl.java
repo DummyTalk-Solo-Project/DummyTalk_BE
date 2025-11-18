@@ -45,21 +45,30 @@ public class UserServiceImpl implements UserService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
-    private final EmailRepository emailRepository;
     private final InfoRepository infoRepository;
     private final UserQuizRepository userQuizRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
+    public static String generateVerificationCode() {
+        Random random = new Random();
+        StringBuilder code = new StringBuilder(CODE_LENGTH);
+
+        for (int i = 0; i < CODE_LENGTH; i++) {
+            int randomIndex = random.nextInt(CHARACTERS.length());
+
+            code.append(CHARACTERS.charAt(randomIndex));
+        }
+
+        return code.toString();
+    }
 
     @Override
     public void sendVerificationEmail(String email) {
         MimeMessage msg = mailSender.createMimeMessage();
         MimeMessageHelper helper;
         String code;
-        LocalDateTime expireTime;
         try {
             code = generateVerificationCode();
-            expireTime = LocalDateTime.now();
             helper = new MimeMessageHelper(msg, true, "utf-8");
             helper.setTo(email);
             helper.setSubject("더미톡 인증 이메일 알림.");
@@ -229,7 +238,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
 
-
         User user = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         user.setLastLogin(LocalDateTime.now());
@@ -243,19 +251,6 @@ public class UserServiceImpl implements UserService {
                 .username(user.getUsername())
                 .accessToken(jwtToken.getAccessToken())
                 .build();
-    }
-
-    public static String generateVerificationCode() {
-        Random random = new Random();
-        StringBuilder code = new StringBuilder(CODE_LENGTH);
-
-        for (int i = 0; i < CODE_LENGTH; i++) {
-            int randomIndex = random.nextInt(CHARACTERS.length());
-
-            code.append(CHARACTERS.charAt(randomIndex));
-        }
-
-        return code.toString();
     }
 
     @Override

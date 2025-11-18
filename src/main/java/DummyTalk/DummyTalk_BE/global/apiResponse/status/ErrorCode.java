@@ -16,6 +16,8 @@ public enum ErrorCode implements BaseErrorCode {
     AI_PARSING_ERROR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5002", "서버 에러 입니다. 에러 코드: SERVER5002, 관리자에게 연락 주시기 바랍니다"),
     CANT_MAKE_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5003", "서버 에러 입니다. 에러 코드: SERVER5003, 관리자에게 문의해주세요."),
     CANT_SEND_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5004", "서버 에러 입니다. 에러 코드: SERVER5004, 관리자에게 문의해주세요."),
+    CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
+    CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
 
 
     // Dummy

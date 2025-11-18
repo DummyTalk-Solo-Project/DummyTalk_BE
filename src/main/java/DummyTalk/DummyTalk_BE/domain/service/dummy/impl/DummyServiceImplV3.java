@@ -125,7 +125,7 @@ public class DummyServiceImplV3 {
      * @param openQuizDate
      */
     public void openQuiz(String email, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(email).orElseThrow(RuntimeException::new);
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
