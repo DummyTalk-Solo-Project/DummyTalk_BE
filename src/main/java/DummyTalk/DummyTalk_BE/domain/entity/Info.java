@@ -42,4 +42,9 @@ public class Info  extends CommonEntity {
     public void resetReqCount(){
         this.reqCount = 0;
     }
+
+    public void updateSubsExprDate(Boolean isSubscribe, LocalDateTime subsExprDate){
+        this.isSubscribe = isSubscribe;
+        this.subsExprDate = subsExprDate;
+    }
 }

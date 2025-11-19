@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
-@RestController
+//@RestController
 @Slf4j
 @RequestMapping("/api/dummies")
 @RequiredArgsConstructor
 @Tag(name = "더미 API", description = "일반적인 잡지식을 보게 되는 단방향 대화 API 입니다")
 public class DummyControllerV3 {
     
-    // Security 인증 제거
+    // Security 인증 제거 Controller
 
     private final DummyServiceImplV3 dummyService;
 
