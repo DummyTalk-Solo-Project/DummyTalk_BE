@@ -87,7 +87,7 @@ DummyTalk_BE/
         - 위 서비스와 더불어, 특정 API에 대한 트래픽 집중 처리
         - 트래픽 관리를 위한 클라우드 서비스 학습
     - 배포 및 운영 자동화 학습
-        - Github action, Workflow 파일 학습
+        - Github action, Workflow 파일, 클라우드 컴퓨팅 학습
         - Docker-Compose 컨테이너 및 볼륨 관리 학습
     - 보안 (JWT, Spring Security 등)
         - 액세스 토큰, 리프레쉬 토큰 관리 학습
