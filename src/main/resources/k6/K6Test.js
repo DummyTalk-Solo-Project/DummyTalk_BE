@@ -56,7 +56,7 @@ export default function () {
     const requestData = allRequests[execution.scenario.iterationInTest];
 
     // POST 요청할 URL
-    const url = `${BASE_URL}/api/dummies/quiz3`;
+    const url = `${BASE_URL}/api/dummies/quiz4`;
 
     // @RequestParam은 'application/x-www-form-urlencoded' 형식을 사용합니다.
     // k6는 JS 객체를 body로 넘기면 자동으로 이 형식으로 변환해줍니다.

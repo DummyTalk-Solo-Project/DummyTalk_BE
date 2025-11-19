@@ -18,6 +18,7 @@ public enum SuccessCode  {
     VALIDATE_SUCCESS (HttpStatus.CONTINUE, "USER2005", "이메일 검증에 성공했습니다"),
     WITHDRAWN_SUCCESS(HttpStatus.OK, "USER2006", "회원 탈퇴에 성공했씁니다."),
     GET_INFO_SUCCESS(HttpStatus.OK, "USER2007", "사용자 정보 조회에 성공했습니다."),
+    SUBSCRIBE_SUCCESS(HttpStatus.OK, "USER2007", "구독 요청에 성공했습니다."),
 
     // Dummy
     GET_DUMMY_SUCCESS(HttpStatus.OK, "DUMMY2000", "더미 요청에 성공하셨습니다."),
