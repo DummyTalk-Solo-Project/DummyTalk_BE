@@ -25,8 +25,6 @@ public class DummyControllerV2 {
     @GetMapping ("/get-dummy")
     public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
-        // 판단하는 거 따로 짜자.
-
         String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
         return ResponseEntity.ok(aiText);
     }

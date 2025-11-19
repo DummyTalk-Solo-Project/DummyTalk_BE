@@ -119,13 +119,12 @@ public class DummyServiceImplV2 implements DummyService {
 
     /**
      * 퀴즈를 만든 후 Redis 저장 및 캐시화
-     * @param reqUser
+     *
+     * @param userDetails (비영속성인 user 입니다.)
      * @param openQuizDate
      */
-
-    @Override
-    public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+    public void openQuiz(User userDetails, LocalDateTime openQuizDate) {
+        User user = userRepository.findByEmail(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
@@ -165,6 +164,7 @@ public class DummyServiceImplV2 implements DummyService {
                 .startTime(openQuizDate)
                 .status(QuizStatus.OPEN)
                 .title(responseDTO.getTitle())
+                .ticket(5)
                 .answerList(responseDTO.getAnswerList())
                 .description(responseDTO.getDescription())
                 .answer(responseDTO.getAnswer())
@@ -173,12 +173,16 @@ public class DummyServiceImplV2 implements DummyService {
                 .build());
 
         Map<String, Object> quizData = new HashMap<>();
+
+        log.info("quiz: {}, {}", savedQuiz.getTitle(), savedQuiz.getDescription());
+
         quizData.put("id", savedQuiz.getId());
         quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
         quizData.put("title", savedQuiz.getTitle());
         quizData.put("description", savedQuiz.getDescription());
+        quizData.put("ticket", savedQuiz.getTicket());
         quizData.put("answer", savedQuiz.getAnswer());
-        quizData.put("answerList", savedQuiz.getAnswerList());
+        quizData.put("answerList", savedQuiz.getAnswerList()); // json 타입
         quizData.put("startTime", savedQuiz.getStartTime().toString());
         quizData.put("endTime", savedQuiz.getStartTime().plusMinutes(3).toString());// 최대 3분동안
 
