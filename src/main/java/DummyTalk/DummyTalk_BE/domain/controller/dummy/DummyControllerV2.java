@@ -26,7 +26,8 @@ public class DummyControllerV2 {
 
     @GetMapping ("/get-dummy")
     public APIResponse<String> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-        return APIResponse.onSuccess(dummyService.GetDummyDateForNormal(userDetails.getUser(), null), SuccessCode.GET_DUMMY_SUCCESS);
+        String result = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
+        return APIResponse.onSuccess(result, SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @PostMapping("/open-quiz")
@@ -40,7 +41,8 @@ public class DummyControllerV2 {
 
     @GetMapping("/quiz")
     public APIResponse<DummyResponseDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return APIResponse.onSuccess(dummyService.getQuiz(userDetails.getUser()), SuccessCode.GET_QUIZ_SUCCESS);
+        DummyResponseDTO.GetQuizInfoResponseDTO quiz = dummyService.getQuiz(userDetails.getUser());
+        return APIResponse.onSuccess(quiz, SuccessCode.GET_QUIZ_SUCCESS);
     }
 
     @PostMapping("/quiz")
