@@ -22,7 +22,7 @@ public enum SuccessCode  {
 
     // Dummy
     GET_DUMMY_SUCCESS(HttpStatus.OK, "DUMMY2000", "더미 요청에 성공하셨습니다."),
-    OPEN_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2001", "퀴즈 오픈에 성공하셨습니다."),
+    OPEN_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2001", "(Only Admin) 퀴즈 오픈에 성공하셨습니다."),
     GET_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2002", "퀴즈 조회에 성공하셨습니다."),
     SOLVE_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2003", "퀴즈 풀이에 성공하셨습니다."),
 

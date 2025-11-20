@@ -1,13 +1,15 @@
 package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
+import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,29 +25,27 @@ public class DummyControllerV2 {
     private final DummyService dummyService;
 
     @GetMapping ("/get-dummy")
-    public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-
-        String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
-        return ResponseEntity.ok(aiText);
+    public APIResponse<String> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+        return APIResponse.onSuccess(dummyService.GetDummyDateForNormal(userDetails.getUser(), null), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @PostMapping("/open-quiz")
-    public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
-                                       @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
+    public APIResponse<Object> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
+                                         @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
 
         dummyService.openQuiz(userDetails.getUser(), date);
 
-        return ResponseEntity.ok("open Quiz Success!");
+        return APIResponse.onSuccess(null, SuccessCode.OPEN_QUIZ_SUCCESS);
     }
 
     @GetMapping("/quiz")
-    public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));
+    public APIResponse<DummyResponseDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return APIResponse.onSuccess(dummyService.getQuiz(userDetails.getUser()), SuccessCode.GET_QUIZ_SUCCESS);
     }
 
     @PostMapping("/quiz")
-    public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
+    public APIResponse<Object> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
         dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
-        return ResponseEntity.ok("성공적으로 처리 완료!");
+        return APIResponse.onSuccess(null, SuccessCode.SOLVE_QUIZ_SUCCESS);
     }
 }
