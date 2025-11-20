@@ -31,28 +31,13 @@ import java.util.Optional;
 public class ExceptionAdvice extends ResponseEntityExceptionHandler {
 
 
+    private final DiscordNotificationService discordNotificationService;
     @Value("${discord.webhook.url}")
     private String discordWebhookUrl;
 
-    private final DiscordNotificationService discordNotificationService;
-
-
     @ExceptionHandler
     public ResponseEntity<Object> exception(Exception ex, WebRequest request) {
-        ex.printStackTrace(); // 서버 로그에는 스택 트레이스 전체 출력
-
-        try {
-            // WebRequest에서 HttpServletRequest를 추출하여 요청 URL 가져오기
-            String requestUri = ((ServletWebRequest)request).getRequest().getRequestURI();
-
-            // 알림 서비스 호출
-            discordNotificationService.sendErrorNotification(ex, requestUri);
-
-        } catch (Exception notificationEx) { // 알림 전송 실패가 원래의 예외 처리를 방해해서는 안 됨
-            log.error("Failed to send Discord notification: {}", notificationEx.getMessage());
-        }
-
-        // 기존 500 에러 응답 반환
+        ex.printStackTrace();
         return handleExceptionInternalFalse(ex, ErrorCode.INTERNAL_SERVER_ERROR, HttpHeaders.EMPTY, ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus(), request, ex.getMessage());
     }
 

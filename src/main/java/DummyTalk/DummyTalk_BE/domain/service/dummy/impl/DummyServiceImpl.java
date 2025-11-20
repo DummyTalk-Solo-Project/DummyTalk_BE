@@ -17,6 +17,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -71,7 +72,7 @@ public class DummyServiceImpl implements DummyService {
 
         log.info("{}", reqUser.toString());
 
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (user.getInfo().getReqCount() >= 10) {
             log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());

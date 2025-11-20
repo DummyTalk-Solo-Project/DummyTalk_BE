@@ -1,6 +1,7 @@
 package DummyTalk.DummyTalk_BE.global.apiResponse;
 
 
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
@@ -22,9 +23,9 @@ public class APIResponse<T> {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private T result;
 
-    /*public static <T> APIResponse<T> onSuccess(T result, SuccessCode status) {
+    public static <T> APIResponse<T> onSuccess(T result, SuccessCode status) {
         return new APIResponse<>(true, status.getCode(), status.getMessage(), result);
-    }*/
+    }
 
     public static <T> APIResponse<T> onFailure(String code, String message, T data) {
         return new APIResponse<>(false, code, message, data);

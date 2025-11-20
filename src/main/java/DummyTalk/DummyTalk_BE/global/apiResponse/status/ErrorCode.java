@@ -16,6 +16,8 @@ public enum ErrorCode implements BaseErrorCode {
     AI_PARSING_ERROR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5002", "서버 에러 입니다. 에러 코드: SERVER5002, 관리자에게 연락 주시기 바랍니다"),
     CANT_MAKE_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5003", "서버 에러 입니다. 에러 코드: SERVER5003, 관리자에게 문의해주세요."),
     CANT_SEND_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5004", "서버 에러 입니다. 에러 코드: SERVER5004, 관리자에게 문의해주세요."),
+    CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
+    CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
 
 
     // Dummy
@@ -25,7 +27,7 @@ public enum ErrorCode implements BaseErrorCode {
     WRONG_QUIZ(HttpStatus.BAD_REQUEST, "DUMMY4004", "알 수 없는 퀴즈를 풀고 계신 것 같아요."),
     WRONG_ANSWER(HttpStatus.BAD_REQUEST, "DUMMY4005", "좋은 발상이었는데, 아쉽게도 그런 정답은 없어요."),
     ALREADY_SUBMIT(HttpStatus.BAD_REQUEST, "DUMMY4006", "한 번 푸셨던 문제는 다시 풀 수 없어요. 다른 사용자에게 배려해주세요 :) "),
-    TICKET_IS_DONE (HttpStatus.BAD_REQUEST, "DUMMY4007", "퀴즈는 풀었지만 이제 받을 수는 없네요"),
+    TICKET_IS_DONE (HttpStatus.BAD_REQUEST, "DUMMY4007", "퀴즈는 풀었지만 이제 티켓을 받을 수는 없네요"),
 
 
     // User
@@ -33,7 +35,8 @@ public enum ErrorCode implements BaseErrorCode {
     WRONG_EMAIL_CODE(HttpStatus.BAD_REQUEST, "USER4001", "제가 보낸 이메일이랑 다른 거 같은데, 다시 한 번 확인해보시겠어요?"),
     EMAIL_EXPIRED(HttpStatus.BAD_REQUEST, "USER4002", "이메일이 너무 오래된 거 같은데, 다시 한 번 보내드릴까요?"),
     CANT_FIND_USER(HttpStatus.BAD_REQUEST, "USER4003", "뭔가 정보가 안맞는데, 다시 한 번 요청해주시겠어요?"),
-    ALREADY_REGISTERED (HttpStatus.BAD_REQUEST, "USER4004", "이미 가입한 계정이 있어요");
+    ALREADY_REGISTERED (HttpStatus.BAD_REQUEST, "USER4004", "이미 가입한 계정이 있어요"),
+    ALREADY_SEND(HttpStatus.BAD_REQUEST, "USER4005", "이미 이메일을 보냈어요, 다시 한 번 확인해주시겠어요?.");
 
 
 

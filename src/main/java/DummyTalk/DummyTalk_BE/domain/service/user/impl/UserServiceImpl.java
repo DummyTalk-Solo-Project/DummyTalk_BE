@@ -18,6 +18,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -43,20 +45,30 @@ public class UserServiceImpl implements UserService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
-    private final EmailRepository emailRepository;
     private final InfoRepository infoRepository;
     private final UserQuizRepository userQuizRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
 
+    public static String generateVerificationCode() {
+        Random random = new Random();
+        StringBuilder code = new StringBuilder(CODE_LENGTH);
+
+        for (int i = 0; i < CODE_LENGTH; i++) {
+            int randomIndex = random.nextInt(CHARACTERS.length());
+
+            code.append(CHARACTERS.charAt(randomIndex));
+        }
+
+        return code.toString();
+    }
 
     @Override
     public void sendVerificationEmail(String email) {
         MimeMessage msg = mailSender.createMimeMessage();
         MimeMessageHelper helper;
         String code;
-        LocalDateTime expireTime;
         try {
             code = generateVerificationCode();
-            expireTime = LocalDateTime.now();
             helper = new MimeMessageHelper(msg, true, "utf-8");
             helper.setTo(email);
             helper.setSubject("더미톡 인증 이메일 알림.");
@@ -169,9 +181,19 @@ public class UserServiceImpl implements UserService {
             throw new UserHandler(ErrorCode.CANT_MAKE_EMAIL);
         }
 
+        // 만료 전 재요청 시 거절 로직
+        if (redisTemplate.opsForValue().get("email:"+email) != null){
+            throw new UserHandler(ErrorCode.ALREADY_SEND);
+        }
+
+        if(userRepository.findByEmail(email).isPresent()){
+            throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
+        }
+
         try {
             mailSender.send(msg);
-            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
+//            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
+            redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
         } catch (RuntimeException e) {
             throw new UserHandler(ErrorCode.CANT_SEND_EMAIL);
         }
@@ -179,14 +201,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void verifyEmail(UserRequestDTO.VerificationRequestDTO requestDTO) {
-        Optional<Email> verification = emailRepository.findByEmailAndCode(requestDTO.getEmail(), requestDTO.getCode());
+        String code = redisTemplate.opsForValue().get("email:" + requestDTO.getEmail()).toString();
 
-        if (verification.isEmpty()) {
-            throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
-        }
-        long hourDiff = ChronoUnit.HOURS.between(LocalDateTime.now(), verification.get().getExpireTime());
-        if (hourDiff >= 24) {
+        if (code == null) {
             throw new UserHandler(ErrorCode.EMAIL_EXPIRED);
+        }
+        log.info("code: {}", code);
+        if (!code.equals(requestDTO.getCode()) ) {
+            throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
     }
 
@@ -216,7 +238,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
 
-
         User user = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         user.setLastLogin(LocalDateTime.now());
@@ -230,19 +251,6 @@ public class UserServiceImpl implements UserService {
                 .username(user.getUsername())
                 .accessToken(jwtToken.getAccessToken())
                 .build();
-    }
-
-    public static String generateVerificationCode() {
-        Random random = new Random();
-        StringBuilder code = new StringBuilder(CODE_LENGTH);
-
-        for (int i = 0; i < CODE_LENGTH; i++) {
-            int randomIndex = random.nextInt(CHARACTERS.length());
-
-            code.append(CHARACTERS.charAt(randomIndex));
-        }
-
-        return code.toString();
     }
 
     @Override

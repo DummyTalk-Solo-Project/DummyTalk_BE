@@ -6,6 +6,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
+import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.User;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
@@ -18,8 +19,10 @@ import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -41,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
-//@Service
+@Service
 @RequiredArgsConstructor
 public class DummyServiceImplV2 implements DummyService {
 
@@ -116,13 +119,12 @@ public class DummyServiceImplV2 implements DummyService {
 
     /**
      * 퀴즈를 만든 후 Redis 저장 및 캐시화
-     * @param reqUser
+     *
+     * @param userDetails (비영속성인 user 입니다.)
      * @param openQuizDate
      */
-
-    @Override
-    public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+    public void openQuiz(User userDetails, LocalDateTime openQuizDate) {
+        User user = userRepository.findByEmail(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
@@ -162,6 +164,7 @@ public class DummyServiceImplV2 implements DummyService {
                 .startTime(openQuizDate)
                 .status(QuizStatus.OPEN)
                 .title(responseDTO.getTitle())
+                .ticket(5)
                 .answerList(responseDTO.getAnswerList())
                 .description(responseDTO.getDescription())
                 .answer(responseDTO.getAnswer())
@@ -170,12 +173,16 @@ public class DummyServiceImplV2 implements DummyService {
                 .build());
 
         Map<String, Object> quizData = new HashMap<>();
+
+        log.info("quiz: {}, {}", savedQuiz.getTitle(), savedQuiz.getDescription());
+
         quizData.put("id", savedQuiz.getId());
         quizData.put("status", savedQuiz.getStatus()); // 이거 필요한 가...? 어치피 만료될 거고
         quizData.put("title", savedQuiz.getTitle());
         quizData.put("description", savedQuiz.getDescription());
+        quizData.put("ticket", savedQuiz.getTicket());
         quizData.put("answer", savedQuiz.getAnswer());
-        quizData.put("answerList", savedQuiz.getAnswerList());
+        quizData.put("answerList", savedQuiz.getAnswerList()); // json 타입
         quizData.put("startTime", savedQuiz.getStartTime().toString());
         quizData.put("endTime", savedQuiz.getStartTime().plusMinutes(3).toString());// 최대 3분동안
 
@@ -221,28 +228,43 @@ public class DummyServiceImplV2 implements DummyService {
 
 
     @Override
-    public void solveQuiz(User user, Long quizId, Integer answer) {
+    @Timed("quiz.solve.requests")
+    @Transactional
+    public void solveQuiz(User userDetails, Long quizId, Integer answer) {
 
-        if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
-            log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
+        // MySQL 비관적 락
+
+        User user = userRepository.findByEmailFetchInfo(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ));
+
+        log.info("-- {}의 문제 풀이 작업 시작 --", user.getEmail());
+        log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), answer);
+
+        if (quiz == null) {
+            log.warn("Wrong quiz!");
             throw new DummyHandler(ErrorCode.WRONG_QUIZ);
         }
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
+
+        // 중복 제출 방지
         if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+            log.warn("{} -> already submit", user.getEmail());
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
+        redisTemplate.opsForHash().put("quiz", user.getId().toString(), user.getEmail());
 
-        Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
-        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
+        if (!quiz.decreaseTicket()){ // ek
+            log.warn("{} -> quiz has NO TICKET!",  user.getEmail());
+            throw new DummyHandler(ErrorCode.TICKET_IS_DONE);
+        }
+        else{
+            // 티켓 발급 로직
+            user.getInfo().updateSubsExprDate(true, LocalDateTime.now().plusDays(3)); // 테스트 용 3일
+        }
 
-        if (LocalDateTime.now().isBefore(dto.getStartTime())) throw new DummyHandler(ErrorCode.QUIZ_NOT_OPEN);
-
-        dto.setAnswerList((List<String>) quiz.get("answerList"));
-
-        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+        log.info("-- {}의 문제 풀이 작업 종료 --", user.getEmail());
     }
 
 }
