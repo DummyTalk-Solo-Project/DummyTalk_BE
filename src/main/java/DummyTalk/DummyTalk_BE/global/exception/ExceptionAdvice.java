@@ -31,9 +31,9 @@ import java.util.Optional;
 public class ExceptionAdvice extends ResponseEntityExceptionHandler {
 
 
-    private final DiscordNotificationService discordNotificationService;
-    @Value("${discord.webhook.url}")
-    private String discordWebhookUrl;
+//    private final DiscordNotificationService discordNotificationService;
+//    @Value("${discord.webhook.url}")
+//    private String discordWebhookUrl;
 
     @ExceptionHandler
     public ResponseEntity<Object> exception(Exception ex, WebRequest request) {
@@ -44,15 +44,8 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler(value = GeneralException.class)
     public ResponseEntity<Object> onThrowExcpetion(GeneralException generalEx, HttpServletRequest request) {
         ErrorReasonDTO reasonHttpStatus = generalEx.getReasonHttpStatus();
-        log.error("Exception occurred! : {}", reasonHttpStatus.getMessage());
 
-        if (reasonHttpStatus.getHttpStatus().is5xxServerError()) {
-            try {
-                discordNotificationService.sendErrorNotification(generalEx, request.getRequestURI());
-            } catch (Exception notificationEx) {
-                log.error("Failed to send Discord notification for GeneralException: {}", notificationEx.getMessage());
-            }
-        }
+        log.error("[Exception occurred] : {}", reasonHttpStatus.getMessage());
 
         return handleExceptionInternal(generalEx, reasonHttpStatus, null, request);
     }
