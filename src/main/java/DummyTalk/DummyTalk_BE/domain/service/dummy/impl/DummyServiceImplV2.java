@@ -66,6 +66,8 @@ public class DummyServiceImplV2 implements DummyService {
     @Transactional
     public String GetDummyDateForNormal(User reqUser, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
+        /* 처리 중 로직 구현하기. (Redis SETNX )*/
+
         String userContent, userInfo, newRequest = null;
         Random random = new Random();
         boolean isUserContent = false;
@@ -96,7 +98,7 @@ public class DummyServiceImplV2 implements DummyService {
 
         ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? AIPrompt.GET_DUMMY_PROMPT : newRequest,
                 OpenAiChatOptions.builder()
-                        .model(OpenAiApi.ChatModel.GPT_4_O_MINI)
+                        .model(OpenAiApi.ChatModel.GPT_4_TURBO)
                         .maxTokens(100)
                         .build()));
 
