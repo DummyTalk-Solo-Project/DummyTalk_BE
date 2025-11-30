@@ -166,7 +166,7 @@ public class UserServiceImpl implements UserService {
                     "        <div class=\"verification-code-container\">\n" +
                     "            <span class=\"verification-code\">  " + code + "  </span>\n" +
                     "        </div>\n" +
-                    "        <p>이 코드는 10분 동안 유효합니다.</p>\n" +
+                    "        <p>이 코드는 3분 동안 유효합니다.</p>\n" +
                     "        <p class=\"instruction\">코드를 복사하여 앱에 붙여넣어 주세요.</p>\n" +
                     "    </div>\n" +
                     "    <div class=\"footer\">\n" +
@@ -194,6 +194,7 @@ public class UserServiceImpl implements UserService {
             mailSender.send(msg);
 //            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
             redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
+            log.info("[EMAIL SENT] code {} -> {}", code, email);
         } catch (RuntimeException e) {
             throw new UserHandler(ErrorCode.CANT_SEND_EMAIL);
         }
@@ -210,6 +211,7 @@ public class UserServiceImpl implements UserService {
         if (!code.equals(requestDTO.getCode()) ) {
             throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
+        log.info("[EMAIL VERIFIED] email: {},  code: {}",  requestDTO.getEmail(), code);
     }
 
     @Override
@@ -231,6 +233,8 @@ public class UserServiceImpl implements UserService {
                 .build();
         Info savedInfo = infoRepository.save(info);
         user.setInfo(savedInfo);
+
+        log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), user.getUsername());
     }
 
 
@@ -247,6 +251,8 @@ public class UserServiceImpl implements UserService {
 
         JwtToken jwtToken = jwtProvider.generateToken(authentication);
 
+        log.info("[LOGIN] email: {}", user.getEmail());
+
         return UserResponseDTO.LoginSuccessDTO.builder()
                 .username(user.getUsername())
                 .accessToken(jwtToken.getAccessToken())
@@ -262,6 +268,8 @@ public class UserServiceImpl implements UserService {
         infoRepository.deleteByEmail(email);
 
         userRepository.deleteByEmail(email); // HARD DELETE!
+
+        log.info("[WITHDRAW] email: {}", email);
     }
 
 

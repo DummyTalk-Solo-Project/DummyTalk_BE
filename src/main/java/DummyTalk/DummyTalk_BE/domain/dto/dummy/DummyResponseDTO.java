@@ -30,7 +30,7 @@ public class DummyResponseDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class GetQuizInfoResponseDTO {
-        private QuizStatus status;
+        private QuizStatus status; // NOT_OPEN, OPEN, CLOSE
         private Integer userGrade;
 
         private Long quizId;

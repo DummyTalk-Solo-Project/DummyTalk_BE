@@ -25,7 +25,7 @@ public class DummyControllerV2 {
     private final DummyService dummyService;
 
     @GetMapping ("/get-dummy")
-    public APIResponse<String> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+    public APIResponse<String> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails) {
         String result = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
         return APIResponse.onSuccess(result, SuccessCode.GET_DUMMY_SUCCESS);
     }

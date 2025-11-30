@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import static io.lettuce.core.pubsub.PubSubOutput.Type.message;
 
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 public class DiscordNotificationService {
 
