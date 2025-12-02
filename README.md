@@ -13,7 +13,7 @@
 ### 🛠 Tech Stack
 
 - **FrontEnd**  
-  ![Cursor](https://img.shields.io/badge/Cursor-000000?style=for-the-badge&logo=cursor&logoColor=white) ![Gemini](https://img.shields.io/badge/Gemini-4285F4?style=for-the-badge&logo=googlebard&logoColor=white) ![ChatGPT](https://img.shields.io/badge/ChatGPT-74AA9C?style=for-the-badge&logo=openai&logoColor=white)
+  ![Gemini](https://img.shields.io/badge/Gemini-4285F4?style=for-the-badge&logo=googlebard&logoColor=white) 
 
 - **Backend**  
   ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring%20Data%20JPA-59666C?style=for-the-badge&logo=hibernate&logoColor=white) ![Spring AI](https://img.shields.io/badge/Spring%20AI-412991?style=for-the-badge&logo=openai&logoColor=white)
