@@ -21,7 +21,6 @@
 - **DB / Infra**  
   ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)   ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)    ![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 
-
   - 수정사항: 프리티어 무료 토큰이 빨리 나가는 관계로 EC2 내 도커를 통한 DB 배포로 변경...
 
 - **빌드 & 배포**  
@@ -63,9 +62,7 @@ DummyTalk_BE/
  ┃ ┃ ┃   ┗ global/
  ┃ ┃ ┃     ┣ email/
  ┃ ┃ ┃     ┗ security/
- ┃ ┃ ┗ resources/
- ┃ ┃   ┣ static/
- ┃ ┃   ┗ templates/
+    ...
  ┗ build.gradle
 
 ```
@@ -81,8 +78,10 @@ DummyTalk_BE/
   실 트래픽을 체험해보고, 어떻게 관리해야 하는가?** 를 실험하는 공간
 
 - 재미 뿐만 아니라 “실제 런칭”을 위한 1인 개발 프로젝트 진행으로 다양한 지식 습득!
-    - 동시성 제어
+    - 데이터베이스 심화 개발
         - 유로 서비스 쿠폰에 대한 돌발 퀴즈로 동시성 문제 발생 및 제어
+        - MySQL에서 PostgreSQL 등의 다양한 DB 사용 경험 
+        - Hibernate 로깅을 통한 N+1, Join 관찰로 SQL 튜닝 + 성능 최적화
     - 트래픽 처리
         - 위 서비스와 더불어, 특정 API에 대한 트래픽 집중 처리
         - 트래픽 관리를 위한 클라우드 서비스 학습
@@ -91,16 +90,17 @@ DummyTalk_BE/
         - Docker-Compose 컨테이너 및 볼륨 관리 학습
     - 보안 (JWT, Spring Security 등)
         - 액세스 토큰, 리프레쉬 토큰 관리 학습
+        - RTR 로직, 토큰 만료 로직 심화 학습
 
 ---
 
 ## 📌 향후 계획 (To-do / Roadmap)
 
-- [ ]  잡학 지식 카테고리 확장
+- [ ]  잡학 지식 카테고리 확장 (잡학 지식 기획 재고려 중)
 - [x]  채팅 및 돌발 퀴즈 서비스 도입
 - [ ]  사용자 정보 기반 추천 알고리즘 강화
 - [x]  다크 모드 + 심리학적 대화 강화
-- [ ]  웹/앱 프론트엔드 연동
+- [x]  웹/앱 프론트엔드 연동
 - [x]  Prometheus & Grafana를 활용한 성능 모니터링
 - [x]  JMeter / K6 를 통한 실시간 성능 테스트
 - [ ]  도메인 구매로 런칭 준비하기
