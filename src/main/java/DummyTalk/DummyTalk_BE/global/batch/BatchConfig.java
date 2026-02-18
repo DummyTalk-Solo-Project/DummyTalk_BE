@@ -1,8 +1,10 @@
 package DummyTalk.DummyTalk_BE.global.batch;
 
 import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.service.email.MailService;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
@@ -24,11 +26,13 @@ import java.time.temporal.ChronoUnit;
 @Configuration
 @EnableBatchProcessing
 @RequiredArgsConstructor
+@Slf4j
 public class BatchConfig {
 
     private final EntityManagerFactory emf;
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
+    private final MailService mailService;
 
     @Bean
     public Job resetCountJob() {
@@ -60,10 +64,16 @@ public class BatchConfig {
     @Bean
     public ItemProcessor<User, User> userDataProcessor() {
         return user -> {
+            // 1. 카운트 리셋
             user.getInfo().resetReqCount();
 
+            // 2. 메일 발송 로직: 5일 이상 미접속 시
             if (ChronoUnit.DAYS.between(user.getLastLogin(), LocalDateTime.now()) >= 5) {
-                // 메세지 발송 로직
+                try {
+                    mailService.sendReminderEmail(user.getEmail(), user.getUsername());
+                } catch (Exception e) {
+                    log.error("메일 발송 실패 - 사용자: {}", user.getId(), e);
+                }
             }
             return user;
         };
