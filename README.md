@@ -1,6 +1,7 @@
 # ✨ Project Introduction
 
-![mainLogo.png](/assets/ProjectMainLogo.png)
+<img src="./assets/ProjectMainLogo.png" width="80%">
+
 
 - DummyTalk은 버튼 클릭만으로 OpenAI API를 통해 무작위 잡학 지식을 얻을 수 있는 작은 사이드 프로젝트입니다.
 - 단순한 지식 전달에 그치지 않고, 사용자 정보 기반 개인화 또는 메타픽션적인 다크 심리 요소를 섞어 실험적인 경험을 제공합니다.
@@ -50,6 +51,7 @@
 
 ## 📂 프로젝트 구조 (Project Structure)
 
+<img src=".github/dummyTalk.png">
 
 ---
 
