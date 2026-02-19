@@ -1,6 +1,7 @@
 # ✨ Project Introduction
 
-![mainLogo.png](/assets/ProjectMainLogo.png)
+<img src="./assets/ProjectMainLogo.png" width="80%">
+
 
 - DummyTalk은 버튼 클릭만으로 OpenAI API를 통해 무작위 잡학 지식을 얻을 수 있는 작은 사이드 프로젝트입니다.
 - 단순한 지식 전달에 그치지 않고, 사용자 정보 기반 개인화 또는 메타픽션적인 다크 심리 요소를 섞어 실험적인 경험을 제공합니다.
@@ -13,17 +14,18 @@
 ### 🛠 Tech Stack
 
 - **FrontEnd**  
-  ![Gemini](https://img.shields.io/badge/Gemini-4285F4?style=for-the-badge&logo=googlebard&logoColor=white) 
+  ![Gemini](https://img.shields.io/badge/Gemini-4285F4?style=for-the-badge&logo=googlebard&logoColor=white) <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black"> <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white"> <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white">
+
 
 - **Backend**  
-  ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring%20Data%20JPA-59666C?style=for-the-badge&logo=hibernate&logoColor=white) ![Spring AI](https://img.shields.io/badge/Spring%20AI-412991?style=for-the-badge&logo=openai&logoColor=white)
+  ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring%20Data%20JPA-6DB33F?style=for-the-badge&logo=hibernate&logoColor=white) ![Spring AI](https://img.shields.io/badge/Spring%20AI-6DB33F?style=for-the-badge&logo=openai&logoColor=white)
 
 - **DB / Infra**  
   ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)   ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)    ![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 
   - 수정사항: 프리티어 무료 토큰이 빨리 나가는 관계로 EC2 내 도커를 통한 DB 배포로 변경...
 
-- **빌드 & 배포**  
+- **Build & Depoly**  
   ![Gradle](https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&logo=gradle&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) ![EC2](https://img.shields.io/badge/AWS%20EC2-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white) ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
 
@@ -49,29 +51,13 @@
 
 ## 📂 프로젝트 구조 (Project Structure)
 
-```bash
-DummyTalk_BE/
- ┣ .github/
- ┃ ┣ ISSUE_TEMPLATE/
- ┃ ┗ workflows/
- ┣ src/
- ┃ ┣ main/
- ┃ ┃ ┣ java/
- ┃ ┃ ┃ ┗ DummyTalk/DummyTalk_BE/
- ┃ ┃ ┃   ┣ domain/
- ┃ ┃ ┃   ┗ global/
- ┃ ┃ ┃     ┣ email/
- ┃ ┃ ┃     ┗ security/
-    ...
- ┗ build.gradle
-
-```
+<img src=".github/dummyTalk.png">
 
 ---
 
 ## 🎯 프로젝트 의의 (Why this project?)
 
-- 재미 요소, 예측 불가능성, 메타픽션을 결합한 새로운 형태의 "가벼운 대화형 서비스"
+- 재미 요소, 예측 불가능성, 메타픽션을 결합한 새로운 형태의 "가벼운 생성형 서비스"
 - 단순한 API 호출 프로젝트가 아니라,
 
   **"AI가 주는 정보"를 어떻게 사용자 경험으로 변환할 수 있는가?
