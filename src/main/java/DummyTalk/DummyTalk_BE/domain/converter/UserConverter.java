@@ -9,7 +9,7 @@ public class UserConverter {
 
     public static Member toNewUser (MemberRequestDTO.SignInRequestDTO request) {
         return Member.builder()
-                .username(request.getUsername())
+                .memberName(request.getUsername())
                 .email(request.getEmail())
                 .password(request.getPassword())
                 .login(Login.NORMAL)
@@ -19,7 +19,7 @@ public class UserConverter {
     public static MemberRequestDTO.AIRequestDTO toAIRequestDTO (Member member, Info info){
         return MemberRequestDTO.AIRequestDTO.builder()
                 .email(member.getEmail())
-                .username(member.getUsername())
+                .username(member.getMemberName())
                 .login(member.getLogin())
                 .info(info)
                 .build();

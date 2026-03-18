@@ -27,7 +27,7 @@ public class Member extends CommonEntity {
 
     private String password;
 
-    private String username;
+    private String memberName;
 
     private Login login;
 

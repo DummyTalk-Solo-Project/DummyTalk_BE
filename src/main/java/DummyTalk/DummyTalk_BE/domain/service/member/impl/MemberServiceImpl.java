@@ -230,7 +230,7 @@ public class MemberServiceImpl implements MemberService {
         Info savedInfo = infoRepository.save(info);
         member.setInfo(savedInfo);
 
-        log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getUsername());
+        log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getMemberName());
     }
 
 
@@ -250,7 +250,7 @@ public class MemberServiceImpl implements MemberService {
         log.info("[LOGIN] email: {}", member.getEmail());
 
         return MemberResponseDTO.LoginSuccessDTO.builder()
-                .username(member.getUsername())
+                .username(member.getMemberName())
                 .accessToken(jwtToken.getAccessToken())
                 .build();
     }
@@ -274,7 +274,7 @@ public class MemberServiceImpl implements MemberService {
         memberRepository.findAllJoinFetchInfo().forEach(user ->
         dtoList.add(MemberResponseDTO.GetUserResponseDTO.builder()
                 .email(user.getEmail())
-                .username(user.getUsername())
+                .username(user.getMemberName())
                 .reqCount(user.getInfo().getReqCount())
                 .isSubscribe(user.getInfo().getIsSubscribe())
                 .subsExprDate(user.getInfo().getSubsExprDate())
