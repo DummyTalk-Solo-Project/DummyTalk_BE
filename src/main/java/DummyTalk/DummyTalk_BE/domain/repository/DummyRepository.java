@@ -10,4 +10,8 @@ public interface DummyRepository extends JpaRepository<Dummy, Long> {
 
     @Query(value = "select d from Dummy d join fetch d.rarity where d.id = :dummyId")
     Optional<Dummy> findByIdWithRarity (Long dummyId);
+
+    boolean existsDummiesByTitle(String title);
+
+    boolean existsByTitle(String title);
 }

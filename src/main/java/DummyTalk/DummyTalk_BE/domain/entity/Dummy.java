@@ -20,14 +20,14 @@ public class Dummy extends CommonEntity {
     private Long id;
 
     /// deprecated
-    private Boolean isUserContent;
+//    private Boolean isUserContent;
 
     /// deprecated
-    @Column(columnDefinition = "TEXT")
-    private String request;
+//    @Column(columnDefinition = "TEXT")
+//    private String request;
 
     /// deprecated
-    private String response;
+//    private String response;
 
     @Column(nullable = false)
     private String title;
