@@ -4,10 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,8 +12,8 @@ import java.util.List;
 @Entity
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Dummy extends CommonEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
