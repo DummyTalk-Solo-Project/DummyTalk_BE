@@ -228,6 +228,13 @@ public class MemberServiceImpl implements MemberService {
                 .reqCount(0)
                 .build();
         Info savedInfo = infoRepository.save(info);
+
+        Map<String, String> initialPity = new HashMap<>();
+        initialPity.put("RARE", "0");
+        initialPity.put("EPIC", "0");
+        redisTemplate.opsForHash().putAll("pity:" + member.getId(), initialPity);
+
+
         member.setInfo(savedInfo);
 
         log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getMemberName());
