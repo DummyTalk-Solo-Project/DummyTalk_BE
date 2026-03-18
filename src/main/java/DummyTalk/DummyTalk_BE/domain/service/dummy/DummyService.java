@@ -99,7 +99,7 @@ public class DummyService {
 
 
         // 천장 update
-        updatePityStack(pityKey, selectedRarity.getName());
+        updatePityStack(pityKey, selectedRarity.getName().toString());
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
@@ -117,7 +117,7 @@ public class DummyService {
         return DummyResponseDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
                 .content(dummy.getContent())
-                .rarityName(dummy.getRarity().getName())
+                .rarityName(dummy.getRarity().getName().toString())
                 .build();
     }
 
