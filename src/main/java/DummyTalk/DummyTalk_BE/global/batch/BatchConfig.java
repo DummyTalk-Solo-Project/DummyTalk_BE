@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.global.batch;
 
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
-import DummyTalk.DummyTalk_BE.domain.service.email.MailService;
+import DummyTalk.DummyTalk_BE.domain.service.email.EMailService;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ public class BatchConfig {
     private final EntityManagerFactory emf;
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
-    private final MailService mailService;
+    private final EMailService EMailService;
 
     @Bean
     public Job resetCountJob() {
@@ -70,7 +70,7 @@ public class BatchConfig {
             // 2. 메일 발송 로직: 5일 이상 미접속 시
             if (ChronoUnit.DAYS.between(user.getLastLogin(), LocalDateTime.now()) >= 5) {
                 try {
-                    mailService.sendReminderEmail(user.getEmail(), user.getMemberName());
+                    EMailService.sendReminderEmail(user.getEmail(), user.getMemberName());
                 } catch (Exception e) {
                     log.error("메일 발송 실패 - 사용자: {}", user.getId(), e);
                 }

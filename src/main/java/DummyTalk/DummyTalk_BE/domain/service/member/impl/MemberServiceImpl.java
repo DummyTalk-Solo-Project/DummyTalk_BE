@@ -10,8 +10,8 @@ import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
+import DummyTalk.DummyTalk_BE.global.security.jwt.JWT;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
-import DummyTalk.DummyTalk_BE.global.security.jwt.JwtToken;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -188,7 +188,6 @@ public class MemberServiceImpl implements MemberService {
 
         try {
             mailSender.send(msg);
-//            emailRepository.save(EmailConverter.toNewEmail(email, code, expireTime)); /// Redis를 사용한 자체 TimeOut 세팅할 것
             redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
             log.info("[EMAIL SENT] code {} -> {}", code, email);
         } catch (RuntimeException e) {
@@ -207,7 +206,7 @@ public class MemberServiceImpl implements MemberService {
         if (!code.equals(requestDTO.getCode()) ) {
             throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
-        log.info("[EMAIL VERIFIED] email: {},  code: {}",  requestDTO.getEmail(), code);
+        log.info("[MemberService - EMAIL VERIFIED] email: {},  code: {}",  requestDTO.getEmail(), code);
     }
 
     @Override
@@ -237,7 +236,7 @@ public class MemberServiceImpl implements MemberService {
 
         member.setInfo(savedInfo);
 
-        log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getMemberName());
+        log.info("[MemberService - SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getMemberName());
     }
 
 
@@ -252,13 +251,13 @@ public class MemberServiceImpl implements MemberService {
         Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
         Authentication authentication = new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword(), authorities);
 
-        JwtToken jwtToken = jwtProvider.generateToken(authentication);
+        JWT jwt = jwtProvider.generateToken(authentication);
 
-        log.info("[LOGIN] email: {}", member.getEmail());
+        log.info("[MemberService - LOGIN] email: {}", member.getEmail());
 
         return MemberResponseDTO.LoginSuccessDTO.builder()
                 .username(member.getMemberName())
-                .accessToken(jwtToken.getAccessToken())
+                .accessToken(jwt.getAccessToken())
                 .build();
     }
 
@@ -272,7 +271,7 @@ public class MemberServiceImpl implements MemberService {
 
         memberRepository.deleteByEmail(email); // HARD DELETE!
 
-        log.info("[WITHDRAW] email: {}", email);
+        log.info("[MemberService - WITHDRAW] email: {}", email);
     }
 
 
@@ -288,7 +287,7 @@ public class MemberServiceImpl implements MemberService {
                 .build())
         );
 
-        log.info("data count : {}",  dtoList.size());
+        log.info("MemberService - [GETALLDATA] data count : {}",  dtoList.size());
         return dtoList;
     }
 }
