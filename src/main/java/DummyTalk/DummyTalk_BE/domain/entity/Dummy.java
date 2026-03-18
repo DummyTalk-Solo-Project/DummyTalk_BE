@@ -38,11 +38,12 @@ public class Dummy extends CommonEntity {
     @Column(nullable = false)
     private String content; // 막 길지는 않아서 충분할 듯?
 
-    @ManyToOne (fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private Member member;
 
     @OneToMany (mappedBy = "dummy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<MemberDummy> memberDummyList = new ArrayList<>();
+
+    @ManyToOne (fetch = FetchType.EAGER)
+    @JoinColumn(name = "rarity_id")
+    private Rarity rarity;
 }

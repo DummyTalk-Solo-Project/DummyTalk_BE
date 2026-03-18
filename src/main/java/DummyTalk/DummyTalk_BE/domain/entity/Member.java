@@ -46,9 +46,9 @@ public class Member extends CommonEntity {
     private List<MemberDummy> memberDummyList = new ArrayList<>();
 
     /// deprecated
-    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+/*    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
-    private List<Dummy> dummyList = new ArrayList<>();
+    private List<Dummy> dummyList = new ArrayList<>();*/
 
     @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference

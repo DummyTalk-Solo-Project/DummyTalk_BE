@@ -1,7 +1,11 @@
 package DummyTalk.DummyTalk_BE.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Builder
@@ -20,4 +24,8 @@ public class Rarity {
 
     @Column(nullable = false)
     private Double probability;
+
+    @OneToMany (mappedBy = "rarity", fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<Dummy> dummyList = new ArrayList<>();
 }
