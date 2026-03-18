@@ -1,6 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -40,4 +41,8 @@ public class Dummy extends CommonEntity {
     @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private Member member;
+
+    @OneToMany (mappedBy = "dummy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<MemberDummy> memberDummyList = new ArrayList<>();
 }

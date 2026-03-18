@@ -2,6 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -31,6 +32,7 @@ public class Member extends CommonEntity {
 
     private Login login;
 
+    /// deprecated
     private LocalDateTime lastLogin;
 
     @Setter
@@ -41,12 +43,18 @@ public class Member extends CommonEntity {
 
     @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
+    private List<MemberDummy> memberDummyList = new ArrayList<>();
+
+    /// deprecated
+    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
     private List<Dummy> dummyList = new ArrayList<>();
 
     @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<MemberQuiz> memberQuizList = new ArrayList<>();
 
+    /// deprecated
     @Override
     public String toString() {
         return "{" +
