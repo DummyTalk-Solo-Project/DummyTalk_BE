@@ -1,13 +1,13 @@
-package DummyTalk.DummyTalk_BE.domain.service.user.impl;
+package DummyTalk.DummyTalk_BE.domain.service.member.impl;
 
 import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
-import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.member.MemberResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.repository.InfoRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
-import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService {
+public class MemberServiceImpl implements MemberService {
 
     private final MemberRepository memberRepository;
     private final JavaMailSender mailSender;
@@ -42,7 +42,7 @@ public class UserServiceImpl implements UserService {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
     private final InfoRepository infoRepository;
-    private final UserQuizRepository userQuizRepository;
+    private final MemberQuizRepository memberQuizRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public static String generateVerificationCode() {
@@ -197,7 +197,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void verifyEmail(UserRequestDTO.VerificationRequestDTO requestDTO) {
+    public void verifyEmail(MemberRequestDTO.VerificationRequestDTO requestDTO) {
         String code = redisTemplate.opsForValue().get("email:" + requestDTO.getEmail()).toString();
 
         if (code == null) {
@@ -212,7 +212,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void signIn(UserRequestDTO.SignInRequestDTO request) {
+    public void signIn(MemberRequestDTO.SignInRequestDTO request) {
 
         Optional<Member> byEmail = memberRepository.findByEmail(request.getEmail());
         if (byEmail.isPresent()){
@@ -236,7 +236,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
+    public MemberResponseDTO.LoginSuccessDTO login(MemberRequestDTO.LoginRequestDTO requestDTO) {
 
         Member member = memberRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
@@ -249,7 +249,7 @@ public class UserServiceImpl implements UserService {
 
         log.info("[LOGIN] email: {}", member.getEmail());
 
-        return UserResponseDTO.LoginSuccessDTO.builder()
+        return MemberResponseDTO.LoginSuccessDTO.builder()
                 .username(member.getUsername())
                 .accessToken(jwtToken.getAccessToken())
                 .build();
@@ -260,7 +260,7 @@ public class UserServiceImpl implements UserService {
     public void withdraw(String email) {
 
         // User와 관계된 엔티티 먼저 제거
-        userQuizRepository.deleteByEmail(email);
+        memberQuizRepository.deleteByEmail(email);
         infoRepository.deleteByEmail(email);
 
         memberRepository.deleteByEmail(email); // HARD DELETE!
@@ -269,10 +269,10 @@ public class UserServiceImpl implements UserService {
     }
 
 
-    public List<UserResponseDTO.GetUserResponseDTO> getAllData() {
-        List<UserResponseDTO.GetUserResponseDTO> dtoList = new ArrayList<>();
+    public List<MemberResponseDTO.GetUserResponseDTO> getAllData() {
+        List<MemberResponseDTO.GetUserResponseDTO> dtoList = new ArrayList<>();
         memberRepository.findAllJoinFetchInfo().forEach(user ->
-        dtoList.add(UserResponseDTO.GetUserResponseDTO.builder()
+        dtoList.add(MemberResponseDTO.GetUserResponseDTO.builder()
                 .email(user.getEmail())
                 .username(user.getUsername())
                 .reqCount(user.getInfo().getReqCount())

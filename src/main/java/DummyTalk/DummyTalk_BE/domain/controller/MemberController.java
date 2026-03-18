@@ -1,8 +1,8 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
-import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
+import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.member.MemberResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
@@ -20,32 +20,32 @@ import java.util.List;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Tag(name = "사용자 API", description = "사용자 관련 API 입니다")
-public class UserController {
+public class MemberController {
 
-    private final UserService userService;
+    private final MemberService memberService;
 
     @GetMapping ("/email-verification")
     public APIResponse<Boolean> sendVerificationEmail (@RequestParam String email) {
-        userService.sendVerificationEmail(email);
+        memberService.sendVerificationEmail(email);
 
         return APIResponse.onSuccess(true, SuccessCode.EMAIL_SEND_SUCCESS);
     }
 
     @PostMapping ("/verify")
-    public APIResponse<Boolean> verifyEmail (@RequestBody UserRequestDTO.VerificationRequestDTO requestDTO) {
-        userService.verifyEmail(requestDTO);
+    public APIResponse<Boolean> verifyEmail (@RequestBody MemberRequestDTO.VerificationRequestDTO requestDTO) {
+        memberService.verifyEmail(requestDTO);
         return APIResponse.onSuccess(true, SuccessCode.VALIDATE_SUCCESS);
     }
 
     @PostMapping("/sign-in")
-    public APIResponse<Boolean> signIn (@RequestBody UserRequestDTO.SignInRequestDTO request){
-        userService.signIn(request);
+    public APIResponse<Boolean> signIn (@RequestBody MemberRequestDTO.SignInRequestDTO request){
+        memberService.signIn(request);
         return APIResponse.onSuccess(true, SuccessCode.SIGN_IN_SUCCESS);
     }
 
     @PostMapping("/login")
-    public APIResponse<Boolean> login (@RequestBody UserRequestDTO.LoginRequestDTO requestDTO, HttpServletResponse response){
-        UserResponseDTO.LoginSuccessDTO responseDTO = userService.login(requestDTO);
+    public APIResponse<Boolean> login (@RequestBody MemberRequestDTO.LoginRequestDTO requestDTO, HttpServletResponse response){
+        MemberResponseDTO.LoginSuccessDTO responseDTO = memberService.login(requestDTO);
 
         response.addHeader("Authorization", "Bearer: " + responseDTO.getAccessToken());
 
@@ -66,13 +66,13 @@ public class UserController {
     }
 
     @GetMapping("/my-page")
-    public APIResponse<List<UserResponseDTO.GetUserResponseDTO>> mypage (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return APIResponse.onSuccess(userService.getAllData(), SuccessCode.GET_INFO_SUCCESS);
+    public APIResponse<List<MemberResponseDTO.GetUserResponseDTO>> mypage (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return APIResponse.onSuccess(memberService.getAllData(), SuccessCode.GET_INFO_SUCCESS);
     }
 
     @PatchMapping("/withdrawal")
     public APIResponse<Boolean> withdrawal (@AuthenticationPrincipal CustomUserDetails userDetails){
-        userService.withdraw(userDetails.getMember().getEmail());
+        memberService.withdraw(userDetails.getMember().getEmail());
         return APIResponse.onSuccess(true, SuccessCode.WITHDRAWN_SUCCESS);
     }
 

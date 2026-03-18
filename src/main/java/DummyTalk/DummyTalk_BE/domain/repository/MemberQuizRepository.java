@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-public interface UserQuizRepository extends JpaRepository<MemberQuiz, Long> {
+public interface MemberQuizRepository extends JpaRepository<MemberQuiz, Long> {
 
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM MemberQuiz uq  WHERE uq.member.email = :email")

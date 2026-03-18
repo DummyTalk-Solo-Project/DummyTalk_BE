@@ -1,10 +1,10 @@
 package DummyTalk.DummyTalk_BE.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
-import DummyTalk.DummyTalk_BE.domain.service.user.impl.UserServiceImpl;
+import DummyTalk.DummyTalk_BE.domain.service.member.impl.MemberServiceImpl;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
@@ -36,7 +36,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 public class DummyServiceTrafficTest {
 
     @Autowired
-    private UserServiceImpl userService;
+    private MemberServiceImpl userService;
 
     @Autowired
     private DummyServiceImplV3 dummyService;
@@ -63,7 +63,7 @@ public class DummyServiceTrafficTest {
             String username = "user" + i;
             String email = username + "@email.com";
 
-            userService.signIn(UserRequestDTO.SignInRequestDTO.builder()
+            userService.signIn(MemberRequestDTO.SignInRequestDTO.builder()
                     .email(email)
                     .username(username)
                     .password("1234") // 비밀번호는 공통

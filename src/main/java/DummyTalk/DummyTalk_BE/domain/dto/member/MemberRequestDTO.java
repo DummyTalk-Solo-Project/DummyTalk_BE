@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.dto.user;
+package DummyTalk.DummyTalk_BE.domain.dto.member;
 
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.Info;
@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-public class UserRequestDTO {
+public class MemberRequestDTO {
 
     @Getter
     @Builder

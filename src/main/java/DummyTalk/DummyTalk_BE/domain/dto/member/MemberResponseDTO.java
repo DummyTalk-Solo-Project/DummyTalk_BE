@@ -1,10 +1,10 @@
-package DummyTalk.DummyTalk_BE.domain.dto.user;
+package DummyTalk.DummyTalk_BE.domain.dto.member;
 
 import lombok.*;
 
 import java.time.LocalDateTime;
 
-public class UserResponseDTO {
+public class MemberResponseDTO {
 
     @Getter
     @Builder

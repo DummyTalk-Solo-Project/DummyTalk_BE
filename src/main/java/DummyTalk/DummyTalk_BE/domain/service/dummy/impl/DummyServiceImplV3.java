@@ -13,7 +13,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
@@ -56,7 +56,7 @@ public class DummyServiceImplV3 {
     private final OpenAiChatModel chatModel;
     private final ObjectMapper objectMapper;
     private final QuizRepository quizRepository;
-    private final UserQuizRepository userQuizRepository;
+    private final MemberQuizRepository memberQuizRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedissonClient redissonClient;
 
@@ -199,7 +199,7 @@ public class DummyServiceImplV3 {
 
         if (quiz.isEmpty()) {
             log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
-            Optional<MemberQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(member.getId(), 1);
+            Optional<MemberQuiz> userQuiz = memberQuizRepository.findLastestQuizByUserId(member.getId(), 1);
 
             if (userQuiz.isEmpty()) throw new DummyHandler(ErrorCode.NO_SOLVED_QUIZ);
 
