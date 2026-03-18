@@ -12,6 +12,9 @@ import lombok.*;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public class MemberDummy extends CommonEntity {
+
+    // 사용자가 조회한 Dummy 기록용 매핑 테이블
+
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -23,5 +26,7 @@ public class MemberDummy extends CommonEntity {
     @JoinColumn(name = "dummy_id")
     private Dummy dummy;
 
-    // 사용자가 조회한 Dummy 기록용 매핑 테이블
+    public static MemberDummy generateMemberDummy(Member member, Dummy dummy) {
+        return MemberDummy.builder().member(member).dummy(dummy).build();
+    }
 }

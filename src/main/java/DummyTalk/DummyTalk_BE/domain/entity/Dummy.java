@@ -33,7 +33,7 @@ public class Dummy extends CommonEntity {
     private String title;
 
     @Column(nullable = false)
-    private String content; // 막 길지는 않아서 충분할 듯?
+    private String content; // 막 길지는 않아서 충분할 듯? 이것만 쓰지 않을까?
 
 
     @OneToMany (mappedBy = "dummy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

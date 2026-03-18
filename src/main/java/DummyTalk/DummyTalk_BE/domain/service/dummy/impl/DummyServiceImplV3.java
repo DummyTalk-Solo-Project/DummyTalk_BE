@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
-@Service
+//@Service
 @RequiredArgsConstructor
 public class DummyServiceImplV3 {
 
@@ -101,14 +101,14 @@ public class DummyServiceImplV3 {
                         .build()));
 
         Dummy newDummy = Dummy.builder()
-                .member(member)
+//                .member(member)
                 .isUserContent(isUserContent)
                 .request(AIPrompt.GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
 
-        member.getDummyList().add(newDummy);
+//        member.getDummyList().add(newDummy);
         member.getInfo().updateReqCount();
 
         String text = resp.getResult().getOutput().getText();

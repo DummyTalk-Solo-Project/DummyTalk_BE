@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.dto.dummy;
 
+import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import lombok.*;
 import lombok.AllArgsConstructor;
@@ -36,6 +37,17 @@ public class DummyResponseDTO {
         private Long quizId;
         private String title;
         private List<String> answerList = new ArrayList<>();
+    }
+
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GetDummyRespDTO{
+        private Long dummyId;
+//        private String title;
+        private String content;
+        private String rarityName;
     }
 
 }

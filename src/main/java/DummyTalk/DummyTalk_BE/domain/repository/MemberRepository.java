@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface MemberRepository extends JpaRepository<Member,Integer> {
+public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM Member u WHERE u.email = :email")

@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
+import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyServiceInterface;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,14 +20,14 @@ import java.time.LocalDateTime;
 @Tag(name = "더미 API", description = "일반적인 잡지식을 보게 되는 단방향 대화 API 입니다")
 public class DummyController {
 
-    private final DummyService dummyService;
+    private final DummyServiceInterface dummyServiceInterface;
 
     @GetMapping ("/get-dummy")
     public ResponseEntity<Object> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
         // 판단하는 거 따로 짜자.
 
-        String aiText = dummyService.GetDummyDateForNormal(userDetails.getMember(), null);
+        String aiText = dummyServiceInterface.GetDummyDateForNormal(userDetails.getMember(), null);
         return ResponseEntity.ok(aiText);
     }
 
@@ -35,19 +35,19 @@ public class DummyController {
     public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
                                        @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
 
-        dummyService.openQuiz(userDetails.getMember(), date);
+        dummyServiceInterface.openQuiz(userDetails.getMember(), date);
 
         return ResponseEntity.ok("open Quiz Success!");
     }
 
     @GetMapping("/quiz")
     public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getMember()));
+        return ResponseEntity.ok(dummyServiceInterface.getQuiz(userDetails.getMember()));
     }
 
     @PostMapping("/quiz")
     public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
-        dummyService.solveQuiz(userDetails.getMember(), quizId, answer);
+        dummyServiceInterface.solveQuiz(userDetails.getMember(), quizId, answer);
         return ResponseEntity.ok("성공적으로 처리 완료!");
     }
 }
