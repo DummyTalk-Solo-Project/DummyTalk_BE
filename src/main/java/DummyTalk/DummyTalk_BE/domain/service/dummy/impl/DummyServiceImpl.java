@@ -7,13 +7,13 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
@@ -31,7 +31,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -50,7 +49,7 @@ public class DummyServiceImpl implements DummyService {
 
     // 1. 기본 Redis 인메모리 활용을 통한 동시성 테스트
 
-    private final UserRepository userRepository;
+    private final MemberRepository memberRepository;
     private final DummyRepository dummyRepository;
     private final OpenAiChatModel chatModel;
     private final ObjectMapper objectMapper;
@@ -64,18 +63,18 @@ public class DummyServiceImpl implements DummyService {
     ///  TODO 개느려, 성능 개선할 것
     @Override
     @Transactional
-    public String GetDummyDateForNormal(User reqUser, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+    public String GetDummyDateForNormal(Member reqMember, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
         String userContent, userInfo, newRequest = null;
         Random random = new Random();
         boolean isUserContent = false;
 
-        log.info("{}", reqUser.toString());
+        log.info("{}", reqMember.toString());
 
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(reqMember.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
-        if (user.getInfo().getReqCount() >= 10) {
-            log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
+        if (member.getInfo().getReqCount() >= 10) {
+            log.info("{} -> 무료 이용 횟수 모두 소모!", member.getEmail());
             throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
         }
 
@@ -84,14 +83,14 @@ public class DummyServiceImpl implements DummyService {
         if (random.nextInt(3) == 0) { // 20%의 확률로
             try {
                 userContent = objectMapper.writeValueAsString(requestInfoDTO);
-                userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
+                userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(member, member.getInfo()));
             } catch (JsonProcessingException e) {
                 throw new DummyHandler(ErrorCode.PARSING_ERROR);
             }
 
             log.info("사용자의 정보를 사용합니다.");
             isUserContent = true;
-            newRequest = GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
+            newRequest = GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqMember + ", " + userContent + ", userInfo: " + userInfo);
         }
 
         ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? GET_DUMMY_PROMPT : newRequest,
@@ -101,15 +100,15 @@ public class DummyServiceImpl implements DummyService {
                         .build()));
 
         Dummy newDummy = Dummy.builder()
-                .user(user)
+                .member(member)
                 .isUserContent(isUserContent)
                 .request(GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
 
-        user.getDummyList().add(newDummy);
-        user.getInfo().updateReqCount();
+        member.getDummyList().add(newDummy);
+        member.getInfo().updateReqCount();
 
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
@@ -117,10 +116,10 @@ public class DummyServiceImpl implements DummyService {
     }
 
     @Override
-    public void openQuiz(User reqUser, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+    public void openQuiz(Member reqMember, LocalDateTime openQuizDate) {
+        Member member = memberRepository.findByEmail(reqMember.getEmail()).orElseThrow(RuntimeException::new);
 
-        if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
+        if (!Objects.equals(member.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
         }
 
@@ -181,13 +180,13 @@ public class DummyServiceImpl implements DummyService {
 
 
     @Override
-    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user) {
+    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(Member member) {
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
 
         if (quiz.isEmpty()) {
             log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
-            Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
+            Optional<MemberQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(member.getId(), 1);
 
             if (userQuiz.isEmpty()) throw new DummyHandler(ErrorCode.NO_SOLVED_QUIZ);
 
@@ -217,7 +216,7 @@ public class DummyServiceImpl implements DummyService {
 
 
     @Override
-    public void solveQuiz(User user, Long quizId, Integer answer) {
+    public void solveQuiz(Member member, Long quizId, Integer answer) {
 
         if (!quizId.toString().equals(redisTemplate.opsForHash().get("quiz", "id").toString())) {
             log.info("quiz: {}, in Redis quizId: {}", quizId, redisTemplate.opsForHash().get("quiz", "id"));
@@ -226,7 +225,7 @@ public class DummyServiceImpl implements DummyService {
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+        if (redisTemplate.opsForHash().get("quiz", member.getId().toString()) != null) {
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
@@ -237,8 +236,8 @@ public class DummyServiceImpl implements DummyService {
 
         dto.setAnswerList((List<String>) quiz.get("answerList"));
 
-        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+        redisTemplate.opsForList().rightPush("quiz:answer", member.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForHash().put("quiz", member.getId().toString(), answer);
     }
 
 }

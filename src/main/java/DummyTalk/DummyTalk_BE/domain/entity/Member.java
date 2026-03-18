@@ -2,7 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
-public class User extends CommonEntity {
+public class Member extends CommonEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,18 +34,18 @@ public class User extends CommonEntity {
     private LocalDateTime lastLogin;
 
     @Setter
-    @OneToOne (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToOne (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Info info;
 
     // @JsonManagedReference
 
-    @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Dummy> dummyList = new ArrayList<>();
 
-    @OneToMany (mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
-    private List<UserQuiz> userQuizList = new ArrayList<>();
+    private List<MemberQuiz> memberQuizList = new ArrayList<>();
 
     @Override
     public String toString() {

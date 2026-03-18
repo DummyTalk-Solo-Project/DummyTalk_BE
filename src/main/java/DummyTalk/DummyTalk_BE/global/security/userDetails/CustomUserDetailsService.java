@@ -1,6 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.security.userDetails;
 
-import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -11,12 +11,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+    private final MemberRepository memberRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException { // -> email!
 
-        return userRepository.findByEmail(username)
+        return memberRepository.findByEmail(username)
                 .map(CustomUserDetails::new)
                 .orElseThrow(() -> new RuntimeException("Cant find USER!!!!!!"));
     }

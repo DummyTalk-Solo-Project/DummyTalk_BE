@@ -1,6 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.batch;
 
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.service.email.MailService;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +44,7 @@ public class BatchConfig {
     @Bean
     public Step userDataStep(){
         return new StepBuilder("userDataStep", jobRepository)
-                .<User, User>chunk(100, transactionManager)
+                .<Member, Member>chunk(100, transactionManager)
                 .reader(userDataReader())
                 .processor(userDataProcessor())
                 .writer(userDataWriter())
@@ -52,8 +52,8 @@ public class BatchConfig {
     }
 
     @Bean
-    public JpaPagingItemReader<User> userDataReader() {
-        return new JpaPagingItemReaderBuilder<User>()
+    public JpaPagingItemReader<Member> userDataReader() {
+        return new JpaPagingItemReaderBuilder<Member>()
                 .name("userDataReader")
                 .entityManagerFactory(emf)
                 .queryString("select u from User u join info i on user.id = i.user.id ")
@@ -62,7 +62,7 @@ public class BatchConfig {
     }
 
     @Bean
-    public ItemProcessor<User, User> userDataProcessor() {
+    public ItemProcessor<Member, Member> userDataProcessor() {
         return user -> {
             // 1. 카운트 리셋
             user.getInfo().resetReqCount();
@@ -80,8 +80,8 @@ public class BatchConfig {
     }
 
     @Bean
-    public JpaItemWriter<User> userDataWriter() {
-        return new JpaItemWriterBuilder<User>()
+    public JpaItemWriter<Member> userDataWriter() {
+        return new JpaItemWriterBuilder<Member>()
                 .entityManagerFactory(emf)
                 .build();
     }

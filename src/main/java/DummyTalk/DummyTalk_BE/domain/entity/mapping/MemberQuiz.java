@@ -2,7 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.entity.mapping;
 
 
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserQuiz extends CommonEntity {
+public class MemberQuiz extends CommonEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,8 +25,8 @@ public class UserQuiz extends CommonEntity {
     private Integer answer;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @JoinColumn(name = "member_id")
+    private Member member;
 
     @ManyToOne
     @JoinColumn(name = "quiz_id")

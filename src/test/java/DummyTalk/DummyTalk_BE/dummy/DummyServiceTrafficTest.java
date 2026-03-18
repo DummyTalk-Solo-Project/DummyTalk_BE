@@ -1,16 +1,14 @@
 package DummyTalk.DummyTalk_BE.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
-import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
 import DummyTalk.DummyTalk_BE.domain.service.user.impl.UserServiceImpl;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +45,7 @@ public class DummyServiceTrafficTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
-    private UserRepository userRepository;
+    private MemberRepository memberRepository;
 
     @Value("${spring.data.redis.host}")
     private String host;
@@ -82,9 +80,9 @@ public class DummyServiceTrafficTest {
     @Test
     @DisplayName("문제 풀이 테스트")
     public void solveQuizTest(){
-        User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 //        dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1);
-        dummyService.solveQuizVer3(user.getEmail(), 1);
+        dummyService.solveQuizVer3(member.getEmail(), 1);
     }
 
     @Test
@@ -95,7 +93,7 @@ public class DummyServiceTrafficTest {
         final ExecutorService executorService = Executors.newFixedThreadPool(32); // 32개의 멀티 스레드 환경 허용
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount);
 
-        User user = userRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
         // 실패(중복제출 예외) 횟수 카운트
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
@@ -154,7 +152,7 @@ public class DummyServiceTrafficTest {
         Long answerListSize = redisTemplate.opsForList().size(QUIZ_ANSWER_LIST_KEY);
 
         // 2. Redis Hash (제출여부)에 해당 유저가 기록되었는지 확인
-        Object submitRecord = redisTemplate.opsForHash().get(QUIZ_HASH_KEY, user.getId().toString());
+        Object submitRecord = redisTemplate.opsForHash().get(QUIZ_HASH_KEY, member.getId().toString());
 
         // 3. 콘솔에 결과 출력 (디버깅용)
         log.info("==========테스트 결과==========");
@@ -212,7 +210,7 @@ public class DummyServiceTrafficTest {
         }
 
         // [수정] user 객체는 테스트 마지막 검증(then)에서 ID를 사용할 때 필요
-        User user = userRepository.findByEmail(TEST_EMAIL)
+        Member member = memberRepository.findByEmail(TEST_EMAIL)
                 .orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         // 실패(중복제출 예외) 횟수 카운트
@@ -263,7 +261,7 @@ public class DummyServiceTrafficTest {
 
         // API 호출이 모두 끝난 뒤, Redis DB 상태를 직접 검증
         Long answerListSize = redisTemplate.opsForList().size(QUIZ_ANSWER_LIST_KEY);
-        Object submitRecord = redisTemplate.opsForHash().get(QUIZ_HASH_KEY, user.getId().toString());
+        Object submitRecord = redisTemplate.opsForHash().get(QUIZ_HASH_KEY, member.getId().toString());
 
         // 3. 콘솔에 결과 출력 (디버깅용)
         log.info("--- API 동시성 테스트 결과 ---");

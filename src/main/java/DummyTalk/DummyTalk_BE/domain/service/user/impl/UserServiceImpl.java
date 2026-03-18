@@ -1,14 +1,12 @@
 package DummyTalk.DummyTalk_BE.domain.service.user.impl;
 
-import DummyTalk.DummyTalk_BE.domain.converter.EmailConverter;
 import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.user.UserResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
-import DummyTalk.DummyTalk_BE.domain.repository.EmailRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.user.UserService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
@@ -22,7 +20,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -30,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -39,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
+    private final MemberRepository memberRepository;
     private final JavaMailSender mailSender;
     private final JWTProvider jwtProvider;
 
@@ -186,7 +182,7 @@ public class UserServiceImpl implements UserService {
             throw new UserHandler(ErrorCode.ALREADY_SEND);
         }
 
-        if(userRepository.findByEmail(email).isPresent()){
+        if(memberRepository.findByEmail(email).isPresent()){
             throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
         }
 
@@ -218,23 +214,23 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void signIn(UserRequestDTO.SignInRequestDTO request) {
 
-        Optional<User> byEmail = userRepository.findByEmail(request.getEmail());
+        Optional<Member> byEmail = memberRepository.findByEmail(request.getEmail());
         if (byEmail.isPresent()){
             throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
         }
 
-        User user = UserConverter.toNewUser(request);
-        User savedUser = userRepository.save(user);
+        Member member = UserConverter.toNewUser(request);
+        Member savedMember = memberRepository.save(member);
 
         Info info = Info.builder()
-                .user(savedUser)
+                .member(savedMember)
                 .isSubscribe(false)
                 .reqCount(0)
                 .build();
         Info savedInfo = infoRepository.save(info);
-        user.setInfo(savedInfo);
+        member.setInfo(savedInfo);
 
-        log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), user.getUsername());
+        log.info("[SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getUsername());
     }
 
 
@@ -242,19 +238,19 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponseDTO.LoginSuccessDTO login(UserRequestDTO.LoginRequestDTO requestDTO) {
 
-        User user = userRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmailAndPassword(requestDTO.getEmail(), requestDTO.getPassword()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
-        user.setLastLogin(LocalDateTime.now());
+        member.setLastLogin(LocalDateTime.now());
 
         Collection<? extends GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword(), authorities);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword(), authorities);
 
         JwtToken jwtToken = jwtProvider.generateToken(authentication);
 
-        log.info("[LOGIN] email: {}", user.getEmail());
+        log.info("[LOGIN] email: {}", member.getEmail());
 
         return UserResponseDTO.LoginSuccessDTO.builder()
-                .username(user.getUsername())
+                .username(member.getUsername())
                 .accessToken(jwtToken.getAccessToken())
                 .build();
     }
@@ -267,7 +263,7 @@ public class UserServiceImpl implements UserService {
         userQuizRepository.deleteByEmail(email);
         infoRepository.deleteByEmail(email);
 
-        userRepository.deleteByEmail(email); // HARD DELETE!
+        memberRepository.deleteByEmail(email); // HARD DELETE!
 
         log.info("[WITHDRAW] email: {}", email);
     }
@@ -275,7 +271,7 @@ public class UserServiceImpl implements UserService {
 
     public List<UserResponseDTO.GetUserResponseDTO> getAllData() {
         List<UserResponseDTO.GetUserResponseDTO> dtoList = new ArrayList<>();
-        userRepository.findAllJoinFetchInfo().forEach(user ->
+        memberRepository.findAllJoinFetchInfo().forEach(user ->
         dtoList.add(UserResponseDTO.GetUserResponseDTO.builder()
                 .email(user.getEmail())
                 .username(user.getUsername())

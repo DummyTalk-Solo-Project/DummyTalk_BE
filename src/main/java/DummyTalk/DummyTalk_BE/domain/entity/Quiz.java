@@ -3,7 +3,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.global.converter.StringListConverter;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -45,7 +45,7 @@ public class Quiz extends CommonEntity {
 
     @OneToMany(mappedBy = "quiz")
     @JsonManagedReference
-    private List<UserQuiz> userQuizList; // Hibernate 가 프록시 클래스를 사용할 수 없게 해서 변경
+    private List<MemberQuiz> memberQuizList; // Hibernate 가 프록시 클래스를 사용할 수 없게 해서 변경
 
 
     public Boolean decreaseTicket(){

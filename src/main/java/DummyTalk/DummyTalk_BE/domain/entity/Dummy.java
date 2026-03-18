@@ -26,5 +26,5 @@ public class Dummy extends CommonEntity {
 
     @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private Member member;
 }

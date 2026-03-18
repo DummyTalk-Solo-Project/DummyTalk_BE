@@ -2,19 +2,19 @@ package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
 
 import java.time.LocalDateTime;
 
 public interface DummyService {
 
-    String GetDummyDateForNormal(User user, DummyRequestDTO.RequestInfoDTO requestInfoDTO);
+    String GetDummyDateForNormal(Member member, DummyRequestDTO.RequestInfoDTO requestInfoDTO);
 
-    void openQuiz(User user, LocalDateTime openQuizDate);
+    void openQuiz(Member member, LocalDateTime openQuizDate);
 
-    DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user);
+    DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(Member member);
 
-    void solveQuiz(User user, Long quizId, Integer answer);
+    void solveQuiz(Member member, Long quizId, Integer answer);
 
 }
 

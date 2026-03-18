@@ -27,7 +27,7 @@ public class DummyController {
 
         // 판단하는 거 따로 짜자.
 
-        String aiText = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
+        String aiText = dummyService.GetDummyDateForNormal(userDetails.getMember(), null);
         return ResponseEntity.ok(aiText);
     }
 
@@ -35,19 +35,19 @@ public class DummyController {
     public ResponseEntity<?> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
                                        @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
 
-        dummyService.openQuiz(userDetails.getUser(), date);
+        dummyService.openQuiz(userDetails.getMember(), date);
 
         return ResponseEntity.ok("open Quiz Success!");
     }
 
     @GetMapping("/quiz")
     public ResponseEntity<?> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getUser()));
+        return ResponseEntity.ok(dummyService.getQuiz(userDetails.getMember()));
     }
 
     @PostMapping("/quiz")
     public ResponseEntity<?> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
-        dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
+        dummyService.solveQuiz(userDetails.getMember(), quizId, answer);
         return ResponseEntity.ok("성공적으로 처리 완료!");
     }
 }

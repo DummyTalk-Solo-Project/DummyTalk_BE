@@ -1,6 +1,5 @@
 package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
@@ -26,7 +25,7 @@ public class DummyControllerV2 {
 
     @GetMapping ("/get-dummy")
     public APIResponse<String> dummyTalk (@AuthenticationPrincipal CustomUserDetails userDetails) {
-        String result = dummyService.GetDummyDateForNormal(userDetails.getUser(), null);
+        String result = dummyService.GetDummyDateForNormal(userDetails.getMember(), null);
         return APIResponse.onSuccess(result, SuccessCode.GET_DUMMY_SUCCESS);
     }
 
@@ -34,20 +33,20 @@ public class DummyControllerV2 {
     public APIResponse<Object> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
                                          @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
 
-        dummyService.openQuiz(userDetails.getUser(), date);
+        dummyService.openQuiz(userDetails.getMember(), date);
 
         return APIResponse.onSuccess(null, SuccessCode.OPEN_QUIZ_SUCCESS);
     }
 
     @GetMapping("/quiz")
     public APIResponse<DummyResponseDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-        DummyResponseDTO.GetQuizInfoResponseDTO quiz = dummyService.getQuiz(userDetails.getUser());
+        DummyResponseDTO.GetQuizInfoResponseDTO quiz = dummyService.getQuiz(userDetails.getMember());
         return APIResponse.onSuccess(quiz, SuccessCode.GET_QUIZ_SUCCESS);
     }
 
     @PostMapping("/quiz")
     public APIResponse<Object> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
-        dummyService.solveQuiz(userDetails.getUser(), quizId, answer);
+        dummyService.solveQuiz(userDetails.getMember(), quizId, answer);
         return APIResponse.onSuccess(null, SuccessCode.SOLVE_QUIZ_SUCCESS);
     }
 }

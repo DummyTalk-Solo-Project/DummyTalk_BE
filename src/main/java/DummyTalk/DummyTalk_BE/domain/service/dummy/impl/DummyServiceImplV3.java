@@ -7,14 +7,14 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -52,7 +51,7 @@ public class DummyServiceImplV3 {
     // 3. 동시성 관련 로직 or @Async 추가
     // Security 잠시 빼기
 
-    private final UserRepository userRepository;
+    private final MemberRepository memberRepository;
     private final DummyRepository dummyRepository;
     private final OpenAiChatModel chatModel;
     private final ObjectMapper objectMapper;
@@ -73,10 +72,10 @@ public class DummyServiceImplV3 {
         Random random = new Random();
         boolean isUserContent = false;
 
-        User user = userRepository.findByEmailFetchInfoWithLock(email).orElseThrow(RuntimeException::new);
+        Member member = memberRepository.findByEmailFetchInfoWithLock(email).orElseThrow(RuntimeException::new);
 
-        if (user.getInfo().getReqCount() >= 10) {
-            log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
+        if (member.getInfo().getReqCount() >= 10) {
+            log.info("{} -> 무료 이용 횟수 모두 소모!", member.getEmail());
             throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
         }
 
@@ -85,7 +84,7 @@ public class DummyServiceImplV3 {
         if (random.nextInt(3) == 0) { // 20%의 확률로
             try {
                 userContent = objectMapper.writeValueAsString(requestInfoDTO);
-                userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
+                userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(member, member.getInfo()));
             } catch (JsonProcessingException e) {
                 throw new DummyHandler(ErrorCode.PARSING_ERROR);
             }
@@ -102,15 +101,15 @@ public class DummyServiceImplV3 {
                         .build()));
 
         Dummy newDummy = Dummy.builder()
-                .user(user)
+                .member(member)
                 .isUserContent(isUserContent)
                 .request(AIPrompt.GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
 
-        user.getDummyList().add(newDummy);
-        user.getInfo().updateReqCount();
+        member.getDummyList().add(newDummy);
+        member.getInfo().updateReqCount();
 
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
@@ -125,9 +124,9 @@ public class DummyServiceImplV3 {
      * @param openQuizDate
      */
     public void openQuiz(String email, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
-        if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
+        if (!Objects.equals(member.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
         }
 
@@ -196,11 +195,11 @@ public class DummyServiceImplV3 {
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         if (quiz.isEmpty()) {
             log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
-            Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
+            Optional<MemberQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(member.getId(), 1);
 
             if (userQuiz.isEmpty()) throw new DummyHandler(ErrorCode.NO_SOLVED_QUIZ);
 
@@ -232,7 +231,7 @@ public class DummyServiceImplV3 {
     // 이전 기본 로직 메소드
     @Timed("quiz.solve.requests")
     public void solveQuiz(String email, Long quizId, Integer answer) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
         log.info("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
@@ -244,13 +243,13 @@ public class DummyServiceImplV3 {
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+        if (redisTemplate.opsForHash().get("quiz", member.getId().toString()) != null) {
             log.error("{} -> already submit", email);
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
-        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+        redisTemplate.opsForList().rightPush("quiz:answer", member.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForHash().put("quiz", member.getId().toString(), answer);
     }
 
     /**
@@ -260,7 +259,7 @@ public class DummyServiceImplV3 {
     @Timed("quiz.solve.requests")
     public synchronized void solveQuizVer2(String email, Integer answer) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", email);
 
@@ -274,13 +273,13 @@ public class DummyServiceImplV3 {
         if (answer >= 5 || answer <= 0) {
             throw new DummyHandler(ErrorCode.WRONG_ANSWER);
         }
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+        if (redisTemplate.opsForHash().get("quiz", member.getId().toString()) != null) {
             log.warn("{} -> already submit", email);
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
-        redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+        redisTemplate.opsForList().rightPush("quiz:answer", member.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+        redisTemplate.opsForHash().put("quiz", member.getId().toString(), answer);
 
         log.info("-- {}의 문제 풀이 작업 종료 --", email);
     }
@@ -293,7 +292,7 @@ public class DummyServiceImplV3 {
     @DistributedLock(key = "'quiz_lock'")
     public void solveQuizVer3(String email, Integer answer) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", email);
         try {
@@ -309,13 +308,13 @@ public class DummyServiceImplV3 {
             if (answer >= 5 || answer <= 0) {
                 throw new DummyHandler(ErrorCode.WRONG_ANSWER);
             }
-            if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+            if (redisTemplate.opsForHash().get("quiz", member.getId().toString()) != null) {
                 log.warn("{} -> already submit", email);
                 throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
             }
 
-            redisTemplate.opsForList().rightPush("quiz:answer", user.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
-            redisTemplate.opsForHash().put("quiz", user.getId().toString(), answer);
+            redisTemplate.opsForList().rightPush("quiz:answer", member.getId() + ":" + answer); // 따로 삭제 및 동기화 필요!!
+            redisTemplate.opsForHash().put("quiz", member.getId().toString(), answer);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -333,10 +332,10 @@ public class DummyServiceImplV3 {
     @Transactional
     public void solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO dto) {
 
-        User user = userRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
         Quiz quiz = quizRepository.findQuizByIdForDecrease(dto.getQuizId()).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ));
 
-        log.info("-- {}의 문제 풀이 작업 시작 --", user.getEmail());
+        log.info("-- {}의 문제 풀이 작업 시작 --", member.getEmail());
         log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), dto.getAnswer());
 
         if (quiz == null) {
@@ -348,17 +347,17 @@ public class DummyServiceImplV3 {
         }
 
         // 중복 제출 방지
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
+        if (redisTemplate.opsForHash().get("quiz", member.getId().toString()) != null) {
             log.warn("{} -> already submit", dto.getEmail());
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), dto.getAnswer());
+        redisTemplate.opsForHash().put("quiz", member.getId().toString(), dto.getAnswer());
 
         if (!quiz.decreaseTicket()){ // ek
             log.warn("{} -> quiz has NO TICKET!",  dto.getEmail());
         }
 
-        log.info("-- {}의 문제 풀이 작업 종료 --", user.getEmail());
+        log.info("-- {}의 문제 풀이 작업 종료 --", member.getEmail());
     }
 
 }

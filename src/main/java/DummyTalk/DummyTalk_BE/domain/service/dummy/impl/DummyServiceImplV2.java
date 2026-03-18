@@ -6,16 +6,15 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
-import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.UserQuiz;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.UserQuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.UserRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
@@ -50,7 +49,7 @@ public class DummyServiceImplV2 implements DummyService {
 
     // 2. 퀴즈 조회 로직 -> Redis 캐싱을 통한 빠른 조회 도입
 
-    private final UserRepository userRepository;
+    private final MemberRepository memberRepository;
     private final DummyRepository dummyRepository;
     private final OpenAiChatModel chatModel;
     private final ObjectMapper objectMapper;
@@ -64,7 +63,7 @@ public class DummyServiceImplV2 implements DummyService {
     ///  TODO 개느려, 성능 개선할 것
     @Override
     @Transactional
-    public String GetDummyDateForNormal(User reqUser, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
+    public String GetDummyDateForNormal(Member reqMember, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
         /* 처리 중 로직 구현하기. (Redis SETNX )*/
 
@@ -72,12 +71,12 @@ public class DummyServiceImplV2 implements DummyService {
         Random random = new Random();
         boolean isUserContent = false;
 
-        log.info("{}", reqUser.toString());
+        log.info("{}", reqMember.toString());
 
-        User user = userRepository.findByEmailFetchInfoWithLock(reqUser.getEmail()).orElseThrow(RuntimeException::new);
+        Member member = memberRepository.findByEmailFetchInfoWithLock(reqMember.getEmail()).orElseThrow(RuntimeException::new);
 
-        if (user.getInfo().getReqCount() >= 10) {
-            log.info("{} -> 무료 이용 횟수 모두 소모!", user.getEmail());
+        if (member.getInfo().getReqCount() >= 10) {
+            log.info("{} -> 무료 이용 횟수 모두 소모!", member.getEmail());
             throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
         }
 
@@ -86,14 +85,14 @@ public class DummyServiceImplV2 implements DummyService {
         if (random.nextInt(3) == 0) { // 20%의 확률로
             try {
                 userContent = objectMapper.writeValueAsString(requestInfoDTO);
-                userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(user, user.getInfo()));
+                userInfo = objectMapper.writeValueAsString(UserConverter.toAIRequestDTO(member, member.getInfo()));
             } catch (JsonProcessingException e) {
                 throw new DummyHandler(ErrorCode.PARSING_ERROR);
             }
 
             log.info("사용자의 정보를 사용합니다.");
             isUserContent = true;
-            newRequest = AIPrompt.GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqUser + ", " + userContent + ", userInfo: " + userInfo);
+            newRequest = AIPrompt.GET_DUMMY_PROMPT.concat("\n3. 다음은 사용자의 정보이다, 사용자 데이터 기반 잡상식을 만들 것, 위 사항은 정확히 따를 것" + reqMember + ", " + userContent + ", userInfo: " + userInfo);
         }
 
         ChatResponse resp = chatModel.call(new Prompt(newRequest == null ? AIPrompt.GET_DUMMY_PROMPT : newRequest,
@@ -103,15 +102,15 @@ public class DummyServiceImplV2 implements DummyService {
                         .build()));
 
         Dummy newDummy = Dummy.builder()
-                .user(user)
+                .member(member)
                 .isUserContent(isUserContent)
                 .request(AIPrompt.GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
 
-        user.getDummyList().add(newDummy);
-        user.getInfo().updateReqCount();
+        member.getDummyList().add(newDummy);
+        member.getInfo().updateReqCount();
 
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
@@ -125,10 +124,10 @@ public class DummyServiceImplV2 implements DummyService {
      * @param userDetails (비영속성인 user 입니다.)
      * @param openQuizDate
      */
-    public void openQuiz(User userDetails, LocalDateTime openQuizDate) {
-        User user = userRepository.findByEmail(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+    public void openQuiz(Member userDetails, LocalDateTime openQuizDate) {
+        Member member = memberRepository.findByEmail(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
 
-        if (!Objects.equals(user.getEmail(), "jijysun@naver.com")) {
+        if (!Objects.equals(member.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
         }
 
@@ -194,13 +193,13 @@ public class DummyServiceImplV2 implements DummyService {
 
 
     @Override
-    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(User user) {
+    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(Member member) {
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
 
         if (quiz.isEmpty()) {
             log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
-            Optional<UserQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(user.getId(), 1);
+            Optional<MemberQuiz> userQuiz = userQuizRepository.findLastestQuizByUserId(member.getId(), 1);
 
             if (userQuiz.isEmpty()) throw new DummyHandler(ErrorCode.NO_SOLVED_QUIZ);
 
@@ -232,14 +231,14 @@ public class DummyServiceImplV2 implements DummyService {
     @Override
     @Timed("quiz.solve.requests")
     @Transactional
-    public void solveQuiz(User userDetails, Long quizId, Integer answer) {
+    public void solveQuiz(Member userDetails, Long quizId, Integer answer) {
 
         // MySQL 비관적 락
 
-        User user = userRepository.findByEmailFetchInfo(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmailFetchInfo(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
         Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ));
 
-        log.info("-- {}의 문제 풀이 작업 시작 --", user.getEmail());
+        log.info("-- {}의 문제 풀이 작업 시작 --", member.getEmail());
         log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), answer);
 
         if (quiz == null) {
@@ -251,22 +250,22 @@ public class DummyServiceImplV2 implements DummyService {
         }
 
         // 중복 제출 방지
-        if (redisTemplate.opsForHash().get("quiz", user.getId().toString()) != null) {
-            log.warn("{} -> already submit", user.getEmail());
+        if (redisTemplate.opsForHash().get("quiz", member.getId().toString()) != null) {
+            log.warn("{} -> already submit", member.getEmail());
             throw new DummyHandler(ErrorCode.ALREADY_SUBMIT);
         }
-        redisTemplate.opsForHash().put("quiz", user.getId().toString(), user.getEmail());
+        redisTemplate.opsForHash().put("quiz", member.getId().toString(), member.getEmail());
 
         if (!quiz.decreaseTicket()){ // ek
-            log.warn("{} -> quiz has NO TICKET!",  user.getEmail());
+            log.warn("{} -> quiz has NO TICKET!",  member.getEmail());
             throw new DummyHandler(ErrorCode.TICKET_IS_DONE);
         }
         else{
             // 티켓 발급 로직
-            user.getInfo().updateSubsExprDate(true, LocalDateTime.now().plusDays(3)); // 테스트 용 3일
+            member.getInfo().updateSubsExprDate(true, LocalDateTime.now().plusDays(3)); // 테스트 용 3일
         }
 
-        log.info("-- {}의 문제 풀이 작업 종료 --", user.getEmail());
+        log.info("-- {}의 문제 풀이 작업 종료 --", member.getEmail());
     }
 
 }
