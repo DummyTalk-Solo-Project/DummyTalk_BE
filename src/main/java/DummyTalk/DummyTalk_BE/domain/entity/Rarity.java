@@ -25,7 +25,7 @@ public class Rarity {
     private String colorCode;
 
     @Column(nullable = false)
-    private Double probability; // 50% 30% 15% 5%
+    private Double probability; // 55% 30% 12% 3%
 
     @OneToMany (mappedBy = "rarity", fetch = FetchType.LAZY)
     @JsonManagedReference
