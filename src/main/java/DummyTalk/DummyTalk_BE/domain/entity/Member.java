@@ -52,7 +52,7 @@ public class Member extends CommonEntity {
         return "{" +
                 "email='" + email + '\'' +
                 ", password='" + (password != null ? "****" : null) + '\'' +
-                ", username='" + username + '\'' +
+                ", username='" + memberName + '\'' +
                 ", login=" + login +
                 '}';
     }
