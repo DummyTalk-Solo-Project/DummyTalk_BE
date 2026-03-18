@@ -68,20 +68,38 @@ public class DummyService {
     public DummyResponseDTO.GetDummyRespDTO getDummy(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
 
-        // 랜덤 조회 알고리즘
-        List<Rarity> rarityList = rarityRepository.findAll();
-        double pivot = Math.random() * 100;
-        double cumulative = 0;
+        // 1. 천장 있는 지 조회
+        String pityKey = "pity:" + memberId;
+        Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
 
-        Rarity selectedRarity = rarityList.getFirst();
+        int rareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
+        int epicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
 
-        for (Rarity r : rarityList) {
-            cumulative += r.getProbability();
-            if (pivot <= cumulative) {
-                selectedRarity = r;
-                break;
+        Rarity selectedRarity = Rarity.defaultRarity();
+
+        if (epicStack >= 10) {
+            selectedRarity = rarityRepository.findByName("EPIC").orElseThrow(() -> new RuntimeException("Rarity not found"));
+        }
+        else if (rareStack >= 10) {
+            selectedRarity = rarityRepository.findByName("RARE").orElseThrow(() -> new RuntimeException("Rarity not found"));
+        }
+        else{
+            // 2. 천장 없으면 조회
+            List<Rarity> rarityList = rarityRepository.findAll();
+            double pivot = Math.random() * 100;
+            double cumulative = 0;
+            for (Rarity r : rarityList) {
+                cumulative += r.getProbability();
+                if (pivot <= cumulative) {
+                    selectedRarity = r;
+                    break;
+                }
             }
         }
+
+
+        // 천장 update
+        updatePityStack(pityKey, selectedRarity.getName());
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
@@ -101,6 +119,20 @@ public class DummyService {
                 .content(dummy.getContent())
                 .rarityName(dummy.getRarity().getName())
                 .build();
+    }
+
+    private void updatePityStack(String key, String wonRarity) {
+        if (wonRarity.equals("EPIC") || wonRarity.equals("SPECIAL")) {
+            // 대박 등급 당첨 시 EPIC 만 초기화
+            redisTemplate.opsForHash().put(key, "EPIC", "0");
+        } else if (wonRarity.equals("RARE")) {
+            // RARE 당첨 시 RARE 천장만 초기화, EPIC은 계속 누적
+            redisTemplate.opsForHash().put(key, "RARE", "0");
+            redisTemplate.opsForHash().increment(key, "EPIC", 1);
+        } else {
+            // COMMON 당첨 시 RARE 천장 스택 +1
+            redisTemplate.opsForHash().increment(key, "RARE", 1);
+        }
     }
 
     @Transactional

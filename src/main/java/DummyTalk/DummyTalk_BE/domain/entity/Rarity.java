@@ -16,7 +16,7 @@ public class Rarity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
     @Column(nullable = false)
@@ -28,4 +28,11 @@ public class Rarity {
     @OneToMany (mappedBy = "rarity", fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Dummy> dummyList = new ArrayList<>();
+
+    public static Rarity defaultRarity (){
+
+        Rarity rarity = new Rarity();
+        rarity.name="COMMON";
+        return rarity;
+    }
 }
