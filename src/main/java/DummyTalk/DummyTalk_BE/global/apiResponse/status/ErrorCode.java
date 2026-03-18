@@ -22,6 +22,16 @@ public enum ErrorCode implements BaseErrorCode {
     CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
 
+    // SECURITY
+    AUTH_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "SERVER_4100", "인증 정보가 없습니다."),
+    AUTH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "SERVER_4101", "토큰이 만료되었습니다."),
+    AUTH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "SERVER_4102", "유효하지 않은 토큰입니다."),
+    BLACKLISTED_TOKEN(HttpStatus.UNAUTHORIZED, "SERVER_4103", "블랙리스트에 있는 토큰입니다."),
+    CANNOT_FOUND_RT(HttpStatus.UNAUTHORIZED, "SERVER_4104", "리프레쉬 토큰을 찾을 수 없습니다."),
+    RT_NOT_FOUND(HttpStatus.UNAUTHORIZED, "G008", "리프레쉬 토큰을 찾을 수 없습니다."),
+    AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "SERVER_4300", "접근 권한이 없습니다."),
+
+
 
     // Dummy
     USED_ALL_CHANCES(HttpStatus.BAD_REQUEST, "DUMMY4001", "모든 무료 요청 횟수를 소모하셨네요, 다음을 기약해주세요 :)"),
@@ -33,7 +43,7 @@ public enum ErrorCode implements BaseErrorCode {
     TICKET_IS_DONE (HttpStatus.BAD_REQUEST, "DUMMY4007", "퀴즈는 풀었지만 이제 티켓을 받을 수는 없네요"),
 
 
-    // User
+    // Member
     AUTHORIZATION_REQUIRED(HttpStatus.UNAUTHORIZED, "USER4000", "권한이 부족합니다."),
     WRONG_EMAIL_CODE(HttpStatus.BAD_REQUEST, "USER4001", "제가 보낸 이메일이랑 다른 거 같은데, 다시 한 번 확인해보시겠어요?"),
     EMAIL_EXPIRED(HttpStatus.BAD_REQUEST, "USER4002", "이메일이 너무 오래된 거 같은데, 다시 한 번 보내드릴까요?"),

@@ -48,7 +48,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                 String isBlackListed = (String) redisTemplate.opsForValue().get("blacklist:" + accessToken);
                 if (isBlackListed != null){
                     log.warn("[JWTAuthenticationFilter] - Using BlackListed Token!");
-                    throw new GeneralException(ErrorCode.BLACKLIST_TOKEN);
+                    throw new GeneralException(ErrorCode.BLACKLISTED_TOKEN);
                 }
 
                 Authentication authentication = jwtProvider.getAuthentication(accessToken);
