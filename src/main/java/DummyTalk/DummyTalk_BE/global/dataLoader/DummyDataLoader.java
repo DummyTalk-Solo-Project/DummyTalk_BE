@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyDataLoadDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.RarityRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -30,7 +31,7 @@ public class DummyDataLoader implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         // 1. JSON 파일 읽기
-        ClassPathResource resource = new ClassPathResource("data/dummies.json");
+        ClassPathResource resource = new ClassPathResource("data/dummyList.json");
         List<DummyDataLoadDTO> dtoList = objectMapper.readValue(
                 resource.getInputStream(),
                 new TypeReference<List<DummyDataLoadDTO>>() {}
@@ -38,7 +39,8 @@ public class DummyDataLoader implements ApplicationRunner {
 
         for (DummyDataLoadDTO dto : dtoList) {
             if (!dummyRepository.existsByTitle(dto.getTitle())) {
-                Rarity rarity = rarityRepository.findByName(dto.getRarityName())
+                RarityType rarityType = RarityType.valueOf(dto.getRarityName().toUpperCase());
+                Rarity rarity = rarityRepository.findByName(rarityType)
                         .orElseThrow(() -> new RuntimeException("Rarity not found: " + dto.getRarityName()));
 
 

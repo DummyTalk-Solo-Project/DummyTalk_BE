@@ -2,6 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -31,6 +32,9 @@ public class Member extends CommonEntity {
     private String memberName;
 
     private Login login;
+
+    @Enumerated(EnumType.STRING)
+    private MemberRole role;
 
     /// deprecated
     private LocalDateTime lastLogin;

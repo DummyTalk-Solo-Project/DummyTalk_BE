@@ -65,6 +65,7 @@ public class DummyServiceInterfaceImpl implements DummyServiceInterface {
     @Transactional
     public String GetDummyDateForNormal(Member reqMember, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
+/*
         String userContent, userInfo, newRequest = null;
         Random random = new Random();
         boolean isUserContent = false;
@@ -113,6 +114,8 @@ public class DummyServiceInterfaceImpl implements DummyServiceInterface {
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
         return text;
+*/
+        return null;
     }
 
     @Override

@@ -1,8 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.dto.dummy;
 
 
-import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
-import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,7 +17,4 @@ public class DummyDataLoadDTO {
     private String content;
     private String rarityName;
 
-    public static Dummy toEntity (DummyDataLoadDTO dto, Rarity rarity) {
-
-    }
 }

@@ -68,6 +68,7 @@ public class DummyServiceImplV3 {
     @Transactional
     public String GetDummyDateForNormal(String email, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
+/*
         String userContent, userInfo, newRequest = null;
         Random random = new Random();
         boolean isUserContent = false;
@@ -114,6 +115,8 @@ public class DummyServiceImplV3 {
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
         return text;
+*/
+        return null;
     }
 
 

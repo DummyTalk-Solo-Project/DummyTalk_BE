@@ -64,7 +64,10 @@ public class DummyServiceInterfaceImplV2 implements DummyServiceInterface {
     @Transactional
     public String GetDummyDateForNormal(Member reqMember, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
 
-        /* 처리 중 로직 구현하기. (Redis SETNX )*/
+/*
+        */
+/* 처리 중 로직 구현하기. (Redis SETNX )*//*
+
 
         String userContent, userInfo, newRequest = null;
         Random random = new Random();
@@ -102,8 +105,8 @@ public class DummyServiceInterfaceImplV2 implements DummyServiceInterface {
 
         Dummy newDummy = Dummy.builder()
 //                .member(member)
-                .isUserContent(isUserContent)
-                .request(AIPrompt.GET_DUMMY_PROMPT)
+//                .isUserContent(isUserContent)
+//                .request(AIPrompt.GET_DUMMY_PROMPT)
                 .response(resp.getResult().getOutput().getText())
                 .build();
         dummyRepository.save(newDummy);
@@ -114,6 +117,8 @@ public class DummyServiceInterfaceImplV2 implements DummyServiceInterface {
         String text = resp.getResult().getOutput().getText();
         log.info("text result: {}", text);
         return text;
+*/
+        return null;
     }
 
 
