@@ -97,7 +97,6 @@ public class DummyService {
             }
         }
 
-
         // 천장 update
         updatePityStack(pityKey, selectedRarity.getName().toString());
 
@@ -113,6 +112,7 @@ public class DummyService {
 
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
+        redisTemplate.opsForSet().add("member:"+memberId+"dummy", dummy.getId());
 
         return DummyResponseDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
