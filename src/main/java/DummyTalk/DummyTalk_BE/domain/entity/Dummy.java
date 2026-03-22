@@ -5,6 +5,10 @@ import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.Setting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,27 +18,21 @@ import java.util.List;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Document(indexName = "dummy")
+@Setting(settingPath = "elasticsearch/settings.json")
 public class Dummy extends CommonEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @org.springframework.data.annotation.Id
     private Long id;
 
-    /// deprecated
-//    private Boolean isUserContent;
-
-    /// deprecated
-//    @Column(columnDefinition = "TEXT")
-//    private String request;
-
-    /// deprecated
-//    private String response;
-
     @Column(nullable = false)
+    @Field(type = FieldType.Text, analyzer = "suggest_analyzer", searchAnalyzer = "standard")
     private String title;
 
     @Column(nullable = false)
+    @Field(type = FieldType.Text, analyzer = "nori")
     private String content; // 막 길지는 않아서 충분할 듯? 이것만 쓰지 않을까?
-
 
     @OneToMany (mappedBy = "dummy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
