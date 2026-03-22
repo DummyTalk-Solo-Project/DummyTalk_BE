@@ -15,6 +15,8 @@ services:
       - postgresql
       - redis
     restart: always
+    networks:
+      - dummytalk-network
 
   postgresql:
     image: postgres:15-alpine
@@ -30,6 +32,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
     restart: always
+    networks:
+      - dummytalk-network
 
 #  mysql:
 #    image: mysql:8.0
@@ -56,6 +60,8 @@ services:
     volumes:
       - redis_data:/data
     restart: always
+    networks:
+      - dummytalk-network
 
   prometheus:
     image: prom/prometheus:latest
@@ -66,6 +72,8 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     command: --config.file=/etc/prometheus/prometheus.yml
     restart: always
+    networks:
+      - dummytalk-network
 
   grafana:
     image: grafana/grafana:latest
@@ -77,8 +85,42 @@ services:
     depends_on:
       - prometheus
     restart: always
+    networks:
+      - dummytalk-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
+    container_name: DummyTalk_ElasticSearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - dummytalk-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.6.0
+    container_name: DummyTalk_Kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - dummytalk-network
 
 volumes:
   postgres_data:
   grafana_data:
   redis_data:
+  es_data:
+
+
+networks:
+  dummytalk-network:
+    driver: bridge
