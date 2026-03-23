@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.repository;
+package DummyTalk.DummyTalk_BE.domain.repository.jpa;
 
 import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import org.springframework.data.jpa.repository.JpaRepository;

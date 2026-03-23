@@ -1,6 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.security.userDetails;
 
-import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;

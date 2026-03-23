@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.domain.repository;
+package DummyTalk.DummyTalk_BE.domain.repository.jpa;
 
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import jakarta.persistence.LockModeType;

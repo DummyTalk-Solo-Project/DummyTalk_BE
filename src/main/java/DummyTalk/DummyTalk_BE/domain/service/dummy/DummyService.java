@@ -7,7 +7,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
-import DummyTalk.DummyTalk_BE.domain.repository.*;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;

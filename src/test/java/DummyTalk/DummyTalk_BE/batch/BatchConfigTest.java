@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.batch;
 
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
-import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import lombok.extern.slf4j.Slf4j;

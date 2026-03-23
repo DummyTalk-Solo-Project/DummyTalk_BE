@@ -1,32 +1,25 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy.impl;
 
-import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
-import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.QuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.MemberQuizRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.DummyRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.QuizRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyServiceInterface;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -38,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_DUMMY_PROMPT;
 import static DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt.GET_QUIZ_PROMPT;
 
 

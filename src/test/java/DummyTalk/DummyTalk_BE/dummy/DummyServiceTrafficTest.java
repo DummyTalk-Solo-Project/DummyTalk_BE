@@ -2,7 +2,7 @@ package DummyTalk.DummyTalk_BE.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
-import DummyTalk.DummyTalk_BE.domain.repository.MemberRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
 import DummyTalk.DummyTalk_BE.domain.service.member.impl.MemberServiceImpl;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;

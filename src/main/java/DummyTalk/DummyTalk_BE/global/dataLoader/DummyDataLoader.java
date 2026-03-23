@@ -1,12 +1,13 @@
 package DummyTalk.DummyTalk_BE.global.dataLoader;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyDataLoadDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
-import DummyTalk.DummyTalk_BE.domain.repository.DummyRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.RarityRepository;
+import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
+import DummyTalk.DummyTalk_BE.domain.repository.elasticsearch.DummySearchRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.DummyRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.RarityRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class DummyDataLoader implements ApplicationRunner {
     private final RarityRepository rarityRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final DummySearchRepository dummySearchRepository;
 
     /*@Override
     public void run(ApplicationArguments args) throws Exception {
@@ -81,6 +83,13 @@ public class DummyDataLoader implements ApplicationRunner {
 
         if (!newDummies.isEmpty()) {
             List<Dummy> savedDummyList = dummyRepository.saveAll(newDummies);
+
+            List<DummyDocument> dummyDocumentList = savedDummyList.stream()
+                    .map(DummyDocument::createDummyDocument)
+                    .toList();
+
+            dummySearchRepository.saveAll(dummyDocumentList);
+
             syncRedisWithDb(savedDummyList); // Redis 동기화
         }
     }
