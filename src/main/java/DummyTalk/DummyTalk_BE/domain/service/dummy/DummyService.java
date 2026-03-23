@@ -1,45 +1,26 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
-import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.converter.DummyConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
-import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
-import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.*;
-import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
-import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RedissonClient;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -85,7 +66,7 @@ public class DummyService {
         }
         else{
             // 2. 천장 없으면 조회
-            List<Rarity> rarityList = rarityRepository.findAll();
+            List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
             double pivot = Math.random() * 100;
             double cumulative = 0;
             for (Rarity r : rarityList) {
@@ -97,7 +78,7 @@ public class DummyService {
             }
         }
 
-        // 천장 update
+        // 천장 update, Only Redis
         updatePityStack(pityKey, selectedRarity.getName().toString());
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
@@ -112,7 +93,7 @@ public class DummyService {
 
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
-        redisTemplate.opsForSet().add("member:"+memberId+"dummy", dummy.getId());
+        redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
 
         return DummyResponseDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
@@ -133,6 +114,24 @@ public class DummyService {
             // COMMON 당첨 시 RARE 천장 스택 +1
             redisTemplate.opsForHash().increment(key, "RARE", 1);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<DummyResponseDTO.GetMyDummyListDTO> getMyDummyList (Long memberId){
+        Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
+        List <Long> dummyIdList = new ArrayList<>();
+
+        if (members.isEmpty()){
+            throw new RuntimeException("No dummy found in Redis for member id: " + memberId);
+        }
+        else {
+            members.stream()
+                    .map(id ->
+                        dummyIdList.add(Long.valueOf(id.toString()))
+                    );
+        }
+
+        return DummyConverter.toGetMyDummyListDTO(memberDummyRepository.findAllByDummyIdList(dummyIdList));
     }
 
     @Transactional

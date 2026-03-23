@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.dto.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import lombok.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -48,6 +48,22 @@ public class DummyResponseDTO {
 //        private String title;
         private String content;
         private String rarityName;
+    }
+
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class GetMyDummyListDTO{
+        public Long dummyId;
+        public String title;
+        public String content;
+        private RarityType name;
+        private LocalDateTime createdAt;
+
+        public Long rarityId; // COMMON, RARE, EPIC, SPECIAL
+        private String colorCode; // HEX Code
+//        private Double probability; // 55% 30% 12% 3%
     }
 
 }

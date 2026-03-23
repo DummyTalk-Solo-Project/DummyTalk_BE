@@ -23,9 +23,14 @@ public class DummyControllerV2 {
 
     private final DummyService dummyService;
 
-    @GetMapping ("/get-dummy")
+    @GetMapping ("/dummy")
     public APIResponse<DummyResponseDTO.GetDummyRespDTO> getDummy(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return APIResponse.onSuccess(dummyService.getDummy(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
+    }
+
+    @GetMapping("/my-dummy")
+    public APIResponse<Object> getMyDummyList (@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return APIResponse.onSuccess(dummyService.getMyDummyList(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @PostMapping("/open-quiz")
