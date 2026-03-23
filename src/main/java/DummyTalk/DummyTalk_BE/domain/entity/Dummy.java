@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.entity;
 
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyDataLoadDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -9,6 +10,7 @@ import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.elasticsearch.annotations.Setting;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,4 +43,11 @@ public class Dummy extends CommonEntity {
     @ManyToOne (fetch = FetchType.EAGER)
     @JoinColumn(name = "rarity_id")
     private Rarity rarity;
+
+    public static Dummy createDummy(DummyDataLoadDTO dto, Rarity rarity) {
+        return Dummy.builder()
+                .title(dto.getTitle())
+                .content(dto.getTitle())
+                .rarity(rarity).build();
+    }
 }
