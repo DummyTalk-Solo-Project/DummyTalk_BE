@@ -22,7 +22,7 @@ public class Rarity {
     private RarityType name;
 
     @Column(nullable = false)
-    private String colorCode;
+    private String colorCode; // F4F0E4, 44A194, 537D96, EC8F8D
 
     @Column(nullable = false)
     private Double probability; // 55% 30% 12% 3%
@@ -35,5 +35,13 @@ public class Rarity {
         Rarity rarity = new Rarity();
         rarity.name=RarityType.COMMON;
         return rarity;
+    }
+
+    public static Rarity createRarity (RarityType name, String colorCode, Double probability){
+        return Rarity.builder()
+                .name(name)
+                .colorCode(colorCode)
+                .probability(probability)
+                .build();
     }
 }

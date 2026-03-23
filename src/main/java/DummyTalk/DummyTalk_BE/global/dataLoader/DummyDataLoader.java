@@ -31,40 +31,17 @@ public class DummyDataLoader implements ApplicationRunner {
     private final ObjectMapper objectMapper;
     private final DummySearchRepository dummySearchRepository;
 
-    /*@Override
-    public void run(ApplicationArguments args) throws Exception {
-        // 1. JSON 파일 읽기
-        ClassPathResource resource = new ClassPathResource("data/dummyList.json");
-        List<DummyDataLoadDTO> dtoList = objectMapper.readValue(
-                resource.getInputStream(),
-                new TypeReference<List<DummyDataLoadDTO>>() {}
-        );
-
-        for (DummyDataLoadDTO dto : dtoList) {
-            if (!dummyRepository.existsByTitle(dto.getTitle())) {
-                RarityType rarityType = RarityType.valueOf(dto.getRarityName().toUpperCase());
-                Rarity rarity = rarityRepository.findByName(rarityType)
-                        .orElseThrow(() -> new RuntimeException("Rarity not found: " + dto.getRarityName()));
-
-
-                // PostgreSQL + getId
-                Dummy dummy = dummyRepository.save(
-                        Dummy.builder()
-                                .title(dto.getTitle())
-                                .content(dto.getContent())
-                                .memberDummyList(new ArrayList<>())
-                                .rarity(rarity).build());
-
-                // Redis
-                String redisKey = "dummy:" + rarity.getName();
-                redisTemplate.opsForSet().add(redisKey, dummy.getId().toString());
-            }
-        }
-    }*/
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
+
+        // 초기화되는 겸 처음 키면서 같이 저장
+        Rarity common = rarityRepository.save(Rarity.createRarity(RarityType.COMMON, "F4F0E4", 50.0));
+        Rarity rare = rarityRepository.save(Rarity.createRarity(RarityType.RARE, "44A194", 30.0));
+        Rarity epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "537D96", 12.0));
+        Rarity special = rarityRepository.save(Rarity.createRarity(RarityType.SPECIAL, "EC8F8D", 3.0));
+
         // JSON
         ClassPathResource resource = new ClassPathResource("data/dummyList.json");
         List<DummyDataLoadDTO> dtoList = objectMapper.readValue(
@@ -75,9 +52,21 @@ public class DummyDataLoader implements ApplicationRunner {
         List<Dummy> newDummies = dtoList.stream()
                 .filter(dto -> !existingTitles.contains(dto.getTitle())) // 없는 거만
                 .map(dto -> {
-                    RarityType type = RarityType.valueOf(dto.getRarityName().toUpperCase());
-                    Rarity rarity = rarityRepository.findByName(type).orElseThrow();
-                    return Dummy.createDummy(dto, rarity);
+                    if (dto.getRarityName().toUpperCase().equals("COMMON")) {
+                        return Dummy.createDummy(dto, common);
+                    }
+                    else if (dto.getRarityName().toUpperCase().equals("RARE")) {
+                        return Dummy.createDummy(dto, rare);
+                    }
+                    else if (dto.getRarityName().toUpperCase().equals("EPIC")) {
+                        return Dummy.createDummy(dto, epic);
+                    }
+                    else if (dto.getRarityName().toUpperCase().equals("SPECIAL")) {
+                        return Dummy.createDummy(dto, special);
+                    }
+                    else{
+                        throw new RuntimeException("Unknown rarity");
+                    }
                 })
                 .toList();
 
@@ -104,5 +93,4 @@ public class DummyDataLoader implements ApplicationRunner {
             redisTemplate.opsForSet().add("dummy:" + rarityType, id);
         });
     }
-
 }

@@ -1,10 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.entity.document;
 
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyDataLoadDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
-import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
-import jakarta.persistence.Entity;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
@@ -33,6 +30,7 @@ public class DummyDocument extends CommonEntity {
 
     public static DummyDocument createDummyDocument(Dummy dummy) {
         return DummyDocument.builder()
+                .id(dummy.getId())
                 .title(dummy.getTitle())
                 .content(dummy.getContent())
                 .rarityName(dummy.getRarity().getName().toString())
