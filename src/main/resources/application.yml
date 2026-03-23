@@ -25,6 +25,11 @@ spring:
         batch_size: 50
 
   data:
+    elasticsearch:
+      repositories:
+        enabled: true
+      url: ${ES_URL}
+
     redis:
       host: ${REDIS_HOST}
       port: 6379
