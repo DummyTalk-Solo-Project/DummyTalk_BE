@@ -74,6 +74,10 @@ management:
       exposure:
         include: health, info, prometheus
 
+  health:
+    elasticsearch:
+      enabled: false
+
 discord:
   webhook:
     url: ${DISCORD_WEBHOOK}
