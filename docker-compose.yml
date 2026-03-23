@@ -93,7 +93,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.es
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     container_name: DummyTalk_ElasticSearch
     environment:
       - node.name=es01
