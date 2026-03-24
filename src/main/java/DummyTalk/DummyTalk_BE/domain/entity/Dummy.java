@@ -20,20 +20,15 @@ import java.util.List;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Document(indexName = "dummy")
-@Setting(settingPath = "elasticsearch/settings.json")
 public class Dummy extends CommonEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @org.springframework.data.annotation.Id
     private Long id;
 
     @Column(nullable = false)
-    @Field(type = FieldType.Text, analyzer = "suggest_analyzer", searchAnalyzer = "standard")
     private String title;
 
     @Column(nullable = false)
-    @Field(type = FieldType.Text, analyzer = "nori")
     private String content; // 막 길지는 않아서 충분할 듯? 이것만 쓰지 않을까?
 
     @OneToMany (mappedBy = "dummy", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
