@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
@@ -242,8 +243,12 @@ public class MemberService {
             throw new MemberHandler(ErrorCode.ALREADY_REGISTERED);
         }
 
-        Member member = UserConverter.toNewUser(request);
-        Member savedMember = memberRepository.save(member);
+        Member savedMember = memberRepository.save(Member.builder()
+                .memberName(request.getUsername())
+                .email(request.getEmail())
+                .password(bCryptPasswordEncoder.encode(request.getPassword()))
+                .login(Login.NORMAL)
+                .build());
 
         Info info = Info.builder()
                 .member(savedMember)
@@ -255,12 +260,12 @@ public class MemberService {
         Map<String, String> initialPity = new HashMap<>();
         initialPity.put("RARE", "0");
         initialPity.put("EPIC", "0");
-        redisTemplate.opsForHash().putAll("pity:" + member.getId(), initialPity);
+        redisTemplate.opsForHash().putAll("pity:" + savedMember.getId(), initialPity);
 
 
-        member.setInfo(savedInfo);
+        savedMember.setInfo(savedInfo);
 
-        log.info("[MemberService - SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), member.getMemberName());
+        log.info("[MemberService - SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), savedMember.getMemberName());
     }
 
     @Transactional

@@ -20,7 +20,7 @@ import java.util.List;
 
 @RestController
 @Slf4j
-@RequestMapping("/api/users")
+@RequestMapping("/api/members")
 @RequiredArgsConstructor
 @Tag(name = "사용자 API", description = "사용자 관련 API 입니다")
 public class MemberController {
