@@ -42,7 +42,7 @@ public class Dummy extends CommonEntity {
     public static Dummy createDummy(DummyDataLoadDTO dto, Rarity rarity) {
         return Dummy.builder()
                 .title(dto.getTitle())
-                .content(dto.getTitle())
+                .content(dto.getContent())
                 .rarity(rarity).build();
     }
 }

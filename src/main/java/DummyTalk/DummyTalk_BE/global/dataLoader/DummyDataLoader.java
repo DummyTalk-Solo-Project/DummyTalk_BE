@@ -93,13 +93,9 @@ public class DummyDataLoader implements ApplicationRunner {
     }
 
     private void syncRedisWithDb(List<Dummy> savedDummyList) {
-        Map<RarityType, List<String>> collectedDummy = savedDummyList.stream()
-                .collect(Collectors.groupingBy(d ->
-                        d.getRarity().getName(), Collectors.mapping(d ->
-                        d.getId().toString(), Collectors.toList())));
 
-        collectedDummy.forEach((rarityType, id) ->{
-            redisTemplate.opsForSet().add("dummy:" + rarityType, id);
-        });
+        savedDummyList.forEach(d ->
+                redisTemplate.opsForSet().add("dummy:" + d.getRarity().getName(), d.getId())
+                );
     }
 }

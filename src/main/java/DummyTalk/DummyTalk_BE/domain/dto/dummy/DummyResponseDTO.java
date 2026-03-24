@@ -45,7 +45,7 @@ public class DummyResponseDTO {
     @AllArgsConstructor
     public static class GetDummyRespDTO{
         private Long dummyId;
-//        private String title;
+        private String title;
         private String content;
         private String rarityName;
     }

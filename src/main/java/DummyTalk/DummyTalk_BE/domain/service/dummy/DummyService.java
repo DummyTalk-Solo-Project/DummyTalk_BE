@@ -101,6 +101,7 @@ public class DummyService {
 
         return DummyResponseDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
+                .title(dummy.getTitle())
                 .content(dummy.getContent())
                 .rarityName(dummy.getRarity().getName().toString())
                 .build();
