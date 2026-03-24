@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @Slf4j
@@ -29,12 +30,12 @@ public class DummyControllerV2 {
     }
 
     @GetMapping("/my-dummy")
-    public APIResponse<Object> getMyDummyList (@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyList (@AuthenticationPrincipal CustomUserDetails userDetails) {
         return APIResponse.onSuccess(dummyService.getMyDummyList(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @GetMapping("/my-dummy/keyword")
-    public APIResponse<Object> getMyDummyListWithKeyword (
+    public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyListWithKeyword (
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam("keyword") String keyword,
             @RequestParam("page") Integer page) {
