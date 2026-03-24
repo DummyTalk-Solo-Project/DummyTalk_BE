@@ -76,6 +76,7 @@ public class DummyService {
                 cumulative += r.getProbability();
                 if (pivot <= cumulative) {
                     selectedRarity = r;
+                    log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
                     break;
                 }
             }

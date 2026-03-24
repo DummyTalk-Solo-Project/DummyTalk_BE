@@ -5,6 +5,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
@@ -248,6 +249,7 @@ public class MemberService {
                 .email(request.getEmail())
                 .password(bCryptPasswordEncoder.encode(request.getPassword()))
                 .login(Login.NORMAL)
+                        .role(MemberRole.MEMBER)
                 .build());
 
         Info info = Info.builder()

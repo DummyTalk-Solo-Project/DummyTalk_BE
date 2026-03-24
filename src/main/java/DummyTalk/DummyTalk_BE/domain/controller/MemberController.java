@@ -47,7 +47,7 @@ public class MemberController {
     }
 
     @PostMapping("/login")
-    public APIResponse<Boolean> login (@RequestBody MemberReqDTO.LoginRequestDTO dto, HttpServletResponse response){
+    public APIResponse<MemberRespDTO.LoginSuccessDTO> login (@RequestBody MemberReqDTO.LoginRequestDTO dto, HttpServletResponse response){
 
         MemberRespDTO.MemberInfoDTO memberInfo = memberService.login(dto);
 
@@ -69,7 +69,7 @@ public class MemberController {
         response.addHeader("Authorization", "Bearer: " + respDTO.getAccessToken());
 
         // JWT 발급 메소드 호출은 어떻게?
-        return APIResponse.onSuccess(true, SuccessCode.LOGIN_SUCCESS);
+        return APIResponse.onSuccess(MemberRespDTO.LoginSuccessDTO.builder().isSuccess(true).memberName(memberInfo.getUsername()).accessToken(memberInfo.getJwt().getAccessToken()).build(), SuccessCode.LOGIN_SUCCESS);
     }
 
     @PostMapping("/logout")
