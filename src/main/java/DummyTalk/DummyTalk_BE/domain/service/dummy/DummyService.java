@@ -68,7 +68,7 @@ public class DummyService {
             selectedRarity = rarityRepository.findByName("RARE").orElseThrow(() -> new RuntimeException("Rarity not found"));
         }
         else{
-            // 2. 천장 없으면 조회
+            // 2. 천장 없는 경우 확률에 의해 조회.
             List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
             double pivot = Math.random() * 100;
             double cumulative = 0;
@@ -156,7 +156,7 @@ public class DummyService {
                         .bool(b -> b
                                 .must(m -> m
                                         .multiMatch(mm -> mm
-                                                .fields("title^2", "content") // 내용 보다는 제목에
+                                                .fields("title^2", "content") // 내용 보다는 제목에 가중치
                                                 .query(keyword)
                                         )
                                 )
