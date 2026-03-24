@@ -6,15 +6,21 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
+import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
+import co.elastic.clients.elasticsearch._types.FieldValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,10 +40,7 @@ public class DummyService {
     private final MemberRepository memberRepository;
     private final RarityRepository rarityRepository;
     private final DummyRepository dummyRepository;
-    private final OpenAiChatModel chatModel;
-    private final ObjectMapper objectMapper;
-    private final QuizRepository quizRepository;
-    private final MemberQuizRepository memberQuizRepository;
+    private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
     private final MemberDummyRepository memberDummyRepository;
 
@@ -117,7 +120,7 @@ public class DummyService {
     }
 
     @Transactional(readOnly = true)
-    public List<DummyResponseDTO.GetMyDummyListDTO> getMyDummyList (Long memberId){
+    public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyList (Long memberId){
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
         List <Long> dummyIdList = new ArrayList<>();
 
@@ -132,6 +135,46 @@ public class DummyService {
         }
 
         return DummyConverter.toGetMyDummyListDTO(memberDummyRepository.findAllByDummyIdList(dummyIdList));
+    }
+
+    @Transactional(readOnly = true)
+    public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyListWithKeyword(Long memberId, String keyword, Integer page){
+
+        Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
+
+        if (members.isEmpty()){
+            throw new RuntimeException("No dummy found in Redis for member id: " + memberId);
+        }
+
+        List<FieldValue> dummyIdList = members.stream()
+                .map(id -> FieldValue.of(id.toString()))
+                .toList();
+
+        // NativeQuery
+        NativeQuery nq = NativeQuery.builder()
+                .withQuery(q -> q
+                        .bool(b -> b
+                                .must(m -> m
+                                        .multiMatch(mm -> mm
+                                                .fields("title^2", "content") // 내용 보다는 제목에
+                                                .query(keyword)
+                                        )
+                                )
+                                .filter(f -> f
+                                        .terms(t -> t
+                                                .field("_id")
+                                                .terms(v -> v
+                                                        .value(dummyIdList)))
+                                )
+                        )
+                )
+                .withPageable(PageRequest.of(page, 10))
+                .build();
+
+        List<DummyDocument> dummyDocumentList = elasticsearchOperations.search(nq, DummyDocument.class)
+                .stream().map(SearchHit::getContent).toList();
+
+        return null;
     }
 
     @Transactional

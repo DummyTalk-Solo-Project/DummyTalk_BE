@@ -8,11 +8,11 @@ import java.util.List;
 
 public class DummyConverter {
 
-    public static List<DummyResponseDTO.GetMyDummyListDTO> toGetMyDummyListDTO(List<Dummy> dummyList) {
-        List<DummyResponseDTO.GetMyDummyListDTO> dtoList = new ArrayList<>();
+    public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyListDTO(List<Dummy> dummyList) {
+        List<DummyResponseDTO.GetMyDummyDTO> dtoList = new ArrayList<>();
         dummyList.stream()
                 .map(dummy ->
-                    dtoList.add(DummyResponseDTO.GetMyDummyListDTO.builder()
+                    dtoList.add(DummyResponseDTO.GetMyDummyDTO.builder()
                             .dummyId(dummy.getId())
                             .title(dummy.getTitle())
                             .content(dummy.getContent())

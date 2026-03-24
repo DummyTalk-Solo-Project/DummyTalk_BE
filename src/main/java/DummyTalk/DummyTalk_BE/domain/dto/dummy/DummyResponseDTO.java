@@ -54,7 +54,7 @@ public class DummyResponseDTO {
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class GetMyDummyListDTO{
+    public static class GetMyDummyDTO {
         public Long dummyId;
         public String title;
         public String content;
