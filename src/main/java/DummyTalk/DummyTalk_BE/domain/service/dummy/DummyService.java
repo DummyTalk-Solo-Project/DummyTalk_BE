@@ -6,6 +6,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
@@ -58,14 +59,24 @@ public class DummyService {
 
         int rareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
         int epicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
+        int commonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
 
         Rarity selectedRarity = Rarity.defaultRarity();
 
-        if (epicStack >= 10) {
-            selectedRarity = rarityRepository.findByName("EPIC").orElseThrow(() -> new RuntimeException("Rarity not found"));
+        if (commonStack >= 10) {
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            log.info("[MemberService - GetDummy] - COMMON 천장 사용 -> RARE!");
+            updatePityStack(pityKey, "COMMON", true);
         }
         else if (rareStack >= 10) {
-            selectedRarity = rarityRepository.findByName("RARE").orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            log.info("[MemberService - GetDummy] - RARE 천장 사용 -> EPIC!");
+            updatePityStack(pityKey, "RARE", true);
+        }
+        else if (epicStack >= 10) {
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            log.info("[MemberService - GetDummy] - EPIC 천장 사용 -> SPECIAL!");
+            updatePityStack(pityKey, "EPIC", true);
         }
         else{
             // 2. 천장 없는 경우 확률에 의해 조회.
@@ -80,10 +91,8 @@ public class DummyService {
                     break;
                 }
             }
+            updatePityStack(pityKey, selectedRarity.getName().toString(), false);
         }
-
-        // 천장 update, Only Redis
-        updatePityStack(pityKey, selectedRarity.getName().toString());
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
@@ -107,8 +116,26 @@ public class DummyService {
                 .build();
     }
 
-    private void updatePityStack(String key, String wonRarity) {
-        if (wonRarity.equals("EPIC") || wonRarity.equals("SPECIAL")) {
+    private void updatePityStack(String key, String wonRarity, Boolean isPity) {
+        if (isPity) {
+            redisTemplate.opsForHash().put(key, wonRarity, "0");
+            switch (wonRarity) {
+                case ("COMMON"):
+                    redisTemplate.opsForHash().increment(key, "RARE", 1);
+                    break;
+                case ("RARE"):
+                    redisTemplate.opsForHash().increment(key, "EPIC", 1);
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (!wonRarity.equals("SPECIAL")) {
+            redisTemplate.opsForHash().increment(key, wonRarity, 1);
+            log.info("[MemberService - updatePityStack] - {} 스택 증가 = {}", wonRarity, redisTemplate.opsForHash().get(key, wonRarity));
+        }
+
+/*        if (wonRarity.equals("EPIC") || ) {
             // 대박 등급 당첨 시 EPIC 만 초기화
             redisTemplate.opsForHash().put(key, "EPIC", "0");
         } else if (wonRarity.equals("RARE")) {
@@ -118,7 +145,7 @@ public class DummyService {
         } else {
             // COMMON 당첨 시 RARE 천장 스택 +1
             redisTemplate.opsForHash().increment(key, "RARE", 1);
-        }
+        }*/
     }
 
     @Transactional(readOnly = true)

@@ -1,6 +1,6 @@
 logging:
   level:
-    org.hibernate.SQL: INFO
+    org.hibernate.SQL: DEBUG
 
 spring:
   application:
@@ -12,17 +12,20 @@ spring:
 #    url: jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: create
-    show-sql: true
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
-      format_sql: true
-      use_sql_comments: true
-      default_batch_fetch_size: 1000
-      jdbc:
-        batch_size: 50
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        use_sql_comments: true
+        default_batch_fetch_size: 1000
+        jdbc:
+          batch_size: 50
+    show-sql: false
 
   data:
     elasticsearch:
@@ -33,6 +36,7 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: 6379
+
   sql:
     init:
       mode: never
