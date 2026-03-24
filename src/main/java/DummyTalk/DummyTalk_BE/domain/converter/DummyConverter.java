@@ -27,7 +27,7 @@ public class DummyConverter {
         return dtoList;
     }
 
-    public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyDTO(List<DummyDocument> dummyDocumentList) {
+    public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyDListTO(List<DummyDocument> dummyDocumentList) {
         return dummyDocumentList.stream()
                 .map(dq ->
                 {

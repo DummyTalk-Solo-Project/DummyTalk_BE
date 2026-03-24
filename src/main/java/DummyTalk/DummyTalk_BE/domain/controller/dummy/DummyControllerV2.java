@@ -33,6 +33,14 @@ public class DummyControllerV2 {
         return APIResponse.onSuccess(dummyService.getMyDummyList(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
+    @GetMapping("/my-dummy/keyword")
+    public APIResponse<Object> getMyDummyListWithKeyword (
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam("keyword") String keyword,
+            @RequestParam("page") Integer page) {
+        return APIResponse.onSuccess(dummyService.getMyDummyListWithKeyword(userDetails.getMember().getId(), keyword, page),  SuccessCode.GET_DUMMY_SUCCESS);
+    }
+
     @PostMapping("/open-quiz")
     public APIResponse<Object> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
                                          @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {

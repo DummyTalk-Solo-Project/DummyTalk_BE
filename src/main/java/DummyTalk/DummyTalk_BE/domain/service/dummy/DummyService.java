@@ -174,7 +174,7 @@ public class DummyService {
         List<DummyDocument> dummyDocumentList = elasticsearchOperations.search(nq, DummyDocument.class)
                 .stream().map(SearchHit::getContent).toList();
 
-        return null;
+        return DummyConverter.toGetMyDummyDListTO(dummyDocumentList);
     }
 
     @Transactional
