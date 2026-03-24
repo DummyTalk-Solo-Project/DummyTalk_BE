@@ -3,7 +3,7 @@ package DummyTalk.DummyTalk_BE.batch;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -35,7 +35,7 @@ public class BatchConfigTest {
         JobExecution jobExecution = jobLauncherTestUtils.launchJob();
 
         // then
-        Member member = memberRepository.findByEmailFetchInfo("jijysun@naver.com").orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmailFetchInfo("jijysun@naver.com").orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
 
         Assertions.assertThat(jobExecution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
 

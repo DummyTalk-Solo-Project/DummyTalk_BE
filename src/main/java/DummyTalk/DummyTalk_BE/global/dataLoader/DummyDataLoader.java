@@ -35,12 +35,21 @@ public class DummyDataLoader implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
+        Rarity common, rare, epic, special;
 
         // 초기화되는 겸 처음 키면서 같이 저장
-        Rarity common = rarityRepository.save(Rarity.createRarity(RarityType.COMMON, "F4F0E4", 50.0));
-        Rarity rare = rarityRepository.save(Rarity.createRarity(RarityType.RARE, "44A194", 30.0));
-        Rarity epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "537D96", 12.0));
-        Rarity special = rarityRepository.save(Rarity.createRarity(RarityType.SPECIAL, "EC8F8D", 3.0));
+        if (rarityRepository.count() != 4){
+            common = rarityRepository.save(Rarity.createRarity(RarityType.COMMON, "F4F0E4", 50.0));
+            rare = rarityRepository.save(Rarity.createRarity(RarityType.RARE, "44A194", 30.0));
+            epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "537D96", 12.0));
+            special = rarityRepository.save(Rarity.createRarity(RarityType.SPECIAL, "EC8F8D", 3.0));
+        }
+        else{
+            common = rarityRepository.findByName(RarityType.COMMON).orElseThrow();
+            rare = rarityRepository.findByName(RarityType.RARE).orElseThrow();
+            epic = rarityRepository.findByName(RarityType.EPIC).orElseThrow();
+            special = rarityRepository.findByName(RarityType.SPECIAL).orElseThrow();
+        }
 
         // JSON
         ClassPathResource resource = new ClassPathResource("data/dummyList.json");

@@ -15,7 +15,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,7 +120,7 @@ public class DummyServiceImplV3 {
      * @param openQuizDate
      */
     public void openQuiz(String email, LocalDateTime openQuizDate) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!Objects.equals(member.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
@@ -191,7 +191,7 @@ public class DummyServiceImplV3 {
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
 
-        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         if (quiz.isEmpty()) {
             log.info("quiz is empty!"); // 사용자 별 이전 퀴즈 등수 확인
@@ -227,7 +227,7 @@ public class DummyServiceImplV3 {
     // 이전 기본 로직 메소드
     @Timed("quiz.solve.requests")
     public void solveQuiz(String email, Long quizId, Integer answer) {
-        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
         log.info("정답: {}, 제출 답안: {}", quiz.get("answer"), answer);
@@ -255,7 +255,7 @@ public class DummyServiceImplV3 {
     @Timed("quiz.solve.requests")
     public synchronized void solveQuizVer2(String email, Integer answer) {
 
-        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", email);
 
@@ -288,7 +288,7 @@ public class DummyServiceImplV3 {
     @DistributedLock(key = "'quiz_lock'")
     public void solveQuizVer3(String email, Integer answer) {
 
-        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(email).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", email);
         try {
@@ -328,8 +328,8 @@ public class DummyServiceImplV3 {
     @Transactional
     public void solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO dto) {
 
-        Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
-        Quiz quiz = quizRepository.findQuizByIdForDecrease(dto.getQuizId()).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ));
+        Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        Quiz quiz = quizRepository.findQuizByIdForDecrease(dto.getQuizId()).orElseThrow(() -> new MemberHandler(ErrorCode.WRONG_QUIZ));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", member.getEmail());
         log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), dto.getAnswer());

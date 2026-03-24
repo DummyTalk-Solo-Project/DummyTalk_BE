@@ -16,7 +16,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyServiceInterface;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
@@ -123,7 +123,7 @@ public class DummyServiceInterfaceImplV2 implements DummyServiceInterface {
      * @param openQuizDate
      */
     public void openQuiz(Member userDetails, LocalDateTime openQuizDate) {
-        Member member = memberRepository.findByEmail(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(userDetails.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!Objects.equals(member.getEmail(), "jijysun@naver.com")) {
             throw new DummyHandler(ErrorCode.AUTHORIZATION_REQUIRED);
@@ -233,8 +233,8 @@ public class DummyServiceInterfaceImplV2 implements DummyServiceInterface {
 
         // MySQL 비관적 락
 
-        Member member = memberRepository.findByEmailFetchInfo(userDetails.getEmail()).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
-        Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId).orElseThrow(() -> new UserHandler(ErrorCode.WRONG_QUIZ));
+        Member member = memberRepository.findByEmailFetchInfo(userDetails.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId).orElseThrow(() -> new MemberHandler(ErrorCode.WRONG_QUIZ));
 
         log.info("-- {}의 문제 풀이 작업 시작 --", member.getEmail());
         log.info("정답: {}, 제출 답안: {}", quiz.getAnswer(), answer);

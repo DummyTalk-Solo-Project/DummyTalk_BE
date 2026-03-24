@@ -32,7 +32,6 @@ public enum ErrorCode implements BaseErrorCode {
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "SERVER_4300", "접근 권한이 없습니다."),
 
 
-
     // Dummy
     USED_ALL_CHANCES(HttpStatus.BAD_REQUEST, "DUMMY4001", "모든 무료 요청 횟수를 소모하셨네요, 다음을 기약해주세요 :)"),
     NO_SOLVED_QUIZ(HttpStatus.BAD_REQUEST, "DUMMY4002", "풀었던 문제가 없네요. 다음 퀴즈가 열릴 때 까지 같이 기다려봐요"),
@@ -45,11 +44,13 @@ public enum ErrorCode implements BaseErrorCode {
 
     // Member
     AUTHORIZATION_REQUIRED(HttpStatus.UNAUTHORIZED, "USER4000", "권한이 부족합니다."),
-    WRONG_EMAIL_CODE(HttpStatus.BAD_REQUEST, "USER4001", "제가 보낸 이메일이랑 다른 거 같은데, 다시 한 번 확인해보시겠어요?"),
-    EMAIL_EXPIRED(HttpStatus.BAD_REQUEST, "USER4002", "이메일이 너무 오래된 거 같은데, 다시 한 번 보내드릴까요?"),
-    CANT_FIND_USER(HttpStatus.BAD_REQUEST, "USER4003", "뭔가 정보가 안맞는데, 다시 한 번 요청해주시겠어요?"),
-    ALREADY_REGISTERED (HttpStatus.BAD_REQUEST, "USER4004", "이미 가입한 계정이 있어요"),
-    ALREADY_SEND(HttpStatus.BAD_REQUEST, "USER4005", "이미 이메일을 보냈어요, 다시 한 번 확인해주시겠어요?.");
+    WRONG_EMAIL_CODE(HttpStatus.BAD_REQUEST, "MEMBER4001", "제가 보낸 이메일이랑 다른 거 같은데, 다시 한 번 확인해보시겠어요?"),
+    EMAIL_EXPIRED(HttpStatus.BAD_REQUEST, "MEMBER4002", "이메일이 너무 오래된 거 같은데, 다시 한 번 보내드릴까요?"),
+    CANT_FIND_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4003", "뭔가 정보가 안맞는데, 다시 한 번 요청해주시겠어요?"),
+    ALREADY_REGISTERED (HttpStatus.BAD_REQUEST, "MEMBER4004", "이미 가입한 계정이 있어요"),
+    ALREADY_SEND(HttpStatus.BAD_REQUEST, "MEMBER4005", "이미 이메일을 보냈어요, 다시 한 번 확인해주시겠어요?."),
+    EXIST_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4006", "해당 이메일은 이미 누가 쓰고 있어요."),
+    MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4007", "누군 지 모르겠어요!.");
 
 
 

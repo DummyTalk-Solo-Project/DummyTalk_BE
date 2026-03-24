@@ -1,13 +1,13 @@
 package DummyTalk.DummyTalk_BE.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRequestDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
-import DummyTalk.DummyTalk_BE.domain.service.member.impl.MemberServiceImpl;
+import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
-import DummyTalk.DummyTalk_BE.global.exception.handler.UserHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 public class DummyServiceTrafficTest {
 
     @Autowired
-    private MemberServiceImpl userService;
+    private MemberService userService;
 
     @Autowired
     private DummyServiceImplV3 dummyService;
@@ -63,7 +63,7 @@ public class DummyServiceTrafficTest {
             String username = "user" + i;
             String email = username + "@email.com";
 
-            userService.signIn(MemberRequestDTO.SignInRequestDTO.builder()
+            userService.signIn(MemberReqDTO.SignInRequestDTO.builder()
                     .email(email)
                     .username(username)
                     .password("1234") // 비밀번호는 공통
@@ -80,7 +80,7 @@ public class DummyServiceTrafficTest {
     @Test
     @DisplayName("문제 풀이 테스트")
     public void solveQuizTest(){
-        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
 //        dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1);
         dummyService.solveQuizVer3(member.getEmail(), 1);
     }
@@ -93,7 +93,7 @@ public class DummyServiceTrafficTest {
         final ExecutorService executorService = Executors.newFixedThreadPool(32); // 32개의 멀티 스레드 환경 허용
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount);
 
-        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
         // 실패(중복제출 예외) 횟수 카운트
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
@@ -211,7 +211,7 @@ public class DummyServiceTrafficTest {
 
         // [수정] user 객체는 테스트 마지막 검증(then)에서 ID를 사용할 때 필요
         Member member = memberRepository.findByEmail(TEST_EMAIL)
-                .orElseThrow(() -> new UserHandler(ErrorCode.CANT_FIND_USER));
+                .orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
 
         // 실패(중복제출 예외) 횟수 카운트
         AtomicInteger successCount = new AtomicInteger(0);
