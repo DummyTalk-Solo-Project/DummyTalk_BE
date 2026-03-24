@@ -26,6 +26,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +57,32 @@ public class MemberServiceImpl implements MemberService {
         }
 
         return code.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public Boolean checkEmailDuplicate(String email) {
+        Optional<Member> byEmail = memberRepository.findByEmail(email);
+        if (byEmail.isPresent()) {
+            log.info("[MemberService - checkEmailDuplicate] duplicate email {}", email);
+            throw new MemberException(MemberErrorCode.EXIST_MEMBER);
+        } else {
+            log.info("[MemberService - checkEmailDuplicate] Success to check duplicate {}", email);
+            return true;
+        }
+    }
+
+    public void requestVerificationCode(String email) {
+        String code = generateVerificationCode();
+        Boolean ifAbsent = redisTemplate.opsForValue().setIfAbsent(email, code, Duration.ofMinutes(3));
+
+        if (Boolean.FALSE.equals(ifAbsent)) {
+            log.info("[MemberService - requestVerificationCode] already send to {} with {}", email, redisTemplate.opsForValue().get(email));
+            throw new MemberException(MemberErrorCode.ALREADY_SEND); // 따닥 방지
+        } else {
+            redisTemplate.opsForList().leftPush("email_queue", email + ":" + code);
+            log.info("[MemberService - requestVerificationCode] call EmailService with {} - {}", email, code);
+//            emailService.startWork();
+        }
     }
 
     @Override
@@ -178,17 +205,17 @@ public class MemberServiceImpl implements MemberService {
         }
 
         // 만료 전 재요청 시 거절 로직
-        if (redisTemplate.opsForValue().get("email:"+email) != null){
+        if (redisTemplate.opsForValue().get("email:" + email) != null) {
             throw new UserHandler(ErrorCode.ALREADY_SEND);
         }
 
-        if(memberRepository.findByEmail(email).isPresent()){
+        if (memberRepository.findByEmail(email).isPresent()) {
             throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
         }
 
         try {
             mailSender.send(msg);
-            redisTemplate.opsForValue().set("email:"+email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
+            redisTemplate.opsForValue().set("email:" + email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
             log.info("[EMAIL SENT] code {} -> {}", code, email);
         } catch (RuntimeException e) {
             throw new UserHandler(ErrorCode.CANT_SEND_EMAIL);
@@ -203,10 +230,10 @@ public class MemberServiceImpl implements MemberService {
             throw new UserHandler(ErrorCode.EMAIL_EXPIRED);
         }
         log.info("code: {}", code);
-        if (!code.equals(requestDTO.getCode()) ) {
+        if (!code.equals(requestDTO.getCode())) {
             throw new UserHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
-        log.info("[MemberService - EMAIL VERIFIED] email: {},  code: {}",  requestDTO.getEmail(), code);
+        log.info("[MemberService - EMAIL VERIFIED] email: {},  code: {}", requestDTO.getEmail(), code);
     }
 
     @Override
@@ -214,7 +241,7 @@ public class MemberServiceImpl implements MemberService {
     public void signIn(MemberRequestDTO.SignInRequestDTO request) {
 
         Optional<Member> byEmail = memberRepository.findByEmail(request.getEmail());
-        if (byEmail.isPresent()){
+        if (byEmail.isPresent()) {
             throw new UserHandler(ErrorCode.ALREADY_REGISTERED);
         }
 
@@ -261,6 +288,31 @@ public class MemberServiceImpl implements MemberService {
                 .build();
     }
 
+    public void logout(String accessToken, Long memberId) {
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberException(MemberErrorCode.CANT_FOUND_MEMBER));
+        redisTemplate.delete("refresh:" + member.getEmail());
+
+        Long remainingTime = jwtProvider.getRemainingTime(accessToken); // TTL 용 남은 시간 계산
+
+        if (remainingTime > 0) {
+            String key = "blacklist:" + accessToken;
+            redisTemplate.opsForValue().set(key, "logout", remainingTime, TimeUnit.MILLISECONDS);
+            log.info("[MemberService] - add AccessToken in BlackList! remainingTime: {}ms", remainingTime);
+        }
+
+        log.info("[MemberService - logout] Success to logout -> {}", member.getEmail());
+    }
+
+    public MemberRespDTO.FindEmailRespDTO findEmail(String email) {
+        boolean existsByEmail = memberRepository.existsByEmail(email);
+
+        if (existsByEmail) {
+            return MemberRespDTO.FindEmailRespDTO.builder().email(email).build();
+        } else {
+            throw new MemberException(MemberErrorCode.CANT_FOUND_MEMBER);
+        }
+    }
+
     @Override
     @Transactional
     public void withdraw(String email) {
@@ -278,16 +330,16 @@ public class MemberServiceImpl implements MemberService {
     public List<MemberResponseDTO.GetUserResponseDTO> getAllData() {
         List<MemberResponseDTO.GetUserResponseDTO> dtoList = new ArrayList<>();
         memberRepository.findAllJoinFetchInfo().forEach(user ->
-        dtoList.add(MemberResponseDTO.GetUserResponseDTO.builder()
-                .email(user.getEmail())
-                .username(user.getMemberName())
-                .reqCount(user.getInfo().getReqCount())
-                .isSubscribe(user.getInfo().getIsSubscribe())
-                .subsExprDate(user.getInfo().getSubsExprDate())
-                .build())
+                dtoList.add(MemberResponseDTO.GetUserResponseDTO.builder()
+                        .email(user.getEmail())
+                        .username(user.getMemberName())
+                        .reqCount(user.getInfo().getReqCount())
+                        .isSubscribe(user.getInfo().getIsSubscribe())
+                        .subsExprDate(user.getInfo().getSubsExprDate())
+                        .build())
         );
 
-        log.info("MemberService - [GETALLDATA] data count : {}",  dtoList.size());
+        log.info("MemberService - [GETALLDATA] data count : {}", dtoList.size());
         return dtoList;
     }
 }
