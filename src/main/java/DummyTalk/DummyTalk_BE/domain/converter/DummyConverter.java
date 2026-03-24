@@ -31,26 +31,24 @@ public class DummyConverter {
         return dummyDocumentList.stream()
                 .map(dq ->
                 {
-                    RarityType type = RarityType.valueOf(dq.getRarityName());
                     DummyResponseDTO.GetMyDummyDTO.GetMyDummyDTOBuilder dtoBuilder = DummyResponseDTO.GetMyDummyDTO.builder()
                             .dummyId(dq.getId())
                             .title(dq.getTitle())
                             .content(dq.getContent())
-                            .name(type)
-                            .createdAt(dq.getCreatedAt());
-
-                    if (type.equals(RarityType.COMMON)) {
-                        dtoBuilder.colorCode("COMMON");
-                    } else if (type.equals(RarityType.RARE)) {
-                        dtoBuilder.colorCode("RARE");
-                    } else if (type.equals(RarityType.EPIC)) {
-                        dtoBuilder.colorCode("EPIC");
-                    } else if (type.equals(RarityType.SPECIAL)) {
-                        dtoBuilder.colorCode("SPECIAL");
-                    }
-
+                            .name(RarityType.valueOf(dq.getRarityName()))
+                            .colorCode(getColorByRarity(RarityType.valueOf(dq.getRarityName())));
+//                            .createdAt(dq.getCreatedAt()); // 여기 createdAt은 ES 삽입 기준이므로 잠시 주석 처리
                     return dtoBuilder.build();
                 })
                 .toList();
+    }
+
+    private static String getColorByRarity(RarityType type) {
+        return switch (type) {
+            case COMMON -> "F4F0E4";
+            case RARE -> "44A194";
+            case EPIC -> "537D96";
+            case SPECIAL -> "EC8F8D";
+        };
     }
 }
