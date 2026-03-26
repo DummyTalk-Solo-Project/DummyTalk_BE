@@ -90,5 +90,9 @@
 - [x]  Prometheus & Grafana를 활용한 성능 모니터링
 - [x]  JMeter / K6 를 통한 실시간 성능 테스트
 - [ ]  도메인 구매로 런칭 준비하기
+- [x]  PostgreSQL 전환
+- [ ]  ElasticSearch + Kibana를 통한 검색 엔진 구현
+- [ ]  Spring Event과 비동기 활용
+- [ ]  Spring Batch 고도화 + AWS SES 활용
 
 → 모든 기능은 실제 서비스 상황, 단순 포폴용이 아님을 고려하면서 개발할 것!
