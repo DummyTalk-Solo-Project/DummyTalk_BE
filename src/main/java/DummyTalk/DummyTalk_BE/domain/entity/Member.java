@@ -37,23 +37,15 @@ public class Member extends CommonEntity {
     @Enumerated(EnumType.STRING)
     private MemberRole role;
 
-    /// deprecated
     private LocalDateTime lastLogin;
 
     @Setter
     @OneToOne (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private Info info;
 
-    // @JsonManagedReference
-
     @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<MemberDummy> memberDummyList = new ArrayList<>();
-
-    /// deprecated
-/*    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference
-    private List<Dummy> dummyList = new ArrayList<>();*/
 
     @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
