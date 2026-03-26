@@ -31,6 +31,7 @@ public class Member extends CommonEntity {
 
     private String memberName;
 
+    @Enumerated(EnumType.STRING)
     private Login login;
 
     @Enumerated(EnumType.STRING)
