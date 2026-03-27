@@ -3,7 +3,7 @@
 <img src="./assets/ProjectMainLogo.png" width="80%">
 
 
-- DummyTalk은 버튼 클릭만으로 OpenAI API를 통해 무작위 잡학 지식을 얻을 수 있는 작은 사이드 프로젝트입니다.
+- DummyTalk은 버튼 클릭만으로 사전 저장된 수많은 데이터를 통해 무작위 잡학 지식을 얻을 수 있는 작은 사이드 프로젝트입니다.
 - 단순한 지식 전달에 그치지 않고, 사용자 정보 기반 개인화 또는 메타픽션적인 다크 심리 요소를 섞어 실험적인 경험을 제공합니다.
 - 목표: "정보 전달" 그 이상의 "예측 불가능한 재미" & 개발을 통한 프로젝트 지식 습득과 런칭
 
@@ -18,7 +18,7 @@
 
 
 - **Backend**  
-  ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring%20Data%20JPA-6DB33F?style=for-the-badge&logo=hibernate&logoColor=white) ![Spring AI](https://img.shields.io/badge/Spring%20AI-6DB33F?style=for-the-badge&logo=openai&logoColor=white)
+  ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white) ![Spring Security](https://img.shields.io/badge/Spring%20Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white) ![Spring Data JPA](https://img.shields.io/badge/Spring%20Data%20JPA-6DB33F?style=for-the-badge&logo=hibernate&logoColor=white) ![Spring AI](https://img.shields.io/badge/Spring%20AI-6DB33F?style=for-the-badge&logo=openai&logoColor=white) & postgresql
 
 - **DB / Infra**  
   ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)   ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)    ![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
