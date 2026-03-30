@@ -3,19 +3,20 @@ package DummyTalk.DummyTalk_BE.domain.service.dummy;
 import DummyTalk.DummyTalk_BE.domain.converter.DummyConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -63,7 +64,7 @@ public class DummyService {
 
 
     @Transactional
-    public DummyResponseDTO.GetDummyRespDTO getDummy(Long memberId) {
+    public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
 
         // 1. 천장 있는 지 조회
@@ -93,17 +94,8 @@ public class DummyService {
         }
         else{
             // 2. 천장 없는 경우 확률에 의해 조회.
-            List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
-            double pivot = Math.random() * 100;
-            double cumulative = 0;
-            for (Rarity r : rarityList) {
-                cumulative += r.getProbability();
-                if (pivot <= cumulative) {
-                    selectedRarity = r;
-                    log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
-                    break;
-                }
-            }
+            selectedRarity = getRandomRarity();
+            log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
             updatePityStack(pityKey, selectedRarity.getName().toString(), false);
         }
 
@@ -121,7 +113,7 @@ public class DummyService {
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
 
-        return DummyResponseDTO.GetDummyRespDTO.builder()
+        return DummyRespDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
                 .title(dummy.getTitle())
                 .content(dummy.getContent())
@@ -162,7 +154,7 @@ public class DummyService {
     }
 
     @Transactional(readOnly = true)
-    public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyList (Long memberId, int page){
+    public List<DummyRespDTO.GetMyDummyDTO> getMyDummyList (Long memberId, int page){
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId.toString() + ":dummy");
         List<Long> dummyIdList = members.stream()
                 .map(id -> Long.valueOf(id.toString()))
@@ -174,7 +166,7 @@ public class DummyService {
     }
 
     @Transactional(readOnly = true)
-    public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyListWithKeyword(Long memberId, String keyword, Integer page){
+    public List<DummyRespDTO.GetMyDummyDTO> getMyDummyListWithKeyword(Long memberId, String keyword, Integer page){
 
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
 
@@ -219,35 +211,46 @@ public class DummyService {
     }
 
 
-    /**
-     * 퀴즈를 만든 후 Redis 저장 및 캐시화
-     *
-     * @param email
-     * @param openQuizDate
-     */
-    @Transactional
-    public void openQuiz(String email, LocalDateTime openQuizDate) {
-
-        // 1. Special 제외 랜덤 문제 조회
+    @Transactional(readOnly = true)
+    public Rarity getRandomRarity (){
         List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
-        Rarity selectedRarity = null;
         double pivot = Math.random() * 100;
         double cumulative = 0;
         for (Rarity r : rarityList) {
             cumulative += r.getProbability();
             if (pivot <= cumulative) {
-                selectedRarity = r;
-                log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
-                break;
+                return r;
             }
         }
+        return null;
+    }
+
+    /**
+     * 퀴즈를 만든 후 Redis 저장 및 캐시화
+     *
+     * @param memberId
+     * @param openQuizDate
+     * @return
+     */
+    @Transactional
+    public Quiz openQuiz(Long memberId, LocalDateTime openQuizDate) {
+
+        // NotAdmin? reject!
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (member.getRole().equals(MemberRole.MEMBER)){
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        // 1. Special 제외 랜덤 문제 조회
+        Rarity selectedRarity = getRandomRarity();
+
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
         if (result == null) {
             throw new RuntimeException("No dummy found in Redis for rarity: " + selectedRarity.getName());
         }
 
         Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new RuntimeException("No dummy found in Redis for rarity: " + result));
-        log.info("randomDummy.id: {}",randomDummy.getId());
+        log.info("[DummyService - openQuiz] - randomDummy.id: {}",randomDummy.getId());
 
         // 2. 해당 문제를 통해 OpenAiAPI -> 문제를 만들어줘
         DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
@@ -272,24 +275,21 @@ public class DummyService {
                 .map(resp -> resp.getChoices().get(0).getMessage().getContent())
                 .blockLast();
 
-        DummyResponseDTO.GetQuizFromAIResponseDTO resp;
+        DummyRespDTO.GetQuizFromAIResponseDTO resp;
         try {
-            resp = objectMapper.readValue(text, DummyResponseDTO.GetQuizFromAIResponseDTO.class);
+            resp = objectMapper.readValue(text, DummyRespDTO.GetQuizFromAIResponseDTO.class);
         } catch (JsonProcessingException e) {
             throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
         }
 
-        log.info("resp.toString(): {}", resp);
+        log.info("[DummyService - openQuiz] - resp.toString(): {}", resp);
 
-        // 3. 해당 시간에 Quiz 생성
-        Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
-
-        // 4. return
-
+        // 3. 해당 시간에 Quiz 생성 & return
+        return quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
     }
 
 
-    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(String email) {
+    public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(String email) {
         return null;
     }
 

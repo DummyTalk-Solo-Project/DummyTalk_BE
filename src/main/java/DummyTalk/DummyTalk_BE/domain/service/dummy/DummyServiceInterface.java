@@ -1,7 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 
 import java.time.LocalDateTime;
@@ -12,7 +12,7 @@ public interface DummyServiceInterface {
 
     void openQuiz(Member member, LocalDateTime openQuizDate);
 
-    DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(Member member);
+    DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Member member);
 
     void solveQuiz(Member member, Long quizId, Integer answer);
 

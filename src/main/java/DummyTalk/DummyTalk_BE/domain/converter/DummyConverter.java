@@ -1,19 +1,18 @@
 package DummyTalk.DummyTalk_BE.domain.converter;
 
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class DummyConverter {
 
-    public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyListDTO(List<Dummy> dummyList) {
+    public static List<DummyRespDTO.GetMyDummyDTO> toGetMyDummyListDTO(List<Dummy> dummyList) {
         return dummyList.stream()
                         .map(dummy ->
-                                        DummyResponseDTO.GetMyDummyDTO.builder()
+                                        DummyRespDTO.GetMyDummyDTO.builder()
                                                 .dummyId(dummy.getId())
                                                 .title(dummy.getTitle())
                                                 .content(dummy.getContent())
@@ -25,11 +24,11 @@ public class DummyConverter {
                                 ).toList();
     }
 
-    public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyDListTO(List<DummyDocument> dummyDocumentList) {
+    public static List<DummyRespDTO.GetMyDummyDTO> toGetMyDummyDListTO(List<DummyDocument> dummyDocumentList) {
         return dummyDocumentList.stream()
                 .map(dq ->
                 {
-                    DummyResponseDTO.GetMyDummyDTO.GetMyDummyDTOBuilder dtoBuilder = DummyResponseDTO.GetMyDummyDTO.builder()
+                    DummyRespDTO.GetMyDummyDTO.GetMyDummyDTOBuilder dtoBuilder = DummyRespDTO.GetMyDummyDTO.builder()
                             .dummyId(dq.getId())
                             .title(dq.getTitle())
                             .content(dq.getContent())

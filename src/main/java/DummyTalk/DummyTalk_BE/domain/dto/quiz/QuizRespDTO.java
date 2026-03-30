@@ -7,7 +7,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class QuizResponseDTO {
+public class QuizRespDTO {
 
     @Data
     @Builder

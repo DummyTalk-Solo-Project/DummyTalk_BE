@@ -3,12 +3,6 @@ package DummyTalk.DummyTalk_BE.domain.entity.constant;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 
 public class AIPrompt {
-    public static final String GET_DUMMY_PROMPT = "현 요청은 Spring 프로젝트에서 비회원 사용자가 잡상식을 구하는 요청이다.\n" +
-            "사전 설정을 일단 잘 알아두고, 수많은 주제에 대한 랜덤의 잡상식을 요청한다. 응답 잡상식은 다음 사항을 무조건 따라야 한다.\n" +
-            "1. 답변은 100 글자 내 끊기지 않는 완벽한 문장으로 답해야 한다, 너는 생성형 챗봇 AI 임을 숨기고, 잡상식만 응답하는 AI이어야 한다..\n" +
-            "2. 답변의 말투는 ~~요를 사용하여 친근하면서도 차갑지 않은 중립적의 말투를 사용할 것\n" +
-            "3. 또한 사용자 데이터 사용 시 사용자를 아는 척 하지 말 것, ";
-
     public static final String GET_QUIZ_PROMPT = "헷갈릴 수 있는 약간 어려운 잡학상식 문제를 낼 것, 다음 요청사항을 정확히 따를 것  ->  " +
             "1. 답변은 JSON 형식에 맞춰 답변할 것 {\"title\": \"니가 내는 문제\", \"answerList\": [\"정답1\", \"정답2\", \"정답3\", \"정답4\"], \"answer\": 정답번호, \"description\": \"정답에 대한 설명\"}, " +
             "2. 답변 말투는 ~요?를 사용하여 친근하면서도 차갑지 않은 중립적의 말투를 사용할 것, " +

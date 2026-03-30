@@ -1,6 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.controller.dummy;
 
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
+import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
@@ -25,19 +26,19 @@ public class DummyControllerV2 {
     private final DummyService dummyService;
 
     @GetMapping ("/dummy")
-    public APIResponse<DummyResponseDTO.GetDummyRespDTO> getDummy(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public APIResponse<DummyRespDTO.GetDummyRespDTO> getDummy(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return APIResponse.onSuccess(dummyService.getDummy(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @GetMapping("/my-dummy")
-    public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyList (
+    public APIResponse<List<DummyRespDTO.GetMyDummyDTO>> getMyDummyList (
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam (name = "page", defaultValue = "0") Integer page) {
         return APIResponse.onSuccess(dummyService.getMyDummyList(userDetails.getMember().getId(), page), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @GetMapping("/my-dummy/keyword")
-    public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyListWithKeyword (
+    public APIResponse<List<DummyRespDTO.GetMyDummyDTO>> getMyDummyListWithKeyword (
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam("keyword") String keyword,
             @RequestParam(name="page", defaultValue = "0") Integer page) {
@@ -52,14 +53,14 @@ public class DummyControllerV2 {
      * @return Boolean isSuccess
      */
     @PostMapping("/open-quiz")
-    public APIResponse<Object> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
-                                         @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
+    public APIResponse<Quiz> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
+                                       @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
 
-        return APIResponse.onSuccess(null, SuccessCode.OPEN_QUIZ_SUCCESS);
+        return APIResponse.onSuccess(dummyService.openQuiz(userDetails.getMember().getId(), date), SuccessCode.OPEN_QUIZ_SUCCESS);
     }
 
     @GetMapping("/quiz")
-    public APIResponse<DummyResponseDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+    public APIResponse<DummyRespDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
 //        DummyResponseDTO.GetQuizInfoResponseDTO quiz = dummyServiceInterface.getQuiz(userDetails.getMember());
         return APIResponse.onSuccess(null, SuccessCode.GET_QUIZ_SUCCESS);
     }

@@ -2,8 +2,8 @@ package DummyTalk.DummyTalk_BE.domain.service.dummy.impl;
 
 import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizResponseDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
+import DummyTalk.DummyTalk_BE.domain.dto.quiz.QuizRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
@@ -147,9 +147,9 @@ public class DummyServiceImplV3 {
                 .map(resp -> resp.getChoices().get(0).getMessage().getContent())
                 .blockLast();
 
-        DummyResponseDTO.GetQuizFromAIResponseDTO responseDTO;
+        DummyRespDTO.GetQuizFromAIResponseDTO responseDTO;
         try {
-            responseDTO = objectMapper.readValue(text, DummyResponseDTO.GetQuizFromAIResponseDTO.class);
+            responseDTO = objectMapper.readValue(text, DummyRespDTO.GetQuizFromAIResponseDTO.class);
         } catch (JsonProcessingException e) {
             throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
         }
@@ -187,7 +187,7 @@ public class DummyServiceImplV3 {
     }
 
 
-    public DummyResponseDTO.GetQuizInfoResponseDTO getQuiz(String email) {
+    public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(String email) {
 
         Map<Object, Object> quiz = redisTemplate.opsForHash().entries("quiz");
 
@@ -199,13 +199,13 @@ public class DummyServiceImplV3 {
 
             if (userQuiz.isEmpty()) throw new DummyHandler(ErrorCode.NO_SOLVED_QUIZ);
 
-            return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
+            return DummyRespDTO.GetQuizInfoResponseDTO.builder()
                     .status(QuizStatus.CLOSE)
                     .userGrade(userQuiz.get().getUserGrade())
                     .build();
         }
 
-        QuizResponseDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizResponseDTO.QuizRedisDTO.class);
+        QuizRespDTO.QuizRedisDTO dto = objectMapper.convertValue(quiz, QuizRespDTO.QuizRedisDTO.class);
         dto.setAnswerList((List<String>) quiz.get("answerList"));
 
         if (LocalDateTime.now().isBefore(dto.getStartTime())) {
@@ -216,7 +216,7 @@ public class DummyServiceImplV3 {
 
         // QuizStatus.OPEN
         log.info("return quiz!, {}, {}", dto.getTitle(), dto.getAnswerList());
-        return DummyResponseDTO.GetQuizInfoResponseDTO.builder()
+        return DummyRespDTO.GetQuizInfoResponseDTO.builder()
                 .quizId(dto.getId())
                 .title(dto.getTitle())
                 .answerList(dto.getAnswerList())
