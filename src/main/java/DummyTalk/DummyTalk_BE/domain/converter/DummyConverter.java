@@ -11,20 +11,18 @@ import java.util.List;
 public class DummyConverter {
 
     public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyListDTO(List<Dummy> dummyList) {
-        List<DummyResponseDTO.GetMyDummyDTO> dtoList = new ArrayList<>();
-        dummyList.stream()
-                .map(dummy ->
-                        dtoList.add(DummyResponseDTO.GetMyDummyDTO.builder()
-                                .dummyId(dummy.getId())
-                                .title(dummy.getTitle())
-                                .content(dummy.getContent())
-                                .name(dummy.getRarity().getName())
-                                .createdAt(dummy.getCreatedAt())
-                                .rarityId(dummy.getRarity().getId())
-                                .colorCode(dummy.getRarity().getColorCode())
-                                .build())
-                );
-        return dtoList;
+        return dummyList.stream()
+                        .map(dummy ->
+                                        DummyResponseDTO.GetMyDummyDTO.builder()
+                                                .dummyId(dummy.getId())
+                                                .title(dummy.getTitle())
+                                                .content(dummy.getContent())
+                                                .name(dummy.getRarity().getName())
+                                                .createdAt(dummy.getCreatedAt())
+                                                .rarityId(dummy.getRarity().getId())
+                                                .colorCode(dummy.getRarity().getColorCode())
+                                                .build()
+                                ).toList();
     }
 
     public static List<DummyResponseDTO.GetMyDummyDTO> toGetMyDummyDListTO(List<DummyDocument> dummyDocumentList) {

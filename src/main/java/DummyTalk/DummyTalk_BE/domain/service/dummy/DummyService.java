@@ -150,18 +150,12 @@ public class DummyService {
 
     @Transactional(readOnly = true)
     public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyList (Long memberId){
-        Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
-        List <Long> dummyIdList = new ArrayList<>();
+        Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId.toString() + ":dummy");
+        List<Long> dummyIdList = members.stream()
+                .map(id -> Long.valueOf(id.toString()))
+                .toList();
 
-        if (members.isEmpty()){
-            throw new RuntimeException("No dummy found in Redis for member id: " + memberId);
-        }
-        else {
-            members.stream()
-                    .map(id ->
-                        dummyIdList.add(Long.valueOf(id.toString()))
-                    );
-        }
+        log.info("[MemberService - GetMyDummyList] - memberId:{} -> dummyIdList.size: {}",  memberId, dummyIdList.size());
 
         return DummyConverter.toGetMyDummyListDTO(memberDummyRepository.findAllByDummyIdList(dummyIdList));
     }

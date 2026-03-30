@@ -11,6 +11,6 @@ import java.util.List;
 public interface MemberDummyRepository extends JpaRepository<MemberDummy, Long> {
 
     @Query("select d from Dummy d join fetch d.rarity where d.id in :idList")
-    List<Dummy> findAllByDummyIdList (Collection<Long> idList);
+    List<Dummy> findAllByDummyIdList (List<Long> idList);
 
 }
