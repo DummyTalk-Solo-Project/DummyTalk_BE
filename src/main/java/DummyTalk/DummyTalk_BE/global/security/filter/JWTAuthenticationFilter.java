@@ -129,7 +129,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
             redisTemplate.opsForValue().set("refresh:"+username, newJWT.getRefreshToken());
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("Successfully refreshed token and set security context for user: {}", username);
+            log.info("[JWTAuthenticationFilter] - Successfully refreshed token and set security context for user: {}", username);
         }
         else{
             log.warn("[JWTAuthenticationFilter] - requestRT is null! || requestRT is not equal to savedRT!");
