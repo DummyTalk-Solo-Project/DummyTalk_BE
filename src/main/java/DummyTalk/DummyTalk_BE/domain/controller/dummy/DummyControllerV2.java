@@ -30,15 +30,17 @@ public class DummyControllerV2 {
     }
 
     @GetMapping("/my-dummy")
-    public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyList (@AuthenticationPrincipal CustomUserDetails userDetails) {
-        return APIResponse.onSuccess(dummyService.getMyDummyList(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
+    public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyList (
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam (name = "page", defaultValue = "0") Integer page) {
+        return APIResponse.onSuccess(dummyService.getMyDummyList(userDetails.getMember().getId(), page), SuccessCode.GET_DUMMY_SUCCESS);
     }
 
     @GetMapping("/my-dummy/keyword")
     public APIResponse<List<DummyResponseDTO.GetMyDummyDTO>> getMyDummyListWithKeyword (
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam("keyword") String keyword,
-            @RequestParam("page") Integer page) {
+            @RequestParam(name="page", defaultValue = "0") Integer page) {
         return APIResponse.onSuccess(dummyService.getMyDummyListWithKeyword(userDetails.getMember().getId(), keyword, page),  SuccessCode.GET_DUMMY_SUCCESS);
     }
 

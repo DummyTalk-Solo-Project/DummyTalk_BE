@@ -149,7 +149,7 @@ public class DummyService {
     }
 
     @Transactional(readOnly = true)
-    public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyList (Long memberId){
+    public List<DummyResponseDTO.GetMyDummyDTO> getMyDummyList (Long memberId, int page){
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId.toString() + ":dummy");
         List<Long> dummyIdList = members.stream()
                 .map(id -> Long.valueOf(id.toString()))
@@ -157,7 +157,7 @@ public class DummyService {
 
         log.info("[MemberService - GetMyDummyList] - memberId:{} -> dummyIdList.size: {}",  memberId, dummyIdList.size());
 
-        return DummyConverter.toGetMyDummyListDTO(memberDummyRepository.findAllByDummyIdList(dummyIdList));
+        return DummyConverter.toGetMyDummyListDTO(memberDummyRepository.findAllByDummyIdList(dummyIdList, PageRequest.of(page, 10)).getContent());
     }
 
     @Transactional(readOnly = true)
