@@ -1,30 +1,39 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.converter.DummyConverter;
+import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
+import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import co.elastic.clients.elasticsearch._types.FieldValue;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -41,9 +50,13 @@ public class DummyService {
     private final MemberRepository memberRepository;
     private final RarityRepository rarityRepository;
     private final DummyRepository dummyRepository;
+    private final MemberDummyRepository memberDummyRepository;
+    private final QuizRepository quizRepository;
+
     private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final MemberDummyRepository memberDummyRepository;
+
+    private final ObjectMapper objectMapper;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
@@ -212,7 +225,67 @@ public class DummyService {
      * @param email
      * @param openQuizDate
      */
+    @Transactional
     public void openQuiz(String email, LocalDateTime openQuizDate) {
+
+        // 1. Special 제외 랜덤 문제 조회
+        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
+        Rarity selectedRarity = null;
+        double pivot = Math.random() * 100;
+        double cumulative = 0;
+        for (Rarity r : rarityList) {
+            cumulative += r.getProbability();
+            if (pivot <= cumulative) {
+                selectedRarity = r;
+                log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
+                break;
+            }
+        }
+        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
+        if (result == null) {
+            throw new RuntimeException("No dummy found in Redis for rarity: " + selectedRarity.getName());
+        }
+
+        Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new RuntimeException("No dummy found in Redis for rarity: " + result));
+        log.info("randomDummy.id: {}",randomDummy.getId());
+
+        // 2. 해당 문제를 통해 OpenAiAPI -> 문제를 만들어줘
+        DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
+                .model("gpt-4o-mini")
+                .messages(List.of(new DummyRequestDTO.Message(
+                        "user",
+                        AIPrompt.generateNewQuizPrompt(randomDummy))))
+                .max_tokens(200)
+                .build();
+
+        WebClient webClient = WebClient.builder()
+                .baseUrl("https://api.openai.com/v1")
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + openAiKey)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+
+        String text = webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(dto)
+                .retrieve()
+                .bodyToFlux(ChatCompletionResponseDTO.class)
+                .map(resp -> resp.getChoices().get(0).getMessage().getContent())
+                .blockLast();
+
+        DummyResponseDTO.GetQuizFromAIResponseDTO resp;
+        try {
+            resp = objectMapper.readValue(text, DummyResponseDTO.GetQuizFromAIResponseDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
+        }
+
+        log.info("resp.toString(): {}", resp);
+
+        // 3. 해당 시간에 Quiz 생성
+        Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
+
+        // 4. return
+
     }
 
 

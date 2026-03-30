@@ -44,6 +44,23 @@ public class Quiz extends CommonEntity {
     @JsonManagedReference
     private List<MemberQuiz> memberQuizList; // Hibernate 가 프록시 클래스를 사용할 수 없게 해서 변경
 
+    public static Quiz createNewQuiz (String title,
+                                      List<String> answerList,
+                                      Integer answer,
+                                      String description,
+                                      Integer ticket,
+                                      LocalDateTime startTime){
+        return Quiz.builder()
+                .title(title)
+                .answerList(answerList)
+                .answer(answer)
+                .description(description)
+                .ticket(ticket)
+                .status(QuizStatus.NOT_OPEN)
+                .startTime(startTime)
+                .endTime(startTime.plusMinutes(5))
+                .build();
+    }
 
     public Boolean decreaseTicket(){
         if (this.ticket > 0){

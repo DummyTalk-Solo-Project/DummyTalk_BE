@@ -44,11 +44,16 @@ public class DummyControllerV2 {
         return APIResponse.onSuccess(dummyService.getMyDummyListWithKeyword(userDetails.getMember().getId(), keyword, page),  SuccessCode.GET_DUMMY_SUCCESS);
     }
 
+
+    /**
+     * Only Admin Service!
+     * @param userDetails
+     * @param date
+     * @return Boolean isSuccess
+     */
     @PostMapping("/open-quiz")
     public APIResponse<Object> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
                                          @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
-
-//        dummyServiceInterface.openQuiz(userDetails.getMember(), date);
 
         return APIResponse.onSuccess(null, SuccessCode.OPEN_QUIZ_SUCCESS);
     }
