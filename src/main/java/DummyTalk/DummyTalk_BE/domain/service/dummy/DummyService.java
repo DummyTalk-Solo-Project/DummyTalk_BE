@@ -10,6 +10,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
+import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
@@ -17,6 +18,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
+import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,12 +34,16 @@ import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -285,12 +291,24 @@ public class DummyService {
         log.info("[DummyService - openQuiz] - resp.toString(): {}", resp);
 
         // 3. 해당 시간에 Quiz 생성 & return
-        return quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
+        Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
+        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), 10, TimeUnit.MINUTES);
+
+
+        // 4. openQuiz scheduling
+
+
+        return savedQuiz;
     }
 
 
-    public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(String email) {
-        return null;
+    public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        Long quizId = Long.valueOf(redisTemplate.opsForValue().get("quiz").toString());
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
+
+        return DummyRespDTO.GetQuizInfoResponseDTO.createDTO(quiz);
     }
 
 

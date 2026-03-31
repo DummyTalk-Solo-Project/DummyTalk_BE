@@ -69,4 +69,8 @@ public class Quiz extends CommonEntity {
         }
         return false;
     }
+
+    public void changeStatus (QuizStatus status){
+        this.status = status;
+    }
 }

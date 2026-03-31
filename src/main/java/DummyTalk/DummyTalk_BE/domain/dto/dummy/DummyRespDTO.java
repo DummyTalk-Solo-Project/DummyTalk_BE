@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.dto.dummy;
 
+import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import lombok.*;
@@ -37,6 +38,12 @@ public class DummyRespDTO {
         private Long quizId;
         private String title;
         private List<String> answerList = new ArrayList<>();
+
+        public static GetQuizInfoResponseDTO createDTO(Quiz quiz){
+            return GetQuizInfoResponseDTO.builder()
+                    .status(quiz.getStatus()).title(quiz.getTitle()).answerList(quiz.getAnswerList()).build();
+        }
+
     }
 
     @Builder
