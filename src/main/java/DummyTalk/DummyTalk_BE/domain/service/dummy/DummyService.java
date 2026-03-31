@@ -62,6 +62,7 @@ public class DummyService {
 
     private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final TaskScheduler taskScheduler;
 
     private final ObjectMapper objectMapper;
 
@@ -296,11 +297,23 @@ public class DummyService {
 
 
         // 4. openQuiz scheduling
+        Instant later = Instant.now().plus(10, ChronoUnit.MINUTES);
+        taskScheduler.schedule (controlQuiz(savedQuiz.getId(), QuizStatus.OPEN), later);
 
 
         return savedQuiz;
     }
 
+    private Runnable controlQuiz (Long quizId, QuizStatus status) {
+        return () -> {
+            // 내부 호출이라 Transaction이 적용되지 않을 것으로 예상.
+
+            // 1. controlQuiz (quizId, QuizStatus.OPEN)
+            // 2. controlQuiz (quizId, QuizStatus.CLOSE)
+            Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
+            quiz.changeStatus(status);
+        };
+    }
 
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
