@@ -34,6 +34,7 @@ public class Quiz extends CommonEntity {
     
     private Integer ticket; // 구독권 제한
 
+    @Enumerated(EnumType.STRING)
     private QuizStatus status;
 
     private LocalDateTime startTime;
