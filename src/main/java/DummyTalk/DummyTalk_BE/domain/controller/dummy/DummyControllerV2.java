@@ -70,4 +70,9 @@ public class DummyControllerV2 {
 //        dummyServiceInterface.solveQuiz(userDetails.getMember(), quizId, answer);
         return APIResponse.onSuccess(   null, SuccessCode.SOLVE_QUIZ_SUCCESS);
     }
+
+    @GetMapping("/check-quiz")
+    public APIResponse<Object> checkQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return APIResponse.onSuccess(dummyService.checkQuiz(userDetails.getMember().getId()), SuccessCode.CHECK_QUIZ_SUCCESS);
+    }
 }

@@ -35,13 +35,12 @@ import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -64,7 +63,7 @@ public class DummyService {
 
     private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final TaskScheduler taskScheduler;
+    private final ThreadPoolTaskScheduler taskScheduler;
     private final QuizScheduler quizScheduler;
 
     private final ObjectMapper objectMapper;
@@ -331,6 +330,19 @@ public class DummyService {
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
         return DummyRespDTO.GetQuizInfoResponseDTO.createDTO(quiz);
+    }
+
+    public DummyRespDTO.CheckQuizDTO checkQuiz (Long memberId){
+        // NotAdmin? reject!
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (member.getRole().equals(MemberRole.MEMBER)){
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        return DummyRespDTO.CheckQuizDTO.builder()
+                .activeCount(taskScheduler.getActiveCount())
+                .poolSize(taskScheduler.getPoolSize())
+                .build();
     }
 
 

@@ -25,6 +25,7 @@ public enum SuccessCode  {
     OPEN_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2001", "(Only Admin) 퀴즈 오픈에 성공하셨습니다."),
     GET_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2002", "퀴즈 조회에 성공하셨습니다."),
     SOLVE_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2003", "퀴즈 풀이에 성공하셨습니다."),
+    CHECK_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2004", "퀴즈 체킹에 성공하셨습니다."),
 
     // Test 처리 성공 응답
     TEST_EXCEPTION_SUCCESS(HttpStatus.PARTIAL_CONTENT, "TEST200", " 테스트에 성공했습니다.");

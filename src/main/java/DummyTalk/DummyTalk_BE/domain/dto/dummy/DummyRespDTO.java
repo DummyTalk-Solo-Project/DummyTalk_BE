@@ -73,4 +73,13 @@ public class DummyRespDTO {
 //        private Double probability; // 55% 30% 12% 3%
     }
 
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CheckQuizDTO {
+        int activeCount;
+        int poolSize;
+    }
+
 }
