@@ -20,6 +20,7 @@ import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
+import DummyTalk.DummyTalk_BE.global.scheduler.QuizScheduler;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -63,6 +65,7 @@ public class DummyService {
     private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TaskScheduler taskScheduler;
+    private final QuizScheduler quizScheduler;
 
     private final ObjectMapper objectMapper;
 
@@ -297,23 +300,29 @@ public class DummyService {
 
 
         // 4. openQuiz scheduling
-        Instant later = Instant.now().plus(10, ChronoUnit.MINUTES);
-        taskScheduler.schedule (controlQuiz(savedQuiz.getId(), QuizStatus.OPEN), later);
+        int startTime = openQuizDate.getMinute() - LocalDateTime.now().getMinute() ;
+        Instant later = Instant.now().plus(startTime, ChronoUnit.MINUTES);
+        taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.OPEN), later);
+
+        Instant closeTime = Instant.now().plus(startTime+1, ChronoUnit.MINUTES);
+        taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.CLOSE), closeTime);
 
 
         return savedQuiz;
     }
 
-    private Runnable controlQuiz (Long quizId, QuizStatus status) {
+    /*private Runnable controlQuiz (Long quizId, QuizStatus status) {
         return () -> {
             // 내부 호출이라 Transaction이 적용되지 않을 것으로 예상.
 
-            // 1. controlQuiz (quizId, QuizStatus.OPEN)
-            // 2. controlQuiz (quizId, QuizStatus.CLOSE)
+            // 1. openQuiz -> controlQuiz (quizId, QuizStatus.OPEN)
+            // 2. openQuiz ->  controlQuiz (quizId, QuizStatus.CLOSE)
+
+            log.info("[DummyService - ControlQuiz] - quizId: {}, status: {}", quizId, status.toString());
             Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
             quiz.changeStatus(status);
         };
-    }
+    }*/
 
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
