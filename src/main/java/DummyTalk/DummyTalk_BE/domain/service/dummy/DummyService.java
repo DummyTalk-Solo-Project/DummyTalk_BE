@@ -332,6 +332,9 @@ public class DummyService {
         return DummyRespDTO.GetQuizInfoResponseDTO.createDTO(quiz);
     }
 
+    /**
+     * Admin 전용
+     * */
     public DummyRespDTO.CheckQuizDTO checkQuiz (Long memberId){
         // NotAdmin? reject!
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
@@ -347,8 +350,34 @@ public class DummyService {
 
 
     // 이전 기본 로직 메소드
-    @Timed("quiz.solve.requests")
-    public void solveQuiz(String email, Long quizId, Integer answer) {
+//    @Timed("quiz.solve.requests")
+    /*
+    * 아이디어
+    * 1. Producer, Consumer 패턴으로 나눈다
+    * 2. 비관적 락 VS Redis 분산 락
+    * 3.
+    *
+    * */
+    public void solveQuiz(Long memberId, Long quizId, Integer answer) {
+        if (!memberRepository.existsById(memberId)){
+            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
+        if (!quiz.getStatus().equals(QuizStatus.OPEN)){
+            throw new QuizHandler(ErrorCode.QUIZ_NOT_OPEN);
+        }
+
+
+        ///  요청 하자마자 정산
+        if (!quiz.decreaseTicket()){
+            throw new QuizHandler(ErrorCode.TICKET_IS_DONE);
+        }
+
+
+        /// 문제 마감 후 정산
+        redisTemplate.opsForList().rightPush("quiz:"+quizId, memberId.toString() + ":" + answer.toString());
+
     }
 
     /**

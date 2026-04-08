@@ -61,7 +61,6 @@ public class DummyControllerV2 {
 
     @GetMapping("/quiz")
     public APIResponse<DummyRespDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-//        DummyResponseDTO.GetQuizInfoResponseDTO quiz = dummyServiceInterface.getQuiz(userDetails.getMember());
         return APIResponse.onSuccess(dummyService.getQuiz(userDetails.getMember().getId()), SuccessCode.GET_QUIZ_SUCCESS);
     }
 
