@@ -18,7 +18,7 @@ public class MemberQuiz extends CommonEntity {
     private Long id;
 
     /// deprecated
-    private Integer userGrade;
+    private Integer memberGrade;
 
     private Integer answer;
 
@@ -29,4 +29,13 @@ public class MemberQuiz extends CommonEntity {
     @ManyToOne
     @JoinColumn(name = "quiz_id")
     private Quiz quiz;
+
+    public static MemberQuiz generateMemberQuiz(Member member, Quiz quiz, Integer grade, Integer answer) {
+        return MemberQuiz.builder()
+                .memberGrade(grade)
+                .answer(answer)
+                .member(member)
+                .quiz(quiz)
+                .build();
+    }
 }

@@ -187,7 +187,7 @@ public class DummyServiceInterfaceImpl implements DummyServiceInterface {
 
             return DummyRespDTO.GetQuizInfoResponseDTO.builder()
                     .status(QuizStatus.CLOSE)
-                    .userGrade(userQuiz.get().getUserGrade())
+                    .userGrade(userQuiz.get().getMemberGrade())
                     .build();
         }
 

@@ -201,7 +201,7 @@ public class DummyServiceImplV3 {
 
             return DummyRespDTO.GetQuizInfoResponseDTO.builder()
                     .status(QuizStatus.CLOSE)
-                    .userGrade(userQuiz.get().getUserGrade())
+                    .userGrade(userQuiz.get().getMemberGrade())
                     .build();
         }
 

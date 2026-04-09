@@ -14,6 +14,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
@@ -67,6 +68,7 @@ public class DummyService {
     private final QuizScheduler quizScheduler;
 
     private final ObjectMapper objectMapper;
+    private final MemberQuizRepository memberQuizRepository;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
@@ -360,7 +362,7 @@ public class DummyService {
     * */
     public void solveQuiz(Long memberId, Long quizId, Integer answer) {
         if (!memberRepository.existsById(memberId)){
-            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND); // -> 이후 getReference()로
         }
 
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
@@ -368,11 +370,24 @@ public class DummyService {
             throw new QuizHandler(ErrorCode.QUIZ_NOT_OPEN);
         }
 
+        // 1. 값 비교
+        if (!Objects.equals(quiz.getAnswer(), answer)){
+            // 1-1 틀린 경우 return
+            throw new QuizHandler(ErrorCode.WRONG_ANSWER);
+        }
+        // 1-2 맞은 경우
+
+        // 등수 계산
+
+        // 등수는 어디에?
+
+        // 기록 저장
 
         ///  요청 하자마자 정산
         if (!quiz.decreaseTicket()){
             throw new QuizHandler(ErrorCode.TICKET_IS_DONE);
         }
+        memberQuizRepository.save(MemberQuiz.generateMemberQuiz(memberRepository.getReferenceById(memberId), quiz, 1, answer));
 
 
         /// 문제 마감 후 정산
