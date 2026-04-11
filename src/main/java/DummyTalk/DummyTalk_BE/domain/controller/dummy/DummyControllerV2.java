@@ -65,9 +65,9 @@ public class DummyControllerV2 {
     }
 
     @PostMapping("/quiz")
-    public APIResponse<Object> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
+    public APIResponse<Boolean> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
 //        dummyServiceInterface.solveQuiz(userDetails.getMember(), quizId, answer);
-        return APIResponse.onSuccess(   null, SuccessCode.SOLVE_QUIZ_SUCCESS);
+        return APIResponse.onSuccess(   dummyService.solveQuiz(userDetails.getMember().getId(), quizId, answer), SuccessCode.SOLVE_QUIZ_SUCCESS);
     }
 
     @GetMapping("/check-quiz")

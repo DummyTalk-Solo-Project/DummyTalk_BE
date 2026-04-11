@@ -360,7 +360,7 @@ public class DummyService {
     * 3.
     *
     * */
-    public void solveQuiz(Long memberId, Long quizId, Integer answer) {
+    public Boolean solveQuiz(Long memberId, Long quizId, Integer answer) {
         if (!memberRepository.existsById(memberId)){
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND); // -> 이후 getReference()로
         }
@@ -393,6 +393,7 @@ public class DummyService {
         /// 문제 마감 후 정산
         redisTemplate.opsForList().rightPush("quiz:"+quizId, memberId.toString() + ":" + answer.toString());
 
+        return true;
     }
 
     /**
