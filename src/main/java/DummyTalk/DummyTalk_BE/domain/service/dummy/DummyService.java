@@ -351,47 +351,50 @@ public class DummyService {
     }
 
 
-    // 이전 기본 로직 메소드
-//    @Timed("quiz.solve.requests")
-    /*
-    * 아이디어
-    * 1. Producer, Consumer 패턴으로 나눈다
-    * 2. 비관적 락 VS Redis 분산 락
-    * 3.
-    *
-    * */
+    /**
+     * 퀴즈 풀이 메서드 (비관적 락 적용)
+     *
+     * 동시성 전략: PESSIMISTIC_WRITE (SELECT FOR UPDATE)
+     * - 동일 quizId 요청을 DB 레벨에서 직렬화하여 ticket 감소의 Lost Update 방지
+     * - HikariCP 풀 고갈 등 문제 발생 시 Redisson 분산락(@DistributedLock)으로 전환 예정
+     * - PESSIMISTIC_WRITE 동안 하는 작업이 너무 많으므로 개선 필요.
+     */
+    @Transactional
     public Boolean solveQuiz(Long memberId, Long quizId, Integer answer) {
-        if (!memberRepository.existsById(memberId)){
-            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND); // -> 이후 getReference()로
+
+        // 중복 제출 방지
+        if (memberQuizRepository.existsByMemberIdAndQuizId(memberId, quizId)) {
+            throw new QuizHandler(ErrorCode.ALREADY_SUBMIT);
         }
 
-        Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
-        if (!quiz.getStatus().equals(QuizStatus.OPEN)){
+        // 주의! 없을 경우 save() 부분에서 EntityNotFoundException 발생
+        Member member = memberRepository.getReferenceById(memberId);
+
+        // Quiz 조회 with PESSIMISTIC_WRITE - ticket 감소 전 배타적 잠금 획득
+        Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId)
+                .orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
+
+        if (!quiz.getStatus().equals(QuizStatus.OPEN)) {
             throw new QuizHandler(ErrorCode.QUIZ_NOT_OPEN);
         }
 
-        // 1. 값 비교
-        if (!Objects.equals(quiz.getAnswer(), answer)){
-            // 1-1 틀린 경우 return
+
+        // 틀린 답안
+        if ((answer < 1 || answer > quiz.getAnswerList().size()) || ( !Objects.equals(quiz.getAnswer(), answer))) {
             throw new QuizHandler(ErrorCode.WRONG_ANSWER);
         }
-        // 1-2 맞은 경우
 
-        // 등수 계산
-
-        // 등수는 어디에?
-
-        // 기록 저장
-
-        ///  요청 하자마자 정산
-        if (!quiz.decreaseTicket()){
+        // PESSIMISTIC_WRITE 락 내에서 실행되므로 동시 요청 간 Race Condition 없음
+        if (!quiz.decreaseTicket()) {
             throw new QuizHandler(ErrorCode.TICKET_IS_DONE);
         }
-        memberQuizRepository.save(MemberQuiz.generateMemberQuiz(memberRepository.getReferenceById(memberId), quiz, 1, answer));
 
+        // memberGrade은 deprecated. 실제 등수는 아래 Redis list 순서로 집계 예정
+        memberQuizRepository.save(MemberQuiz.generateMemberQuiz(member, quiz, 1, answer));
 
-        /// 문제 마감 후 정산
-        redisTemplate.opsForList().rightPush("quiz:"+quizId, memberId.toString() + ":" + answer.toString());
+        // 인덱스 == (등수 - 1)
+        // 퀴즈 종료 후 순위 정산(등수 계산, 보상 차등 지급 등)에 활용 예정
+        redisTemplate.opsForList().rightPush("quiz:" + quizId, memberId + ":" + answer);
 
         return true;
     }

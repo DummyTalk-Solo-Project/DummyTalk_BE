@@ -16,4 +16,7 @@ public interface MemberQuizRepository extends JpaRepository<MemberQuiz, Long> {
 
     @Query("SELECT uq FROM MemberQuiz uq WHERE uq.member.id = :userId ORDER BY uq.createdAt LIMIT 1")
     Optional<MemberQuiz> findLastestQuizByUserId(Long userId, Integer limit);
+
+    // 동일 사용자의 동일 퀴즈 중복 제출 방지용
+    boolean existsByMemberIdAndQuizId(Long memberId, Long quizId);
 }
