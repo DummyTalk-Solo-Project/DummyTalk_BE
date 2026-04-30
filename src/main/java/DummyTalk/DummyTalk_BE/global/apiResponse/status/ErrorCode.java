@@ -37,7 +37,7 @@ public enum ErrorCode implements BaseErrorCode {
     NO_SOLVED_QUIZ(HttpStatus.BAD_REQUEST, "DUMMY4002", "풀었던 문제가 없네요. 다음 퀴즈가 열릴 때 까지 같이 기다려봐요"),
     QUIZ_NOT_OPEN(HttpStatus.BAD_REQUEST, "DUMMY4003", "문제를 풀고 싶은 마음은 알겠지만, 조금만 더 기달려주세요."),
     WRONG_QUIZ(HttpStatus.BAD_REQUEST, "DUMMY4004", "알 수 없는 퀴즈를 풀고 계신 것 같아요."),
-    WRONG_ANSWER(HttpStatus.BAD_REQUEST, "DUMMY4005", "좋은 발상이었는데, 아쉽게도 그런 정답은 없어요."),
+    WRONG_ANSWER(HttpStatus.BAD_REQUEST, "DUMMY4005", "좋은 발상이었는데, 아쉽게도 정답이 아니에요."),
     ALREADY_SUBMIT(HttpStatus.BAD_REQUEST, "DUMMY4006", "한 번 푸셨던 문제는 다시 풀 수 없어요. 다른 사용자에게 배려해주세요 :) "),
     TICKET_IS_DONE (HttpStatus.BAD_REQUEST, "DUMMY4007", "퀴즈는 풀었지만 이제 티켓을 받을 수는 없네요"),
 
