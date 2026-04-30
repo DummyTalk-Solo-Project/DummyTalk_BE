@@ -13,18 +13,18 @@ sudo docker stop DummyTalk_Spring 2>/dev/null || true
 sudo docker rm   DummyTalk_Spring 2>/dev/null || true
 
 # 최신 이미지 pull (build-and-push-to-docker job 에서 Docker Hub 에 올린 이미지)
-sudo docker pull "${DOCKER_USERNAME}/lumo:latest"
+sudo docker pull "${DOCKER_USERNAME}/dummytalk:latest"
 
 # Spring 앱 기동
-# --network: docker-compose 프로젝트명(디렉토리명 lumo) + 네트워크명 = lumo_dummytalk-network
+# --network: docker-compose 프로젝트명(디렉토리명 dummytalk) + 네트워크명 = dummytalk_dummytalk-network
 #            → elasticsearch 컨테이너를 hostname 'elasticsearch' 으로 참조 가능 (ES_URL 환경변수)
 sudo docker run -d \
   --name DummyTalk_Spring \
-  --network lumo_dummytalk-network \
+  --network dummytalk-network \
   --restart always \
   -p 8080:8080 \
   --env-file .env \
-  "${DOCKER_USERNAME}/lumo:latest"
+  "${DOCKER_USERNAME}/dummytalk:latest"
 
 echo "===== [3/4] 오래된 이미지 정리 ====="
 sudo docker image prune -f
