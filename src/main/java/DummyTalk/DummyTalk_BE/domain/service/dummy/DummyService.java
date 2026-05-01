@@ -4,10 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.converter.DummyConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.Dummy;
-import DummyTalk.DummyTalk_BE.domain.entity.Member;
-import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
-import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
+import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
@@ -76,7 +73,12 @@ public class DummyService {
 
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
+        Info info = member.getInfo();
+
+        if (info.getReqCount() >= 20){ // 일단 하루 20번으로 설정.
+            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
+        }
 
         // 1. 천장 있는 지 조회
         String pityKey = "pity:" + memberId;
