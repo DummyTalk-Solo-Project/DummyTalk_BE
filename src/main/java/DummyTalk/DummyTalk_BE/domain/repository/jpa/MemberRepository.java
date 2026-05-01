@@ -28,6 +28,9 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT u FROM Member u JOIN FETCH Info i ON i.member.id = u.id")
     List<Member> findAllJoinFetchInfo();
 
+    @Query("SELECT m FROM Member m join FETCH Info i on i.member.id = m.id where m.id = :memberId")
+    Optional<Member> findByIdFetchJoinInfo (Long memberId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM Member u JOIN FETCH Info i ON i.member.id = u.id WHERE u.email = :email")
     Optional<Member>findByEmailFetchInfoWithLock(@Param("email") String email);

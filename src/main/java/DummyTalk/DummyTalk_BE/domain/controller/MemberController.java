@@ -16,8 +16,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @Slf4j
 @RequestMapping("/api/members")
@@ -91,8 +89,8 @@ public class MemberController {
     }
 
     @GetMapping("/my-page")
-    public APIResponse<List<MemberRespDTO.GetMemberResponseDTO>> mypage (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return APIResponse.onSuccess(memberService.getAllData(), SuccessCode.GET_INFO_SUCCESS);
+    public APIResponse<MemberRespDTO.GetMemberResponseDTO> getMyPage(@AuthenticationPrincipal CustomUserDetails userDetails){
+        return APIResponse.onSuccess(memberService.getMyData(userDetails.getMember().getId()), SuccessCode.GET_INFO_SUCCESS);
     }
 
     @PatchMapping("/withdrawal")

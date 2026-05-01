@@ -1,6 +1,5 @@
 package DummyTalk.DummyTalk_BE.domain.service.member;
 
-import DummyTalk.DummyTalk_BE.domain.converter.UserConverter;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
@@ -329,19 +328,20 @@ public class MemberService {
     }
 
 
-    public List<MemberRespDTO.GetMemberResponseDTO> getAllData() {
-        List<MemberRespDTO.GetMemberResponseDTO> dtoList = new ArrayList<>();
-        memberRepository.findAllJoinFetchInfo().forEach(user ->
-                dtoList.add(MemberRespDTO.GetMemberResponseDTO.builder()
-                        .email(user.getEmail())
-                        .memberName(user.getMemberName())
-                        .reqCount(user.getInfo().getReqCount())
-                        .isSubscribe(user.getInfo().getIsSubscribe())
-                        .subsExprDate(user.getInfo().getSubsExprDate())
-                        .build())
-        );
+    @Transactional(readOnly = true)
+    public MemberRespDTO.GetMemberResponseDTO getMyData(Long memberId) {
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
-        log.info("MemberService - [GETALLDATA] data count : {}", dtoList.size());
-        return dtoList;
+        MemberRespDTO.GetMemberResponseDTO dto = MemberRespDTO.GetMemberResponseDTO.builder()
+                .email(member.getEmail())
+                .memberName(member.getMemberName())
+                .reqCount(member.getInfo().getReqCount())
+                .isSubscribe(member.getInfo().getIsSubscribe())
+                .subsExprDate(member.getInfo().getSubsExprDate())
+                .build();
+
+
+        log.info("MemberService - [GETMYDATA]  : {}", dto.toString());
+        return dto;
     }
 }
