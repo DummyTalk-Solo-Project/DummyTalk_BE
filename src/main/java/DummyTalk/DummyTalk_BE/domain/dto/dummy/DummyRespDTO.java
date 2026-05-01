@@ -48,6 +48,7 @@ public class DummyRespDTO {
 
     @Builder
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class GetDummyRespDTO{
@@ -55,6 +56,7 @@ public class DummyRespDTO {
         private String title;
         private String content;
         private String rarityName;
+        private Integer currentDummyGradeStack;
     }
 
     @Builder

@@ -89,27 +89,36 @@ public class DummyService {
         int commonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
 
         Rarity selectedRarity = Rarity.defaultRarity();
+        int currentDummyGradeStack = 0;
 
-        if (commonStack >= 10) {
+        if (commonStack >= 10) { // COMMON -> RARE
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new RuntimeException("Rarity not found"));
             log.info("[MemberService - GetDummy] - COMMON 천장 사용 -> RARE!");
             updatePityStack(pityKey, "COMMON", true);
+            currentDummyGradeStack = 10;
         }
-        else if (rareStack >= 10) {
+        else if (rareStack >= 10) { // RARE -> EPIC
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new RuntimeException("Rarity not found"));
             log.info("[MemberService - GetDummy] - RARE 천장 사용 -> EPIC!");
             updatePityStack(pityKey, "RARE", true);
+            currentDummyGradeStack = 10;
         }
-        else if (epicStack >= 10) {
+        else if (epicStack >= 10) { // EPIC -> SPECIAL
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new RuntimeException("Rarity not found"));
             log.info("[MemberService - GetDummy] - EPIC 천장 사용 -> SPECIAL!");
             updatePityStack(pityKey, "EPIC", true);
+            currentDummyGradeStack = 10;
         }
         else{
             // 2. 천장 없는 경우 확률에 의해 조회.
             selectedRarity = getRandomRarity();
             log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
             updatePityStack(pityKey, selectedRarity.getName().toString(), false);
+            switch (selectedRarity.getName()){
+                case COMMON ->  currentDummyGradeStack = commonStack;
+                case RARE ->  currentDummyGradeStack = rareStack;
+                case EPIC ->  currentDummyGradeStack = epicStack;
+            }
         }
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
@@ -131,6 +140,7 @@ public class DummyService {
                 .title(dummy.getTitle())
                 .content(dummy.getContent())
                 .rarityName(dummy.getRarity().getName().toString())
+                .currentDummyGradeStack(currentDummyGradeStack)
                 .build();
     }
 
