@@ -332,12 +332,22 @@ public class MemberService {
     public MemberRespDTO.GetMemberResponseDTO getMyData(Long memberId) {
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
+        // 등급별 천장 스택 조회
+        String pityKey = "pity:" + memberId;
+        Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
+        int commonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
+        int rareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
+        int epicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
+
         MemberRespDTO.GetMemberResponseDTO dto = MemberRespDTO.GetMemberResponseDTO.builder()
                 .email(member.getEmail())
                 .memberName(member.getMemberName())
                 .reqCount(member.getInfo().getReqCount())
                 .isSubscribe(member.getInfo().getIsSubscribe())
                 .subsExprDate(member.getInfo().getSubsExprDate())
+                .commonStack(commonStack)
+                .rareStack(rareStack)
+                .epicStack(epicStack)
                 .build();
 
 

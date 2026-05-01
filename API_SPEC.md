@@ -270,13 +270,17 @@ Authorization: Bearer: <accessToken>
       "email": "user@example.com",
       "reqCount": 5,
       "isSubscribe": false,
-      "subsExprDate": "2025-12-31T23:59:59"
+      "subsExprDate": "2025-12-31T23:59:59",
+      "commonStack": 3,
+      "rareStack": 2,
+      "epicStack": 0
     }
   ]
 }
 ```
 
-> `subsExprDate`: 구독 미가입 시 `null`. ISO 8601 형식.
+> `subsExprDate`: 구독 미가입 시 `null`. ISO 8601 형식.  
+> `commonStack` / `rareStack` / `epicStack`: 각 등급의 천장 스택. 10 도달 시 다음 등급 보장.
 
 ---
 
@@ -332,7 +336,9 @@ Authorization: Bearer: <accessToken>
     "dummyId": 1,
     "title": "수박의 어원",
     "content": "수박은 원래 서과(西瓜)라 불렸으며...",
-    "rarityName": "RARE"
+    "rarityName": "RARE",
+    "currentDummyGradeStack": 3,
+    "remainingCount": 17
   }
 }
 ```
@@ -343,6 +349,8 @@ Authorization: Bearer: <accessToken>
 | `title` | `string` | 제목 |
 | `content` | `string` | 내용 |
 | `rarityName` | `string` | 희귀도. `COMMON` \| `RARE` \| `EPIC` \| `SPECIAL` |
+| `currentDummyGradeStack` | `number` | 획득한 등급의 누적 스택 수. 천장 발동 시 `10` 고정, SPECIAL 획득 시 `0` |
+| `remainingCount` | `number` | 오늘 남은 요청 횟수 (최대 20) |
 
 **Error Codes**
 

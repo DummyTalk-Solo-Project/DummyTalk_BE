@@ -56,7 +56,8 @@ public class DummyRespDTO {
         private String title;
         private String content;
         private String rarityName;
-        private Integer currentDummyGradeStack;
+        private Integer currentDummyGradeStack; // 획득한 등급의 누적 스택 수 (천장 발동 시 10)
+        private Integer remainingCount; // 오늘 남은 요청 횟수
     }
 
     @Builder

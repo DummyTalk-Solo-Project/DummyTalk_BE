@@ -114,10 +114,12 @@ public class DummyService {
             selectedRarity = getRandomRarity();
             log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
             updatePityStack(pityKey, selectedRarity.getName().toString(), false);
-            switch (selectedRarity.getName()){
-                case COMMON ->  currentDummyGradeStack = commonStack;
-                case RARE ->  currentDummyGradeStack = rareStack;
-                case EPIC ->  currentDummyGradeStack = epicStack;
+
+            switch (selectedRarity.getName()){ // updatePityStack 이후 +1
+                case COMMON ->  currentDummyGradeStack = commonStack + 1;
+                case RARE ->  currentDummyGradeStack = rareStack + 1;
+                case EPIC ->  currentDummyGradeStack = epicStack + 1;
+                case SPECIAL -> currentDummyGradeStack = 0;
             }
         }
 
@@ -135,12 +137,15 @@ public class DummyService {
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
 
+        info.updateReqCount();
+
         return DummyRespDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
                 .title(dummy.getTitle())
                 .content(dummy.getContent())
                 .rarityName(dummy.getRarity().getName().toString())
                 .currentDummyGradeStack(currentDummyGradeStack)
+                .remainingCount(20 - info.getReqCount())
                 .build();
     }
 
@@ -153,6 +158,9 @@ public class DummyService {
                     break;
                 case ("RARE"):
                     redisTemplate.opsForHash().increment(key, "EPIC", 1);
+                    break;
+                case ("EPIC"):
+                    redisTemplate.opsForHash().put(key, "EPIC", "0");
                     break;
                 default:
                     break;

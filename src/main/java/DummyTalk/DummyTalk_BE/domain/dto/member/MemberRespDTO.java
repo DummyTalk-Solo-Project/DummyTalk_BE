@@ -39,6 +39,11 @@ public class MemberRespDTO {
         private Integer reqCount;
         private Boolean isSubscribe;
         private LocalDateTime subsExprDate;
+
+        // 등급별 천장 스택 (Redis pity:{memberId})
+        private Integer commonStack;
+        private Integer rareStack;
+        private Integer epicStack;
     }
 
     @Getter
