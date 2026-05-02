@@ -84,44 +84,38 @@ public class DummyService {
         String pityKey = "pity:" + memberId;
         Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
 
-        int rareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
-        int epicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
-        int commonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
+        // 의미가 헷갈린다.
+        int currentCommonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
+        int currentRareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
+        int currentEpicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
+
+        Boolean isPityTriggered = false;
 
         Rarity selectedRarity = Rarity.defaultRarity();
-        int currentDummyGradeStack = 0;
 
-        if (commonStack >= 10) { // COMMON -> RARE
+        if (currentCommonStack >= 10) { // COMMON -> RARE
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new RuntimeException("Rarity not found"));
             log.info("[MemberService - GetDummy] - COMMON 천장 사용 -> RARE!");
-            updatePityStack(pityKey, "COMMON", true);
-            currentDummyGradeStack = 10;
+            isPityTriggered=true;
         }
-        else if (rareStack >= 10) { // RARE -> EPIC
+        else if (currentRareStack >= 10) { // RARE -> EPIC
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new RuntimeException("Rarity not found"));
             log.info("[MemberService - GetDummy] - RARE 천장 사용 -> EPIC!");
-            updatePityStack(pityKey, "RARE", true);
-            currentDummyGradeStack = 10;
+            isPityTriggered=true;
         }
-        else if (epicStack >= 10) { // EPIC -> SPECIAL
+        else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new RuntimeException("Rarity not found"));
             log.info("[MemberService - GetDummy] - EPIC 천장 사용 -> SPECIAL!");
-            updatePityStack(pityKey, "EPIC", true);
-            currentDummyGradeStack = 10;
+            isPityTriggered=true;
         }
         else{
             // 2. 천장 없는 경우 확률에 의해 조회.
             selectedRarity = getRandomRarity();
-            log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName().toString());
-            updatePityStack(pityKey, selectedRarity.getName().toString(), false);
-
-            switch (selectedRarity.getName()){ // updatePityStack 이후 +1
-                case COMMON ->  currentDummyGradeStack = commonStack + 1;
-                case RARE ->  currentDummyGradeStack = rareStack + 1;
-                case EPIC ->  currentDummyGradeStack = epicStack + 1;
-                case SPECIAL -> currentDummyGradeStack = 0;
-            }
+            log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName());
         }
+
+        // 스택 update
+        updatePityStack(pityKey, selectedRarity.getName(), isPityTriggered);
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
@@ -139,49 +133,50 @@ public class DummyService {
 
         info.updateReqCount();
 
-        return DummyRespDTO.GetDummyRespDTO.builder()
+        DummyRespDTO.GetDummyRespDTO dto = DummyRespDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())
                 .title(dummy.getTitle())
                 .content(dummy.getContent())
                 .rarityName(dummy.getRarity().getName().toString())
-                .currentDummyGradeStack(currentDummyGradeStack)
+                .isPityTriggered(isPityTriggered)
                 .remainingCount(20 - info.getReqCount())
                 .build();
+        log.info("[MemberService - getDummy] dto = " + selectedRarity.getName().toString());
+        return dto;
     }
 
-    private void updatePityStack(String key, String wonRarity, Boolean isPity) {
-        if (isPity) {
-            redisTemplate.opsForHash().put(key, wonRarity, "0");
-            switch (wonRarity) {
-                case ("COMMON"):
-                    redisTemplate.opsForHash().increment(key, "RARE", 1);
-                    break;
-                case ("RARE"):
-                    redisTemplate.opsForHash().increment(key, "EPIC", 1);
-                    break;
-                case ("EPIC"):
-                    redisTemplate.opsForHash().put(key, "EPIC", "0");
-                    break;
-                default:
-                    break;
+    private void updatePityStack(String key, RarityType wonRarity, Boolean isPityTriggered) {
+        if (isPityTriggered) { // 천장의 경우, 등급은 RARE (common == 10), EPIC (rare == 10), SPECIAL (EPIC == 10)
+            RarityType previousRarity = RarityType.TEST;
+            if (wonRarity == RarityType.SPECIAL) {
+                redisTemplate.opsForHash().put(key, "EPIC", "0");
+                previousRarity = RarityType.EPIC;
             }
-        }
-        else if (!wonRarity.equals("SPECIAL")) {
-            redisTemplate.opsForHash().increment(key, wonRarity, 1);
-            log.info("[MemberService - updatePityStack] - {} 스택 증가 = {}", wonRarity, redisTemplate.opsForHash().get(key, wonRarity));
+            else if (wonRarity == RarityType.EPIC){
+                redisTemplate.opsForHash().put(key, "RARE", "0");
+                redisTemplate.opsForHash().increment(key, "EPIC", 1);
+                previousRarity = RarityType.RARE;
+            }
+            else if (wonRarity == RarityType.RARE){
+                redisTemplate.opsForHash().put(key, "COMMON", "0");
+                redisTemplate.opsForHash().increment(key, "RARE", 1);
+                previousRarity = RarityType.COMMON;
+            }
+            log.info("[MemberService - updatePityStack] - {} 천장! => {}", previousRarity, redisTemplate.opsForHash().get(key, wonRarity));
         }
 
-/*        if (wonRarity.equals("EPIC") || ) {
-            // 대박 등급 당첨 시 EPIC 만 초기화
-            redisTemplate.opsForHash().put(key, "EPIC", "0");
-        } else if (wonRarity.equals("RARE")) {
-            // RARE 당첨 시 RARE 천장만 초기화, EPIC은 계속 누적
-            redisTemplate.opsForHash().put(key, "RARE", "0");
-            redisTemplate.opsForHash().increment(key, "EPIC", 1);
-        } else {
-            // COMMON 당첨 시 RARE 천장 스택 +1
-            redisTemplate.opsForHash().increment(key, "RARE", 1);
-        }*/
+        else{ // not 천장 -> 숫자 업데이트 필요.
+            if (wonRarity == RarityType.COMMON) {
+                redisTemplate.opsForHash().increment(key, "COMMON", 1);
+            }
+            else if (wonRarity == RarityType.RARE) {
+                redisTemplate.opsForHash().increment(key, "RARE", 1);
+            }
+            else if (wonRarity == RarityType.EPIC) {
+                redisTemplate.opsForHash().increment(key, "EPIC", 1);
+            }
+            log.info("[MemberService - updatePityStack] - {} 스택 증가 = {}", wonRarity, redisTemplate.opsForHash().get(key, wonRarity));
+        }
     }
 
     @Transactional(readOnly = true)
