@@ -111,7 +111,7 @@ public class DummyService {
         else{
             // 2. 천장 없는 경우 확률에 의해 조회.
             selectedRarity = getRandomRarity();
-            log.info("[MemberService - getDummy] selectedRarity: " + selectedRarity.getName());
+            log.info("[MemberService - getDummy] 랜덤 뽑기: " + selectedRarity.getName());
         }
 
         // 스택 update, 다음 뽑기 천장 예정 여부 반환
@@ -251,9 +251,12 @@ public class DummyService {
         List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
         double pivot = Math.random() * 100;
         double cumulative = 0;
-        for (Rarity r : rarityList) {
+        for (int i = 0; i < rarityList.size(); i++) {
+            Rarity r = rarityList.get(i);
             cumulative += r.getProbability();
-            if (pivot <= cumulative) {
+
+            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
+            if (pivot <= cumulative || i == rarityList.size() - 1) {
                 return r;
             }
         }
