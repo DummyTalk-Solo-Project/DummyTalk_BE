@@ -324,7 +324,7 @@ public class DummyService {
 
         // 3. 해당 시간에 Quiz 생성 & return
         Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
-        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), 10, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), 3, TimeUnit.MINUTES);
 
 
         // 4. openQuiz scheduling
@@ -339,23 +339,15 @@ public class DummyService {
         return savedQuiz;
     }
 
-    /*private Runnable controlQuiz (Long quizId, QuizStatus status) {
-        return () -> {
-            // 내부 호출이라 Transaction이 적용되지 않을 것으로 예상.
-
-            // 1. openQuiz -> controlQuiz (quizId, QuizStatus.OPEN)
-            // 2. openQuiz ->  controlQuiz (quizId, QuizStatus.CLOSE)
-
-            log.info("[DummyService - ControlQuiz] - quizId: {}, status: {}", quizId, status.toString());
-            Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
-            quiz.changeStatus(status);
-        };
-    }*/
 
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
-        Long quizId = Long.valueOf(redisTemplate.opsForValue().get("quiz").toString());
+        Object o = redisTemplate.opsForValue().get("quiz");
+        if (o == null) {
+            throw new QuizHandler(ErrorCode.QUIZ_NOT_OPEN);
+        }
+        Long quizId = Long.valueOf(o.toString());
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
         return DummyRespDTO.GetQuizInfoResponseDTO.createDTO(quiz);
@@ -401,10 +393,13 @@ public class DummyService {
         Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId)
                 .orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
-        if (!quiz.getStatus().equals(QuizStatus.OPEN)) {
+        if (quiz.getStatus().equals(QuizStatus.NOT_OPEN)) {
             throw new QuizHandler(ErrorCode.QUIZ_NOT_OPEN);
         }
 
+        if (quiz.getStatus().equals(QuizStatus.CLOSE)) {
+            throw new QuizHandler(ErrorCode.QUIZ_IS_CLOSED);
+        }
 
         // 틀린 답안
         if ((answer < 1 || answer > quiz.getAnswerList().size()) || ( !Objects.equals(quiz.getAnswer(), answer))) {
