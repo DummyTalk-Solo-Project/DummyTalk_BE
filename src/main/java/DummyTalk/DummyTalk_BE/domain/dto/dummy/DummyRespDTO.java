@@ -56,7 +56,8 @@ public class DummyRespDTO {
         private String title;
         private String content;
         private String rarityName;
-        private Boolean isPityTriggered; // 천장 스택 사용 여부
+        private Boolean isPityTriggered;        // 이번 뽑기가 천장 발동으로 획득된 경우 true
+        private Boolean isNextPityTriggered;    // 다음 뽑기에서 천장 발동 확정인 경우 true
         private Integer remainingCount; // 오늘 남은 요청 횟수
     }
 

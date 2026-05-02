@@ -337,7 +337,8 @@ Authorization: Bearer: <accessToken>
     "title": "수박의 어원",
     "content": "수박은 원래 서과(西瓜)라 불렸으며...",
     "rarityName": "RARE",
-    "currentDummyGradeStack": 3,
+    "isPityTriggered": true,
+    "isNextPityTriggered": true,
     "remainingCount": 17
   }
 }
@@ -349,7 +350,8 @@ Authorization: Bearer: <accessToken>
 | `title` | `string` | 제목 |
 | `content` | `string` | 내용 |
 | `rarityName` | `string` | 희귀도. `COMMON` \| `RARE` \| `EPIC` \| `SPECIAL` |
-| `currentDummyGradeStack` | `number` | 획득한 등급의 누적 스택 수. 천장 발동 시 `10` 고정, SPECIAL 획득 시 `0` |
+| `isPityTriggered` | `boolean` | 이번 뽑기가 천장 발동으로 획득된 경우 `true` |
+| `isNextPityTriggered` | `boolean` | 다음 뽑기에서 천장 발동 확정인 경우 `true`. FE에서 "다음 ~~는 무조건~~에요" UI 표시 기준 |
 | `remainingCount` | `number` | 오늘 남은 요청 횟수 (최대 20) |
 
 **Error Codes**
