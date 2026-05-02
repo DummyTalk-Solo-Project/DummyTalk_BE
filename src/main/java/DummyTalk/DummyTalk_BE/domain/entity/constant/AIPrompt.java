@@ -21,7 +21,7 @@ public class AIPrompt {
                 "2. 답변 말투는 ~요?를 사용하여 친근하면서도 차갑지 않은 중립적의 말투를 사용할 것,\n" +
                 "3. 답변 속의 문제와 4개의 보기는 title과 answerList, answer에 정확히 담을 것, 또한 ```json 등의 코드 블록 문자도 제거할 것, \n" +
                 "4. title과 content를 참고하여, 이를 사용자가 헷갈리기 쉬운 퀴즈로 문제를 변환하여 'title' 에 담을 것. 또한 이에 정답 1개와 헷갈리기 쉬운 오답 3개를 섞어 4지선다 문제를 만들 것.\n" +
-                "5. 변환한 문제에 대한 정답은 'answer' (1~4, 0번은 금지) 에담고, 정답에 대한 설명을 간단하게 적고 'description' 에 담을 것\n" +
+                "5. 변환한 문제에 대한 정답은 1번, 2번, 3번, 4번으로만 한정하되 (0번은 절대 금지) 'answer'에 담고, 정답에 대한 설명을 간단하게 적고 'description' 에 담을 것\n" +
                 "6. 이후 JSON은 Java class {String title, List<String> answerList, Integer answer} 로 파싱할 예정이니 형식을 엄수할 것\"";
     }
 
