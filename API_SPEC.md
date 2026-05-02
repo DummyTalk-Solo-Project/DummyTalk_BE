@@ -462,7 +462,7 @@ Authorization: Bearer: <accessToken>
   "result": {
     "status": "OPEN",
     "userGrade": null,
-    "quizId": 1,
+    "id": 5,
     "title": "다음 중 수박의 원산지는?",
     "answerList": ["동남아시아", "아프리카", "남미", "중앙아시아"]
   }
@@ -473,9 +473,9 @@ Authorization: Bearer: <accessToken>
 |------|------|------|
 | `status` | `string` | `NOT_OPEN` \| `OPEN` \| `CLOSE` |
 | `userGrade` | `number \| null` | 내 등수 (미구현, 항상 null) |
-| `quizId` | `number` | 퀴즈 ID |
+| `id` | `number` | 퀴즈 ID (BE 실제 필드명. `quizId`로 혼용될 수 있음) |
 | `title` | `string` | 문제 |
-| `answerList` | `string[]` | 선택지 목록 (1번 인덱스 = answerList[0]) |
+| `answerList` | `string[]` | 선택지 목록. 인덱스 0 = 첫 번째 선택지 |
 
 **Error Codes**
 
@@ -488,7 +488,7 @@ Authorization: Bearer: <accessToken>
 ### 13. 퀴즈 풀이
 
 ```
-POST /api/dummies/quiz?id=1&answer=2
+POST /api/dummies/quiz?id=5&answer=1
 ```
 
 **Request Header** (필수)
@@ -502,7 +502,7 @@ Authorization: Bearer: <accessToken>
 | 파라미터 | 타입 | 설명 |
 |----------|------|------|
 | `id` | `number` | 퀴즈 ID |
-| `answer` | `number` | 선택한 답 번호 (1~answerList 크기) |
+| `answer` | `number` | 선택한 답 번호 **(1-indexed, 1~4)** |
 
 **Response**
 
@@ -520,10 +520,11 @@ Authorization: Bearer: <accessToken>
 | 코드 | 메시지 | 상황 |
 |------|--------|------|
 | `DUMMY4003` | 문제를 풀고 싶은 마음은 알겠지만, 조금만 더 기달려주세요. | 퀴즈가 OPEN 아님 |
-| `DUMMY4004` | 알 수 없는 퀴즈를 풀고 계신 것 같아요. | 존재하지 않는 quizId |
+| `DUMMY4004` | 알 수 없는 퀴즈를 풀고 계신 것 같아요. | 존재하지 않는 id |
 | `DUMMY4005` | 좋은 발상이었는데, 아쉽게도 정답이 아니에요. | 오답 또는 범위 밖 answer |
 | `DUMMY4006` | 한 번 푸셨던 문제는 다시 풀 수 없어요. 다른 사용자에게 배려해주세요 :) | 중복 제출 |
 | `DUMMY4007` | 퀴즈는 풀었지만 이제 티켓을 받을 수는 없네요 | 티켓(선착순 한도) 소진 |
+| `QUIZ4007` | 아쉽게도 퀴즈가 닫혔어요.... | 풀이 도중 스케줄러에 의해 퀴즈 CLOSE됨 |
 
 ---
 
