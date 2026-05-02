@@ -46,6 +46,7 @@ public class DummyConverter {
             case RARE -> "44A194";
             case EPIC -> "537D96";
             case SPECIAL -> "EC8F8D";
+            case TEST -> "FFFFFF";
         };
     }
 }
