@@ -1,5 +1,7 @@
 package DummyTalk.DummyTalk_BE.global.converter;
 
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.AttributeConverter;
@@ -20,7 +22,7 @@ public class StringListConverter implements AttributeConverter<List<String>, Str
         try {
             return objectMapper.writeValueAsString(strings);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new GeneralException(ErrorCode.CANT_CONVERT_TO_DB_COLUMN);
         }
     }
 
@@ -29,7 +31,7 @@ public class StringListConverter implements AttributeConverter<List<String>, Str
         try {
             return objectMapper.readValue(s, List.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new GeneralException(ErrorCode.CANT_CONVERT_TO_ENTITY_ATTR);
         }
     }
 }

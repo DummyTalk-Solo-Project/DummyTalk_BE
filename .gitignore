@@ -153,3 +153,5 @@ gradle-app.setting
 ### 민감 파일 ###
 application.properties
 application.yml
+CLAUDE.md
+.claude/*

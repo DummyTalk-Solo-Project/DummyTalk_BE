@@ -49,4 +49,14 @@ public class DummyRequestDTO {
         private String content;
     }
 
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SolveQuizReqDTO{
+        private Long quizId;
+        private String email;
+        private Integer answer;
+    }
+
 }

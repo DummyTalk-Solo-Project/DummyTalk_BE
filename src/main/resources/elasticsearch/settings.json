@@ -1,0 +1,20 @@
+{
+  "analysis": {
+    "analyzer": {
+      "suggest_analyzer": {
+        "tokenizer": "nori_tokenizer",
+        "filter": [ "lowercase", "edge_ngram_filter" ]
+      },
+      "nori": {
+        "tokenizer": "nori_tokenizer"
+      }
+    },
+    "filter": {
+      "edge_ngram_filter": {
+        "type": "edge_ngram",
+        "min_gram": 1,
+        "max_gram": 10
+      }
+    }
+  }
+}

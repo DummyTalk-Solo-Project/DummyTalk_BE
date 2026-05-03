@@ -1,8 +1,10 @@
 package DummyTalk.DummyTalk_BE.global.batch;
 
-import DummyTalk.DummyTalk_BE.domain.entity.User;
+import DummyTalk.DummyTalk_BE.domain.entity.Member;
+import DummyTalk.DummyTalk_BE.domain.service.email.EMailService;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
@@ -24,11 +26,13 @@ import java.time.temporal.ChronoUnit;
 @Configuration
 @EnableBatchProcessing
 @RequiredArgsConstructor
+@Slf4j
 public class BatchConfig {
 
     private final EntityManagerFactory emf;
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
+    private final EMailService EMailService;
 
     @Bean
     public Job resetCountJob() {
@@ -40,7 +44,7 @@ public class BatchConfig {
     @Bean
     public Step userDataStep(){
         return new StepBuilder("userDataStep", jobRepository)
-                .<User, User>chunk(100, transactionManager)
+                .<Member, Member>chunk(100, transactionManager)
                 .reader(userDataReader())
                 .processor(userDataProcessor())
                 .writer(userDataWriter())
@@ -48,8 +52,8 @@ public class BatchConfig {
     }
 
     @Bean
-    public JpaPagingItemReader<User> userDataReader() {
-        return new JpaPagingItemReaderBuilder<User>()
+    public JpaPagingItemReader<Member> userDataReader() {
+        return new JpaPagingItemReaderBuilder<Member>()
                 .name("userDataReader")
                 .entityManagerFactory(emf)
                 .queryString("select u from User u join info i on user.id = i.user.id ")
@@ -58,20 +62,26 @@ public class BatchConfig {
     }
 
     @Bean
-    public ItemProcessor<User, User> userDataProcessor() {
+    public ItemProcessor<Member, Member> userDataProcessor() {
         return user -> {
+            // 1. 카운트 리셋
             user.getInfo().resetReqCount();
 
+            // 2. 메일 발송 로직: 5일 이상 미접속 시
             if (ChronoUnit.DAYS.between(user.getLastLogin(), LocalDateTime.now()) >= 5) {
-                // 메세지 발송 로직
+                try {
+                    EMailService.sendReminderEmail(user.getEmail(), user.getMemberName());
+                } catch (Exception e) {
+                    log.error("메일 발송 실패 - 사용자: {}", user.getId(), e);
+                }
             }
             return user;
         };
     }
 
     @Bean
-    public JpaItemWriter<User> userDataWriter() {
-        return new JpaItemWriterBuilder<User>()
+    public JpaItemWriter<Member> userDataWriter() {
+        return new JpaItemWriterBuilder<Member>()
                 .entityManagerFactory(emf)
                 .build();
     }

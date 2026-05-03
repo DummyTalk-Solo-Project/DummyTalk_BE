@@ -19,22 +19,34 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig{
 
-    private final JWTProvider jwtProvider;
+    private final JWTAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain filterChain (HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        /*
+         * 현 서비스는 로그인이 주 기능이 아니다.
+         * = 일단 모든 URL에 대한 요청은 받아야 한다.
+         * = 그래도 SecurityContextHolder 와 JWT를 이용해서 인증은 해야 한다!
+         * */
+
         http
-                .addFilterBefore(new JWTAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class)
-                .sessionManagement(session->{
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // 해당 필터 전에 실행되어야 함
+                .sessionManagement(session -> {
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
                 })
                 .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests((auth) -> // 일단 비사용자 기준 요청은 막기
-                        auth.requestMatchers("/api/dummies/**","/api/**", "/actuator","/api/users/login", "/api/users/logout", "/api/users/email-verification", "/api/users/verify","/api/users/sign-in", "/favicon.ico").permitAll()
-                                .anyRequest().authenticated());
+                .authorizeHttpRequests((auth) -> {
+                    auth
+                            .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                            .requestMatchers("/api/alarms/**").authenticated()
+                            .requestMatchers("/api/missions/**").authenticated()
+                            .requestMatchers("/api/members/me/**").authenticated()
+                            .anyRequest().permitAll();
+                });
         return http.build();
-
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {

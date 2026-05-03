@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class TimeTraceAop {
 
-    @Around("execution(* DummyTalk.DummyTalk_BE.domain.service.user.impl..*(..))")
+//    @Around("execution(* DummyTalk.DummyTalk_BE.domain.service.user.impl..*(..))")
     public Object traceExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
         long start = System.currentTimeMillis();
         try {
