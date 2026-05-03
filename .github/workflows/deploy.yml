@@ -38,17 +38,17 @@ jobs:
       # docker compose pull 시 이 이미지를 받아와야 Nori 플러그인이 정상 동작함
       - name: build and push elasticsearch-nori image
         run: |
-          docker build -f Dockerfile-es -t ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1 .
+          docker build -f docker/Dockerfile-es -t ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1 .
           docker push ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1
 
-      - name: copy docker-compose and deploy script to ec2...
+      - name: copy deploy files to ec2...
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{secrets.EC2_HOST}}
           username: ${{secrets.EC2_USERNAME}}
           key: ${{secrets.EC2_PRIVATE_KEY}}
-          # prometheus.yml 은 docker-compose.yml 에서 볼륨 마운트로 참조하므로 반드시 전송 필요
-          source: "docker-compose.yml, deploy.sh, prometheus.yml"
+          # docker/ 와 scripts/ 구조를 EC2 에 그대로 복사 (디렉토리 구조 유지)
+          source: "docker/docker-compose.yml, docker/prometheus.yml, scripts/deploy.sh"
           target: "~/dummytalk"
 
   ec2-deploy:
@@ -95,7 +95,8 @@ jobs:
             echo "DOCKER_USERNAME=${{secrets.DOCKER_USERNAME}}" >> .env
 
             sudo docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_PASSWORD}}
-            sudo docker compose pull
+            # -p dummytalk: deploy.sh 내부와 프로젝트명 일치 (네트워크명 dummytalk_dummytalk-network 고정)
+            sudo docker compose -p dummytalk -f docker/docker-compose.yml pull
 
-            chmod +x deploy.sh
-            sudo bash ./deploy.sh 2>&1 | sudo tee deploy.log
+            chmod +x scripts/deploy.sh
+            sudo bash scripts/deploy.sh 2>&1 | sudo tee deploy.log

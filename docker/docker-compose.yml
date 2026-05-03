@@ -90,7 +90,7 @@ services:
       - dummytalk-network
 
   elasticsearch:
-    # Nori 플러그인이 설치된 커스텀 이미지 (Dockerfile.es 로 빌드 후 Docker Hub에 올림)
+    # Nori 플러그인이 설치된 커스텀 이미지 (docker/Dockerfile-es 로 빌드 후 Docker Hub에 올림)
     # build + image 동시 사용 시 docker compose pull 이 공식 이미지를 덮어쓰는 문제 방지
     image: ${DOCKER_USERNAME}/elasticsearch-nori:8.11.1
     container_name: DummyTalk_ElasticSearch

@@ -5,8 +5,9 @@ set -e
 DOCKER_USERNAME=$(grep '^DOCKER_USERNAME=' .env | cut -d= -f2)
 
 echo "===== [1/4] 인프라 서비스 기동 (Prometheus, Grafana, Elasticsearch, Kibana) ====="
-# docker compose up 을 먼저 실행해 dummytalk-network 를 생성한 뒤 Spring 컨테이너를 붙임
-sudo docker compose up -d
+# -p dummytalk: 프로젝트명 고정 → 네트워크명이 dummytalk_dummytalk-network 로 생성됨 (Spring docker run --network 값과 일치)
+# -f docker/docker-compose.yml: docker-compose 파일 위치 명시 (docker/ 디렉토리로 이동 후)
+sudo docker compose -p dummytalk -f docker/docker-compose.yml up -d
 
 echo "===== [2/4] Spring 앱 컨테이너 교체 ====="
 sudo docker stop DummyTalk_Spring 2>/dev/null || true
