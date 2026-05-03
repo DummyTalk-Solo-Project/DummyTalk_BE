@@ -12,7 +12,7 @@ if ! docker compose version &>/dev/null; then
     echo "설치 완료: $(docker compose version)"
 fi
 
-COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml"
+COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env"
 
 echo "===== [1/4] 최신 이미지 pull ====="
 $COMPOSE pull
