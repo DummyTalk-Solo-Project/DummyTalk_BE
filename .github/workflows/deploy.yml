@@ -95,8 +95,6 @@ jobs:
             echo "DOCKER_USERNAME=${{secrets.DOCKER_USERNAME}}" >> .env
 
             sudo docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_PASSWORD}}
-            # -p dummytalk: deploy.sh 내부와 프로젝트명 일치 (네트워크명 dummytalk_dummytalk-network 고정)
-            sudo docker compose -p dummytalk -f docker/docker-compose.yml pull
-
+          
             chmod +x scripts/deploy.sh
             sudo bash scripts/deploy.sh 2>&1 | sudo tee deploy.log
