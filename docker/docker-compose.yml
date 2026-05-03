@@ -1,40 +1,40 @@
 services:
-#  spring:
-#    build: .
-#    container_name: DummyTalk_Spring
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      - DB_HOST=postgresql
-#      - DB_NAME=${DB_NAME}
-#      - DB_USERNAME=${DB_USERNAME}
-#      - DB_PASSWORD=${DB_PASSWORD}
-#      - REDIS_HOST=redis
-#      - REDIS_PORT=6379
-#    depends_on:
-#      - postgresql
-#      - redis
-#      - elasticsearch
-#    restart: always
-#    networks:
-#      - dummytalk-network
+  spring:
+    build: .
+    container_name: DummyTalk_Spring
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgresql
+      - DB_NAME=${DB_NAME}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgresql
+      - redis
+      - elasticsearch
+    restart: always
+    networks:
+      - dummytalk-network
 
-#  postgresql:
-#    image: postgres:15-alpine
-#    container_name: DummyTalk_Postgres
-#    ports:
-#      - "5432:5432"
-#    environment:
-#      POSTGRES_DB: ${DB_NAME}
-#      POSTGRES_USER: ${DB_USERNAME}
-#      POSTGRES_PASSWORD: ${DB_PASSWORD}
-#      TZ: Asia/Seoul
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#      - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
-#    restart: always
-#    networks:
-#      - dummytalk-network
+  postgresql:
+    image: postgres:15-alpine
+    container_name: DummyTalk_Postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
+    restart: always
+    networks:
+      - dummytalk-network
 
 #  mysql:
 #    image: mysql:8.0
@@ -53,16 +53,16 @@ services:
 #    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 #    restart: always
 
-#  redis:
-#    image: redis:7-alpine
-#    container_name: DummyTalk_Redis
-#    ports:
-#      - "6379:6379"
-#    volumes:
-#      - redis_data:/data
-#    restart: always
-#    networks:
-#      - dummytalk-network
+  redis:
+    image: redis:7-alpine
+    container_name: DummyTalk_Redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - dummytalk-network
 
   prometheus:
     image: prom/prometheus:latest
