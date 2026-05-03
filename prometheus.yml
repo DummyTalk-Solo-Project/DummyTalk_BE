@@ -12,6 +12,6 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     scrape_interval: 5s
     static_configs:
-      # Docker Compose 네트워크 내의 Spring Boot 서비스 이름과 포트 사용
-      - targets: ['spring-app:8080']
+      # deploy.sh 에서 docker run --name DummyTalk_Spring 으로 기동하므로 컨테이너명 사용
+      - targets: ['DummyTalk_Spring:8080']
 

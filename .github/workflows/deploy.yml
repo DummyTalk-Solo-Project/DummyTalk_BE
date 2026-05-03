@@ -34,20 +34,21 @@ jobs:
           docker build -t ${{secrets.DOCKER_USERNAME}}/dummytalk .
           docker push ${{secrets.DOCKER_USERNAME}}/dummytalk
 
-      # Dockerfile.es 로 빌드한 Nori 플러그인 포함 ES 이미지를 Docker Hub에 올림
+      # Dockerfile-es 로 빌드한 Nori 플러그인 포함 ES 이미지를 Docker Hub에 올림
       # docker compose pull 시 이 이미지를 받아와야 Nori 플러그인이 정상 동작함
       - name: build and push elasticsearch-nori image
         run: |
-          docker build -f Dockerfile.es -t ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1 .
+          docker build -f Dockerfile-es -t ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1 .
           docker push ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1
 
       - name: copy docker-compose and deploy script to ec2...
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{secrets.EC2_HOST}}
           username: ${{secrets.EC2_USERNAME}}
           key: ${{secrets.EC2_PRIVATE_KEY}}
-          source: "docker-compose.yml, deploy.sh, monitoring/*"
+          # prometheus.yml 은 docker-compose.yml 에서 볼륨 마운트로 참조하므로 반드시 전송 필요
+          source: "docker-compose.yml, deploy.sh, prometheus.yml"
           target: "~/dummytalk"
 
   ec2-deploy:
@@ -55,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: working in ec2...
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{secrets.EC2_HOST}}
           username: ${{secrets.EC2_USERNAME}}

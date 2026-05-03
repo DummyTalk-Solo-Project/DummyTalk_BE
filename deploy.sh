@@ -20,7 +20,7 @@ sudo docker pull "${DOCKER_USERNAME}/dummytalk:latest"
 #            → elasticsearch 컨테이너를 hostname 'elasticsearch' 으로 참조 가능 (ES_URL 환경변수)
 sudo docker run -d \
   --name DummyTalk_Spring \
-  --network dummytalk-network \
+  --network dummytalk_dummytalk-network \
   --restart always \
   -p 8080:8080 \
   --env-file .env \
