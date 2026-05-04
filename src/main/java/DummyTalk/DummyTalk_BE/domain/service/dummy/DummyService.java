@@ -17,6 +17,7 @@ import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
+import DummyTalk.DummyTalk_BE.global.event.DummyViewedEvent;
 import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import DummyTalk.DummyTalk_BE.global.scheduler.QuizScheduler;
 import co.elastic.clients.elasticsearch._types.FieldValue;
@@ -26,6 +27,7 @@ import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -66,6 +68,7 @@ public class DummyService {
 
     private final ObjectMapper objectMapper;
     private final MemberQuizRepository memberQuizRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
@@ -130,8 +133,13 @@ public class DummyService {
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
+        
+        long totalDummyCount = memberDummyRepository.countByMember_Id(memberId); // 뱃지 체크용 누적 횟수 (save 직후 동일 트랜잭션에서!)
 
         info.updateReqCount();
+
+        // 비동기 뱃지 이벤트 발행 (트랜잭션 커밋 후 MailExecutor 풀에서 처리)
+        eventPublisher.publishEvent(new DummyViewedEvent(memberId, dummy.getRarity().getName().toString(), isPityTriggered, totalDummyCount));
 
         DummyRespDTO.GetDummyRespDTO dto = DummyRespDTO.GetDummyRespDTO.builder()
                 .dummyId(dummy.getId())

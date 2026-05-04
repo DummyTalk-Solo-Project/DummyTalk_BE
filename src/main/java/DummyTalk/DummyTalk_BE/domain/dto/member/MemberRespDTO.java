@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.global.security.jwt.JWT;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class MemberRespDTO {
 
