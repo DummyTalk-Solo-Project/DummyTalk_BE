@@ -27,6 +27,17 @@ public class MemberRespDTO {
         private String username;
     }
 
+    // 마이페이지 뱃지 항목
+    @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BadgeDTO {
+        private String name;
+        private String content;
+        private LocalDateTime acquiredAt; // MemberBadge.createdAt
+    }
+
     @Builder
     @Getter
     @NoArgsConstructor
@@ -45,6 +56,8 @@ public class MemberRespDTO {
         private Integer commonStack;
         private Integer rareStack;
         private Integer epicStack;
+        
+        private List<BadgeDTO> badgeList; // 보유 뱃지
     }
 
     @Getter

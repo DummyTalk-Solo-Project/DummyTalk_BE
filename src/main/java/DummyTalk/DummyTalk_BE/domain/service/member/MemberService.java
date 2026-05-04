@@ -5,7 +5,9 @@ import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberBadge;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberBadgeRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
@@ -45,6 +47,7 @@ public class MemberService {
     private static final int CODE_LENGTH = 4;
     private final InfoRepository infoRepository;
     private final MemberQuizRepository memberQuizRepository;
+    private final MemberBadgeRepository memberBadgeRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public static String generateVerificationCode() {
@@ -338,6 +341,15 @@ public class MemberService {
         int commonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
         int rareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
         int epicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
+        
+        List<MemberBadge> memberBadges = memberBadgeRepository.findByMember(member);
+        List<MemberRespDTO.BadgeDTO> badgeDTOList = memberBadges.stream()
+                .map(mb -> MemberRespDTO.BadgeDTO.builder()
+                        .name(mb.getBadge().getName())
+                        .content(mb.getBadge().getContent())
+                        .acquiredAt(mb.getCreatedAt())
+                        .build())
+                .toList();
 
         MemberRespDTO.GetMemberResponseDTO dto = MemberRespDTO.GetMemberResponseDTO.builder()
                 .email(member.getEmail())
@@ -348,8 +360,8 @@ public class MemberService {
                 .commonStack(commonStack)
                 .rareStack(rareStack)
                 .epicStack(epicStack)
+                .badgeList(badgeDTOList)
                 .build();
-
 
         log.info("MemberService - [GETMYDATA]  : {}", dto.toString());
         return dto;
