@@ -22,7 +22,7 @@ public class BadgeEventListener {
     * 어쨌든 최종적인 EventListener 사용은 getDummy 응답 속도에 영향을 주지 않기 위해...
     * 
     * */
-    @Async
+    @Async("BadgeExecutor")
     @EventListener
     public void onDummyViewed(DummyViewedEvent event) {
         log.info("[BadgeEventListener] - 이벤트 발생! memberId={}, rarity={}, pity={}, totalCount={}",
