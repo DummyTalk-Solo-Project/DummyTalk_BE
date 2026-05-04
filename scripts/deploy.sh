@@ -18,6 +18,8 @@ echo "===== [1/4] 최신 이미지 pull ====="
 $COMPOSE pull
 
 echo "===== [2/4] 모든 서비스 기동 / 업데이트 ====="
+# Kibana는 profiles: monitoring 으로 제외됨, 필요 시 수동 기동:
+# sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env --profile monitoring up -d kibana
 $COMPOSE up -d
 
 echo "===== [3/4] 오래된 이미지 정리 ====="
