@@ -20,4 +20,8 @@ public class CommonEntity {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    private LocalDateTime deletedAt;
+
+    private Boolean isDeleted;
 }

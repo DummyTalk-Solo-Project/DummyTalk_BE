@@ -319,7 +319,11 @@ public class MemberService {
     }
 
     @Transactional
-    public void withdraw(String email) {
+    public void withdraw(Long memberId, String email) {
+
+        // SOFT DELETE
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        // member.softDelete();
 
         // User와 관계된 엔티티 먼저 제거
         memberQuizRepository.deleteByEmail(email);
