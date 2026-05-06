@@ -1,6 +1,7 @@
 package DummyTalk.DummyTalk_BE.domain.entity.common;
 
 
+import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
@@ -21,7 +22,21 @@ public class CommonEntity {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    private LocalDateTime deletedAt; // Soft Delete 삭제일자
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
-    private Boolean isDeleted; // Soft Delete 여부
+    // deletedAt 인덱스 필터용 (PostgreSQL partial index: WHERE is_deleted = false)
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
+
+    // 소프트 딜리트: isDeleted + deletedAt 동시 기록 (자식 엔티티에서 호출)
+    protected void softDelete() {
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
+    }
+
+a    // 탈퇴 여부 확인 유틸 (isDeleted 우선, deletedAt 보조)
+    public boolean isWithdrawn() {
+        return Boolean.TRUE.equals(this.isDeleted);
+    }
 }
