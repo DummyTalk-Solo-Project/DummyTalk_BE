@@ -21,7 +21,7 @@ public class CommonEntity {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    private LocalDateTime deletedAt;
+    private LocalDateTime deletedAt; // Soft Delete 삭제일자
 
-    private Boolean isDeleted;
+    private Boolean isDeleted; // Soft Delete 여부
 }
