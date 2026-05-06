@@ -98,23 +98,23 @@ public class DummyService {
 
         if (currentCommonStack >= 10) { // COMMON -> RARE
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new RuntimeException("Rarity not found"));
-            log.info("[MemberService - GetDummy] - COMMON 천장 사용 -> RARE!");
+            log.info("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
             isPityTriggered=true;
         }
         else if (currentRareStack >= 10) { // RARE -> EPIC
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new RuntimeException("Rarity not found"));
-            log.info("[MemberService - GetDummy] - RARE 천장 사용 -> EPIC!");
+            log.info("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
             isPityTriggered=true;
         }
         else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
             selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new RuntimeException("Rarity not found"));
-            log.info("[MemberService - GetDummy] - EPIC 천장 사용 -> SPECIAL!");
+            log.info("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
             isPityTriggered=true;
         }
         else{
             // 2. 천장 없는 경우 확률에 의해 조회.
             selectedRarity = getRandomRarity();
-            log.info("[MemberService - getDummy] 랜덤 뽑기: " + selectedRarity.getName());
+            log.info("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarity.getName());
         }
 
         // 스택 update, 다음 뽑기 천장 예정 여부 반환
@@ -150,7 +150,7 @@ public class DummyService {
                 .isNextPityTriggered(isNextPityTriggered)
                 .remainingCount(20 - info.getReqCount())
                 .build();
-        log.info("[MemberService - getDummy] dto = " + selectedRarity.getName().toString());
+        log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarity.getName());
         return dto;
     }
 
@@ -160,36 +160,36 @@ public class DummyService {
             if (wonRarity == RarityType.SPECIAL) {
                 // SPECIAL은 최상위 등급, 다음 천장 없음
                 redisTemplate.opsForHash().put(key, "EPIC", "0");
-                log.info("[MemberService - updatePityStack] - EPIC 천장! => SPECIAL");
+                log.info("[DummyService - updatePityStack()] - EPIC 천장! => SPECIAL");
                 return false;
             }
             else if (wonRarity == RarityType.EPIC) {
                 redisTemplate.opsForHash().put(key, "RARE", "0");
                 Long newEpic = redisTemplate.opsForHash().increment(key, "EPIC", 1);
-                log.info("[MemberService - updatePityStack] - RARE 천장! => EPIC, newEpicStack={}", newEpic);
+                log.info("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", newEpic);
                 return newEpic >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
                 redisTemplate.opsForHash().put(key, "COMMON", "0");
                 Long newRare = redisTemplate.opsForHash().increment(key, "RARE", 1);
-                log.info("[MemberService - updatePityStack] - COMMON 천장! => RARE, newRareStack={}", newRare);
+                log.info("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", newRare);
                 return newRare >= 10;
             }
         }
         else {
             if (wonRarity == RarityType.COMMON) {
                 Long newCommon = redisTemplate.opsForHash().increment(key, "COMMON", 1);
-                log.info("[MemberService - updatePityStack] - COMMON 스택 증가 = {}", newCommon);
+                log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", newCommon);
                 return newCommon >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
                 Long newRare = redisTemplate.opsForHash().increment(key, "RARE", 1);
-                log.info("[MemberService - updatePityStack] - RARE 스택 증가 = {}", newRare);
+                log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", newRare);
                 return newRare >= 10;
             }
             else if (wonRarity == RarityType.EPIC) {
                 Long newEpic = redisTemplate.opsForHash().increment(key, "EPIC", 1);
-                log.info("[MemberService - updatePityStack] - EPIC 스택 증가 = {}", newEpic);
+                log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", newEpic);
                 return newEpic >= 10;
             }
         }
@@ -203,7 +203,7 @@ public class DummyService {
                 .map(id -> Long.valueOf(id.toString()))
                 .toList();
 
-        log.info("[MemberService - GetMyDummyList] - memberId:{} -> dummyIdList.size: {}",  memberId, dummyIdList.size());
+        log.info("[DummyService - getMyDummyList()] - memberId:{} -> dummyIdList.size: {}", memberId, dummyIdList.size());
 
         return DummyConverter.toGetMyDummyListDTO(memberDummyRepository.findAllByDummyIdList(dummyIdList, PageRequest.of(page, 10)).getContent());
     }
@@ -296,7 +296,7 @@ public class DummyService {
         }
 
         Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new RuntimeException("No dummy found in Redis for rarity: " + result));
-        log.info("[DummyService - openQuiz] - randomDummy.id: {}",randomDummy.getId());
+        log.info("[DummyService - openQuiz()] - randomDummy.id: {}", randomDummy.getId());
 
         // 2. 해당 문제를 통해 OpenAiAPI -> 문제를 만들어줘
         DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
@@ -328,7 +328,7 @@ public class DummyService {
             throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
         }
 
-        log.info("[DummyService - openQuiz] - resp.toString(): {}", resp);
+        log.info("[DummyService - openQuiz()] - resp: {}", resp);
 
         // 3. 해당 시간에 Quiz 생성 & return
         Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));

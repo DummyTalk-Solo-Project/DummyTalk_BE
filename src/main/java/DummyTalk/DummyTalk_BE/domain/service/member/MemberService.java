@@ -67,10 +67,10 @@ public class MemberService {
     public Boolean checkEmailDuplicate(String email) {
         Optional<Member> byEmail = memberRepository.findByEmail(email);
         if (byEmail.isPresent()) {
-            log.info("[MemberService - checkEmailDuplicate] duplicate email {}", email);
+            log.info("[MemberService - checkEmailDuplicate()] - duplicate email {}", email);
             throw new MemberHandler(ErrorCode.EXIST_MEMBER);
         } else {
-            log.info("[MemberService - checkEmailDuplicate] Success to check duplicate {}", email);
+            log.info("[MemberService - checkEmailDuplicate()] - Success to check duplicate {}", email);
             return true;
         }
     }
@@ -80,11 +80,11 @@ public class MemberService {
         Boolean ifAbsent = redisTemplate.opsForValue().setIfAbsent(email, code, Duration.ofMinutes(3));
 
         if (Boolean.FALSE.equals(ifAbsent)) {
-            log.info("[MemberService - requestVerificationCode] already send to {} with {}", email, redisTemplate.opsForValue().get(email));
+            log.info("[MemberService - requestVerificationCode()] - already send to {} with {}", email, redisTemplate.opsForValue().get(email));
             throw new MemberHandler(ErrorCode.ALREADY_SEND); // 따닥 방지
         } else {
             redisTemplate.opsForList().leftPush("email_queue", email + ":" + code);
-            log.info("[MemberService - requestVerificationCode] call EmailService with {} - {}", email, code);
+            log.info("[MemberService - requestVerificationCode()] - call EmailService with {} - {}", email, code);
 //            emailService.startWork();
         }
     }
@@ -219,7 +219,7 @@ public class MemberService {
         try {
             mailSender.send(msg);
             redisTemplate.opsForValue().set("email:" + email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
-            log.info("[EMAIL SENT] code {} -> {}", code, email);
+            log.info("[MemberService - sendVerificationEmail()] - code {} -> {}", code, email);
         } catch (RuntimeException e) {
             throw new MemberHandler(ErrorCode.CANT_SEND_EMAIL);
         }
@@ -231,11 +231,11 @@ public class MemberService {
         if (code == null) {
             throw new MemberHandler(ErrorCode.EMAIL_EXPIRED);
         }
-        log.info("code: {}", code);
+        log.info("[MemberService - verifyEmail()] - code: {}", code);
         if (!code.equals(requestDTO.getCode())) {
             throw new MemberHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
-        log.info("[MemberService - EMAIL VERIFIED] email: {},  code: {}", requestDTO.getEmail(), code);
+        log.info("[MemberService - verifyEmail()] - email: {}, code: {}", requestDTO.getEmail(), code);
     }
 
     @Transactional
@@ -269,7 +269,7 @@ public class MemberService {
 
         savedMember.setInfo(savedInfo);
 
-        log.info("[MemberService - SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), savedMember.getMemberName());
+        log.info("[MemberService - signIn()] - email: {}, username: {}", request.getEmail(), savedMember.getMemberName());
     }
 
     @Transactional
@@ -287,7 +287,7 @@ public class MemberService {
 
         redisTemplate.opsForValue().set("refresh:"+dto.getEmail(), jwt.getRefreshToken());
 
-        log.info("[MemberService - login] Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
+        log.info("[MemberService - login()] - Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
 
 
         return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
@@ -302,10 +302,10 @@ public class MemberService {
         if (remainingTime > 0) {
             String key = "blacklist:" + accessToken;
             redisTemplate.opsForValue().set(key, "logout", remainingTime, TimeUnit.MILLISECONDS);
-            log.info("[MemberService] - add AccessToken in BlackList! remainingTime: {}ms", remainingTime);
+            log.info("[MemberService - logout()] - add AccessToken in BlackList! remainingTime: {}ms", remainingTime);
         }
 
-        log.info("[MemberService - logout] Success to logout -> {}", member.getEmail());
+        log.info("[MemberService - logout()] - Success to logout -> {}", member.getEmail());
     }
 
     public MemberRespDTO.FindEmailRespDTO findEmail(String email) {
@@ -327,7 +327,7 @@ public class MemberService {
 
         memberRepository.deleteByEmail(email); // HARD DELETE!
 
-        log.info("[MemberService - WITHDRAW] email: {}", email);
+        log.info("[MemberService - withdraw()] - email: {}", email);
     }
 
 
@@ -363,7 +363,7 @@ public class MemberService {
                 .badgeList(badgeDTOList)
                 .build();
 
-        log.info("MemberService - [GETMYDATA]  : {}", dto.toString());
+        log.info("[MemberService - getMyData()] - dto: {}", dto);
         return dto;
     }
 }

@@ -40,7 +40,7 @@ public class BadgeService {
     public void checkAndAwardByDummyViewed(Long memberId, String rarityName, Boolean isPityTriggered, long totalDummyCount) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         if (member == null) {
-            log.warn("[BadgeService] Member {} not found, 뱃지 체크 건너뜀", memberId);
+            log.warn("[BadgeService - checkAndAwardByDummyViewed()] Member {} not found, 뱃지 체크 건너뜀", memberId);
             return;
         }
 
@@ -65,17 +65,17 @@ public class BadgeService {
     private void awardIfNotOwned(Member member, String badgeName) { // 이미 부여된 경우 SKIP
         Optional<Badge> badgeOpt = badgeRepository.findByName(badgeName);
         if (badgeOpt.isEmpty()) {
-            log.warn("[BadgeService - awardIfNotOwned] 뱃지 '{}' DB에 없음, 건너뜀", badgeName);
+            log.warn("[BadgeService - awardIfNotOwned()] 뱃지 '{}' DB에 없음, 건너뜀", badgeName);
             return;
         }
         Badge badge = badgeOpt.get();
 
         if (memberBadgeRepository.existsByMemberAndBadge(member, badge)) {
-            log.debug("[BadgeService - awardIfNotOwned] Member {} 이미 뱃지 '{}' 보유", member.getId(), badgeName);
+            log.debug("[BadgeService - awardIfNotOwned()] Member {} 이미 뱃지 '{}' 보유", member.getId(), badgeName);
             return;
         }
 
         memberBadgeRepository.save(MemberBadge.createNewMemberBadge(member, badge));
-        log.info("[BadgeService] 뱃지 '{}' → Member {} 부여 완료", badgeName, member.getId());
+        log.info("[BadgeService - awardIfNotOwned()] 뱃지 '{}' → Member {} 부여 완료", badgeName, member.getId());
     }
 }

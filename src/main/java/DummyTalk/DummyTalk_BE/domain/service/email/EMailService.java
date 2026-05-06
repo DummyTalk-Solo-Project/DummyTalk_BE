@@ -26,7 +26,7 @@ public class EMailService {
 
     @Async("mailExecutor")
     public void startMailWorker(int workerId) {
-        log.info("[EmailService] - EmailWorker 메일 발송 워커 가동 시작");
+        log.info("[EMailService - startMailWorker()] - EmailWorker 메일 발송 워커 가동 시작");
         while (true) {
             try {
                 // BRPOP!
@@ -36,10 +36,10 @@ public class EMailService {
                     String[] data = task.split(":");
                     sendEmail(data[0], data[1]);
                 }if (task == null && workerId == 0) {
-                    log.info("[EmailService] (worker {}) - no email to send!",  workerId);
+                    log.info("[EMailService - startMailWorker()] - (worker {}) no email to send!", workerId);
                 }
             } catch (Exception e) {
-                log.error("[EmailService] - EmailWorker {} Error, retry after 1s... ", workerId, e);
+                log.error("[EMailService - startMailWorker()] - EmailWorker {} Error, retry after 1s... ", workerId, e);
                 try {
                     Thread.sleep(1000);
                 }
@@ -169,7 +169,7 @@ public class EMailService {
             throw new RuntimeException(e);
         }
 
-        log.info("[EmailService - requestVerificationCode] saved code {} to {}", redisTemplate.opsForValue().get(email), email);
+        log.info("[EMailService - sendEmail()] - saved code {} to {}", redisTemplate.opsForValue().get(email), email);
     }
 
 
