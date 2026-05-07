@@ -35,6 +35,11 @@ public class CommonEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
+    protected void restore() { // 계정 복구 - softDelete
+        this.isDeleted = false;
+        this.deletedAt = null;
+    }
+
    // 탈퇴 여부 확인 유틸 (isDeleted 우선, deletedAt 보조)
     public boolean isWithdrawn() {
         return Boolean.TRUE.equals(this.isDeleted);

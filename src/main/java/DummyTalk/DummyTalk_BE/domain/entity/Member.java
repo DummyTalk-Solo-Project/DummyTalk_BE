@@ -65,9 +65,12 @@ public class Member extends CommonEntity {
     public void setLastLogin(LocalDateTime lastLogin) {
         this.lastLogin = lastLogin;
     }
-
-    // 회원 탈퇴 처리: CommonEntity.softDelete() 위임
-    public void withdraw() {
+    
+    public void withdraw() { // 회원 탈퇴 처리 - CommonEntity.softDelete()
         softDelete();
+    }
+
+    public void restore() { // 계정 복구 - CommonEntity.restore()
+        super.restore();
     }
 }
