@@ -95,7 +95,7 @@ public class MemberController {
 
     @PatchMapping("/withdrawal")
     public APIResponse<Boolean> withdrawal (@AuthenticationPrincipal CustomUserDetails userDetails){
-        memberService.withdraw(userDetails.getMember().getEmail());
+        memberService.withdraw(userDetails.getMember().getId());
         return APIResponse.onSuccess(true, SuccessCode.WITHDRAWN_SUCCESS);
     }
 
