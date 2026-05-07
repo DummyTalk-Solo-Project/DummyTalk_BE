@@ -279,6 +279,19 @@ public class MemberService {
         if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
         }
+
+        // 탈퇴 회원 분기: 2주 이내 → 복구 유도 / 2주 초과 → 없는 계정으로 처리
+        if (member.isWithdrawn()) {
+            boolean restorable = member.getDeletedAt().isAfter(LocalDateTime.now().minusWeeks(2));
+            if (restorable) {
+                log.info("[MemberService - login()] - 탈퇴 후 2주 이내 로그인 시도 (복구 가능): {}", dto.getEmail());
+                throw new MemberHandler(ErrorCode.MEMBER_WITHDRAWN_RESTORABLE);
+            } else {
+                log.info("[MemberService - login()] - 탈퇴 후 2주 초과 로그인 시도: {}", dto.getEmail());
+                throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+            }
+        }
+
         member.setLastLogin(LocalDateTime.now());
 
         List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(member.getRole().toString()));
@@ -289,6 +302,35 @@ public class MemberService {
 
         log.info("[MemberService - login()] - Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
 
+        return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
+    }
+
+    @Transactional
+    public MemberRespDTO.MemberInfoDTO restoreAccount(MemberReqDTO.LoginRequestDTO dto) {
+
+        Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
+            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+        }
+        if (!member.isWithdrawn()) {
+            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        boolean restorable = member.getDeletedAt().isAfter(LocalDateTime.now().minusWeeks(2));
+        if (!restorable) {
+            throw new MemberHandler(ErrorCode.MEMBER_WITHDRAWN_EXPIRED);
+        }
+
+        member.restore();
+        member.setLastLogin(LocalDateTime.now());
+
+        List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(member.getRole().toString()));
+        Authentication authentication = new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword(), authorities);
+        JWT jwt = jwtProvider.generateToken(authentication);
+
+        redisTemplate.opsForValue().set("refresh:" + dto.getEmail(), jwt.getRefreshToken());
+
+        log.info("[MemberService - restoreAccount()] - 계정 복구 완료: {}", dto.getEmail());
 
         return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
     }
@@ -319,19 +361,16 @@ public class MemberService {
     }
 
     @Transactional
-    public void withdraw(Long memberId, String email) {
+    public void withdraw(Long memberId) {
 
         // SOFT DELETE
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        // member.softDelete();
+        member.withdraw(); // softDelete() — isDeleted=true, deletedAt=now()
 
-        // User와 관계된 엔티티 먼저 제거
-        memberQuizRepository.deleteByEmail(email);
-        infoRepository.deleteByEmail(email);
+        // RT 무효화
+        redisTemplate.delete("refresh:" + member.getEmail());
 
-        memberRepository.deleteByEmail(email); // HARD DELETE!
-
-        log.info("[MemberService - withdraw()] - email: {}", email);
+        log.info("[MemberService - withdraw()] - SoftDelete 처리: {}", member.getEmail());
     }
 
 
