@@ -27,6 +27,10 @@ public class MemberScheduler {
     private final RarityRepository rarityRepository;
     private final RedisTemplate redisTemplate;
 
+
+    /**
+     * 관리자용 사이트 정산
+     * */
     @Scheduled(cron = "0 30 0 * * *")
     public void calculateDummy (){
         log.info("Calculating Dummy Job");
@@ -69,5 +73,7 @@ public class MemberScheduler {
                     break;
             }
         });
+
+        // return WHAT!?
     }
 }
