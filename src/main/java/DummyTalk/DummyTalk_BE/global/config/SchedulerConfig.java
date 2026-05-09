@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.global.scheduler;
+package DummyTalk.DummyTalk_BE.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
