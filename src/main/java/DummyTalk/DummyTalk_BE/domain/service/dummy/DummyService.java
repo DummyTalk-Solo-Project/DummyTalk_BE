@@ -429,34 +429,4 @@ public class DummyService {
         return true;
     }
 
-    /**
-     * Synchronized를 통한 동시성 해결 메소드
-     *
-     */
-    @Timed("quiz.solve.requests")
-    public synchronized void solveQuizVer2(String email, Integer answer) {
-
-    }
-
-    /**
-     * Redisson 분산 락 적용
-     *
-     */
-    @Timed("quiz.solve.requests")
-    @DistributedLock(key = "'quiz_lock'")
-    public void solveQuizVer3(String email, Integer answer) {
-
-    }
-
-
-    /**
-     * MySQL 단 락 적용
-     * Quiz 엔티티의 ticket 에 대한 동시성 해결 메소드
-     * */
-    @Timed("quiz.solve.requests")
-    @Transactional
-    public void solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO dto) {
-
-    }
-
 }
