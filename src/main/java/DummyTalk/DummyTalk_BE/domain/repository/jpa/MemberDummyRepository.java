@@ -20,7 +20,8 @@ public interface MemberDummyRepository extends JpaRepository<MemberDummy, Long> 
 
     long countMemberDummyByCreatedAtBetween(LocalDateTime createdAtAfter, LocalDateTime createdAtBefore);
 
-
     @Query("select md.id from MemberDummy md where md.createdAt between :createdAtAfter and :createdAtBefore")
     List<Long> findAllByCreatedAtToday (@Param("createdAtAfter") LocalDateTime createdAtAfter, @Param("createdAtBefore") LocalDateTime createdAtBefore);
+    
+    long countByMember_Id(Long memberId); // 뱃지 조건 체크용 특정 사용자의 누적 더미 조회 횟수
 }

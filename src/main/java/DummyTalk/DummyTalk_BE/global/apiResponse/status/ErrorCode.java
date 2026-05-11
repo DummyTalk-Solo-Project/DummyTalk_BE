@@ -54,7 +54,12 @@ public enum ErrorCode implements BaseErrorCode {
     ALREADY_REGISTERED (HttpStatus.BAD_REQUEST, "MEMBER4004", "이미 가입한 계정이 있어요"),
     ALREADY_SEND(HttpStatus.BAD_REQUEST, "MEMBER4005", "이미 이메일을 보냈어요, 다시 한 번 확인해주시겠어요?."),
     EXIST_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER4006", "해당 이메일은 이미 누가 쓰고 있어요."),
-    MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4007", "누군 지 모르겠어요!");
+    MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER4007", "누군 지 모르겠어요!"),
+    MEMBER_WITHDRAWN(HttpStatus.UNAUTHORIZED, "MEMBER4008", "이미 탈퇴한 계정입니다."),
+    // 탈퇴 후 2주 이내 — 프론트에서 복구 다이얼로그 표시 트리거
+    MEMBER_WITHDRAWN_RESTORABLE(HttpStatus.FORBIDDEN, "MEMBER4009", "탈퇴한 계정이에요. 2주 이내라면 계정을 되살릴 수 있어요!"),
+    // 탈퇴 후 2주 초과 — 영구 탈퇴 상태
+    MEMBER_WITHDRAWN_EXPIRED(HttpStatus.GONE, "MEMBER4010", "탈퇴 후 2주가 지나 복구가 불가능해요.");
 
 
 

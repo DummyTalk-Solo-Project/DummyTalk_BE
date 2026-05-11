@@ -6,7 +6,7 @@ import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
-import io.swagger.v3.oas.annotations.tags.Tag;
+//import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
-@Tag(name = "사용자 API", description = "사용자 관련 API 입니다")
+//@Tag(name = "사용자 API", description = "사용자 관련 API 입니다")
 public class MemberController {
 
     private final MemberService memberService;
@@ -95,8 +95,33 @@ public class MemberController {
 
     @PatchMapping("/withdrawal")
     public APIResponse<Boolean> withdrawal (@AuthenticationPrincipal CustomUserDetails userDetails){
-        memberService.withdraw(userDetails.getMember().getEmail());
+        memberService.withdraw(userDetails.getMember().getId());
         return APIResponse.onSuccess(true, SuccessCode.WITHDRAWN_SUCCESS);
+    }
+
+    // 탈퇴 후 2주 이내 재로그인 시 복구 요청 — 프론트에서 MEMBER_WITHDRAWN_RESTORABLE 수신 후 호출
+    @PatchMapping("/restore")
+    public APIResponse<MemberRespDTO.LoginSuccessDTO> restore(@RequestBody MemberReqDTO.LoginRequestDTO dto, HttpServletResponse response) {
+
+        MemberRespDTO.MemberInfoDTO memberInfo = memberService.restoreAccount(dto);
+
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", memberInfo.getJwt().getRefreshToken())
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(7 * 24 * 60 * 60)
+                .sameSite("Strict")
+                .build();
+        response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        response.addHeader("Authorization", "Bearer: " + memberInfo.getJwt().getAccessToken());
+
+        MemberRespDTO.LoginSuccessDTO respDTO = MemberRespDTO.LoginSuccessDTO.builder()
+                .memberName(memberInfo.getUsername())
+                .isSuccess(true)
+                .accessToken(memberInfo.getJwt().getAccessToken())
+                .build();
+
+        return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
     }
 
     // mypage로 변경

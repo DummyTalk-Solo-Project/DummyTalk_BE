@@ -178,10 +178,13 @@ POST /api/members/login
 
 **Error Codes**
 
-| 코드 | 메시지 | 상황 |
-|------|--------|------|
-| `MEMBER4003` | 뭔가 정보가 안맞는데, 다시 한 번 요청해주시겠어요? | 이메일/비밀번호 불일치 |
-| `MEMBER4007` | 누군 지 모르겠어요! | 존재하지 않는 회원 |
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `MEMBER4007` | 400 | 누군 지 모르겠어요! | 이메일/비밀번호 불일치, 존재하지 않는 회원, 탈퇴 2주 초과 |
+| `MEMBER4009` | 403 | 탈퇴한 계정이에요. 2주 이내라면 계정을 되살릴 수 있어요! | **탈퇴 후 2주 이내 재로그인** → FE에서 복구 다이얼로그 표시 후 `/restore` 호출 |
+
+> **탈퇴 계정 복구 플로우:**  
+> `MEMBER4009` 수신 → "계정을 복구하시겠습니까?" 다이얼로그 표시 → 확인 클릭 시 `PATCH /api/members/restore` 호출 → 복구 + 자동 로그인
 
 ---
 
@@ -290,6 +293,9 @@ Authorization: Bearer: <accessToken>
 PATCH /api/members/withdrawal
 ```
 
+> **Soft Delete 방식.** DB에서 즉시 삭제되지 않으며, `is_deleted=true` + `deleted_at` 기록 후 **2주간 보관** → 이후 스케줄러가 영구 삭제.  
+> 탈퇴 즉시 Refresh Token 무효화 (기존 세션 종료).
+
 **Request Header** (필수)
 
 ```
@@ -309,9 +315,56 @@ Authorization: Bearer: <accessToken>
 
 ---
 
+### 9. 계정 복구
+
+탈퇴 후 2주 이내에 계정을 복구합니다. 성공 시 자동으로 로그인 상태가 됩니다.
+
+```
+PATCH /api/members/restore
+```
+
+> 로그인 시 `MEMBER4009` 에러를 받은 경우에만 호출합니다.  
+> 복구 성공 시 `/login`과 동일한 응답 구조로 JWT를 발급합니다.
+
+**Request Body**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "MEMBER2001",
+  "message": "로그인에 성공했습니다.",
+  "result": {
+    "isSuccess": true,
+    "memberName": "홍길동",
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9..."
+  }
+}
+```
+
+> 응답 Header `Set-Cookie`에 `refreshToken`(HttpOnly, Secure, 7일) 포함.  
+> 응답 Header `Authorization: Bearer: <accessToken>` 포함.
+
+**Error Codes**
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `MEMBER4007` | 400 | 누군 지 모르겠어요! | 이메일/비밀번호 불일치, 탈퇴 상태가 아닌 계정 |
+| `MEMBER4010` | 410 | 탈퇴 후 2주가 지나 복구가 불가능해요. | 탈퇴 2주 초과 — 영구 탈퇴 상태 |
+
+---
+
 ## Dummy API `/api/dummies`
 
-### 9. 더미(잡지식) 1건 조회
+### 10. 더미(잡지식) 1건 조회
 
 AI가 생성한 잡지식 1건을 가챠 방식으로 반환합니다.
 
@@ -362,7 +415,7 @@ Authorization: Bearer: <accessToken>
 
 ---
 
-### 10. 내 더미 목록 조회
+### 11. 내 더미 목록 조회
 
 ```
 GET /api/dummies/my-dummy?page=0
@@ -413,7 +466,7 @@ Authorization: Bearer: <accessToken>
 
 ---
 
-### 11. 내 더미 키워드 검색
+### 12. 내 더미 키워드 검색
 
 Elasticsearch 기반 한글 형태소 검색.
 
@@ -434,11 +487,11 @@ Authorization: Bearer: <accessToken>
 | `keyword` | `string` | - | 검색 키워드 |
 | `page` | `number` | `0` | 페이지 번호 |
 
-**Response** — `10번`과 동일한 구조
+**Response** — `11번`과 동일한 구조
 
 ---
 
-### 12. 퀴즈 조회
+### 13. 퀴즈 조회
 
 현재 OPEN 상태인 퀴즈 정보를 반환합니다.
 
@@ -485,7 +538,7 @@ Authorization: Bearer: <accessToken>
 
 ---
 
-### 13. 퀴즈 풀이
+### 14. 퀴즈 풀이
 
 ```
 POST /api/dummies/quiz?id=5&answer=1
@@ -528,7 +581,7 @@ Authorization: Bearer: <accessToken>
 
 ---
 
-### 14. 퀴즈 오픈 (Admin Only)
+### 15. 퀴즈 오픈 (Admin Only)
 
 퀴즈를 생성하고 오픈 스케줄을 등록합니다.
 
@@ -579,7 +632,7 @@ Authorization: Bearer: <adminAccessToken>
 
 ---
 
-### 15. 퀴즈 스케줄러 상태 확인 (Admin Only)
+### 16. 퀴즈 스케줄러 상태 확인 (Admin Only)
 
 ```
 GET /api/dummies/check-quiz
@@ -624,6 +677,14 @@ Authorization: Bearer: <adminAccessToken>
 | `SERVER_4103` | 401 | 블랙리스트에 있는 토큰입니다. | 로그아웃 처리된 토큰 |
 | `SERVER_4104` | 401 | 리프레쉬 토큰을 찾을 수 없습니다. | Refresh Token 없음 |
 | `SERVER_4300` | 403 | 접근 권한이 없습니다. | MEMBER 권한으로 Admin 전용 API 호출 |
+
+### 회원 탈퇴/복구
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `MEMBER4008` | 401 | 이미 탈퇴한 계정입니다. | 일반 탈퇴 에러 (미사용, 하위 호환용) |
+| `MEMBER4009` | 403 | 탈퇴한 계정이에요. 2주 이내라면 계정을 되살릴 수 있어요! | 탈퇴 후 2주 이내 로그인 → 복구 다이얼로그 트리거 |
+| `MEMBER4010` | 410 | 탈퇴 후 2주가 지나 복구가 불가능해요. | 탈퇴 후 2주 초과 복구 시도 |
 
 ### 서버
 

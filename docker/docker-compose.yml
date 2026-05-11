@@ -18,6 +18,10 @@ services:
       - MAIL_SENDER_PASSWORD=${MAIL_SENDER_PASSWORD}
       - ES_URL=http://elasticsearch:9200
       - DISCORD_WEBHOOK=${DISCORD_WEBHOOK}
+    volumes:
+      # 뱃지 이미지: EC2 /home/ubuntu/data/badges/
+      # 컨테이너 /app/uploads/badges/ (read only)
+      - /home/ubuntu/data/badges:/app/uploads/badges:ro
     depends_on:
       - postgresql
       - redis
@@ -108,7 +112,8 @@ services:
       - cluster.name=dummy-cluster
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      # 단일 노드 기준 256MB로 돌리기 ( 512MB는 1GB RAM EC2에서 GC 폭주 )
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -119,6 +124,8 @@ services:
 
   kibana:
     # Elasticsearch 와 버전을 반드시 맞춰야 함 (8.x 마이너 불일치 시 연결 실패)
+    # profiles: monitoring -> 기본 docker compose up -d 에서 제외, 수동으로만 = 메모리 및 스토리지 부족...
+    profiles: ["monitoring"]
     image: docker.elastic.co/kibana/kibana:8.11.1
     container_name: DummyTalk_Kibana
     environment:

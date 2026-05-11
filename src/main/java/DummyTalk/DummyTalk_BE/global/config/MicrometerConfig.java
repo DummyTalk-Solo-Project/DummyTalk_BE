@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.global.aop;
+package DummyTalk.DummyTalk_BE.global.config;
 
 import io.micrometer.core.aop.TimedAspect;
 import io.micrometer.core.instrument.MeterRegistry;

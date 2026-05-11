@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.global.redis;
+package DummyTalk.DummyTalk_BE.global.config;
 
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;

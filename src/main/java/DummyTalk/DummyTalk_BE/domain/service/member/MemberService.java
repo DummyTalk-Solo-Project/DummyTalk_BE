@@ -5,7 +5,9 @@ import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberBadge;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberBadgeRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
@@ -45,6 +47,7 @@ public class MemberService {
     private static final int CODE_LENGTH = 4;
     private final InfoRepository infoRepository;
     private final MemberQuizRepository memberQuizRepository;
+    private final MemberBadgeRepository memberBadgeRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public static String generateVerificationCode() {
@@ -64,10 +67,10 @@ public class MemberService {
     public Boolean checkEmailDuplicate(String email) {
         Optional<Member> byEmail = memberRepository.findByEmail(email);
         if (byEmail.isPresent()) {
-            log.info("[MemberService - checkEmailDuplicate] duplicate email {}", email);
+            log.info("[MemberService - checkEmailDuplicate()] - duplicate email {}", email);
             throw new MemberHandler(ErrorCode.EXIST_MEMBER);
         } else {
-            log.info("[MemberService - checkEmailDuplicate] Success to check duplicate {}", email);
+            log.info("[MemberService - checkEmailDuplicate()] - Success to check duplicate {}", email);
             return true;
         }
     }
@@ -77,11 +80,11 @@ public class MemberService {
         Boolean ifAbsent = redisTemplate.opsForValue().setIfAbsent(email, code, Duration.ofMinutes(3));
 
         if (Boolean.FALSE.equals(ifAbsent)) {
-            log.info("[MemberService - requestVerificationCode] already send to {} with {}", email, redisTemplate.opsForValue().get(email));
+            log.info("[MemberService - requestVerificationCode()] - already send to {} with {}", email, redisTemplate.opsForValue().get(email));
             throw new MemberHandler(ErrorCode.ALREADY_SEND); // 따닥 방지
         } else {
             redisTemplate.opsForList().leftPush("email_queue", email + ":" + code);
-            log.info("[MemberService - requestVerificationCode] call EmailService with {} - {}", email, code);
+            log.info("[MemberService - requestVerificationCode()] - call EmailService with {} - {}", email, code);
 //            emailService.startWork();
         }
     }
@@ -216,7 +219,7 @@ public class MemberService {
         try {
             mailSender.send(msg);
             redisTemplate.opsForValue().set("email:" + email, code, 3, TimeUnit.MINUTES); // 3분으로 설정.
-            log.info("[EMAIL SENT] code {} -> {}", code, email);
+            log.info("[MemberService - sendVerificationEmail()] - code {} -> {}", code, email);
         } catch (RuntimeException e) {
             throw new MemberHandler(ErrorCode.CANT_SEND_EMAIL);
         }
@@ -228,11 +231,11 @@ public class MemberService {
         if (code == null) {
             throw new MemberHandler(ErrorCode.EMAIL_EXPIRED);
         }
-        log.info("code: {}", code);
+        log.info("[MemberService - verifyEmail()] - code: {}", code);
         if (!code.equals(requestDTO.getCode())) {
             throw new MemberHandler(ErrorCode.WRONG_EMAIL_CODE);
         }
-        log.info("[MemberService - EMAIL VERIFIED] email: {},  code: {}", requestDTO.getEmail(), code);
+        log.info("[MemberService - verifyEmail()] - email: {}, code: {}", requestDTO.getEmail(), code);
     }
 
     @Transactional
@@ -266,7 +269,7 @@ public class MemberService {
 
         savedMember.setInfo(savedInfo);
 
-        log.info("[MemberService - SIGNIN] email: {}, password: {}, username: {}", request.getEmail(), request.getPassword(), savedMember.getMemberName());
+        log.info("[MemberService - signIn()] - email: {}, username: {}", request.getEmail(), savedMember.getMemberName());
     }
 
     @Transactional
@@ -276,6 +279,19 @@ public class MemberService {
         if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
         }
+
+        // 탈퇴 회원 분기: 2주 이내 → 복구 유도 / 2주 초과 → 없는 계정으로 처리
+        if (member.isWithdrawn()) {
+            boolean restorable = member.getDeletedAt().isAfter(LocalDateTime.now().minusWeeks(2));
+            if (restorable) {
+                log.info("[MemberService - login()] - 탈퇴 후 2주 이내 로그인 시도 (복구 가능): {}", dto.getEmail());
+                throw new MemberHandler(ErrorCode.MEMBER_WITHDRAWN_RESTORABLE);
+            } else {
+                log.info("[MemberService - login()] - 탈퇴 후 2주 초과 로그인 시도: {}", dto.getEmail());
+                throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+            }
+        }
+
         member.setLastLogin(LocalDateTime.now());
 
         List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(member.getRole().toString()));
@@ -284,8 +300,37 @@ public class MemberService {
 
         redisTemplate.opsForValue().set("refresh:"+dto.getEmail(), jwt.getRefreshToken());
 
-        log.info("[MemberService - login] Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
+        log.info("[MemberService - login()] - Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
 
+        return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
+    }
+
+    @Transactional
+    public MemberRespDTO.MemberInfoDTO restoreAccount(MemberReqDTO.LoginRequestDTO dto) {
+
+        Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
+            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+        }
+        if (!member.isWithdrawn()) {
+            throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        boolean restorable = member.getDeletedAt().isAfter(LocalDateTime.now().minusWeeks(2));
+        if (!restorable) {
+            throw new MemberHandler(ErrorCode.MEMBER_WITHDRAWN_EXPIRED);
+        }
+
+        member.restore();
+        member.setLastLogin(LocalDateTime.now());
+
+        List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(member.getRole().toString()));
+        Authentication authentication = new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword(), authorities);
+        JWT jwt = jwtProvider.generateToken(authentication);
+
+        redisTemplate.opsForValue().set("refresh:" + dto.getEmail(), jwt.getRefreshToken());
+
+        log.info("[MemberService - restoreAccount()] - 계정 복구 완료: {}", dto.getEmail());
 
         return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
     }
@@ -299,10 +344,10 @@ public class MemberService {
         if (remainingTime > 0) {
             String key = "blacklist:" + accessToken;
             redisTemplate.opsForValue().set(key, "logout", remainingTime, TimeUnit.MILLISECONDS);
-            log.info("[MemberService] - add AccessToken in BlackList! remainingTime: {}ms", remainingTime);
+            log.info("[MemberService - logout()] - add AccessToken in BlackList! remainingTime: {}ms", remainingTime);
         }
 
-        log.info("[MemberService - logout] Success to logout -> {}", member.getEmail());
+        log.info("[MemberService - logout()] - Success to logout -> {}", member.getEmail());
     }
 
     public MemberRespDTO.FindEmailRespDTO findEmail(String email) {
@@ -316,15 +361,16 @@ public class MemberService {
     }
 
     @Transactional
-    public void withdraw(String email) {
+    public void withdraw(Long memberId) {
 
-        // User와 관계된 엔티티 먼저 제거
-        memberQuizRepository.deleteByEmail(email);
-        infoRepository.deleteByEmail(email);
+        // SOFT DELETE
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        member.withdraw(); // softDelete() — isDeleted=true, deletedAt=now()
 
-        memberRepository.deleteByEmail(email); // HARD DELETE!
+        // RT 무효화
+        redisTemplate.delete("refresh:" + member.getEmail());
 
-        log.info("[MemberService - WITHDRAW] email: {}", email);
+        log.info("[MemberService - withdraw()] - SoftDelete 처리: {}", member.getEmail());
     }
 
 
@@ -338,6 +384,16 @@ public class MemberService {
         int commonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
         int rareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
         int epicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
+        
+        List<MemberBadge> memberBadges = memberBadgeRepository.findByMember(member);
+        List<MemberRespDTO.BadgeDTO> badgeDTOList = memberBadges.stream()
+                .map(mb -> MemberRespDTO.BadgeDTO.builder()
+                        .name(mb.getBadge().getName())
+                        .content(mb.getBadge().getContent())
+                        .imageUrl(mb.getBadge().getImageUrl())
+                        .acquiredAt(mb.getCreatedAt())
+                        .build())
+                .toList();
 
         MemberRespDTO.GetMemberResponseDTO dto = MemberRespDTO.GetMemberResponseDTO.builder()
                 .email(member.getEmail())
@@ -348,10 +404,10 @@ public class MemberService {
                 .commonStack(commonStack)
                 .rareStack(rareStack)
                 .epicStack(epicStack)
+                .badgeList(badgeDTOList)
                 .build();
 
-
-        log.info("MemberService - [GETMYDATA]  : {}", dto.toString());
+        log.info("[MemberService - getMyData()] - dto: {}", dto);
         return dto;
     }
 }

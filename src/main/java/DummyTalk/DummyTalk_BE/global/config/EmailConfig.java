@@ -1,4 +1,4 @@
-package DummyTalk.DummyTalk_BE.global.email;
+package DummyTalk.DummyTalk_BE.global.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
