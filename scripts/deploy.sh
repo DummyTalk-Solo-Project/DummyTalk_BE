@@ -17,6 +17,9 @@ COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-fil
 # 뱃지 이미지 저장 디렉토리 사전 생성 (컨테이너 bind mount )
 mkdir -p /home/ubuntu/data/badges
 
+# 컨테이너명 변경 (기존 언더하이픈 충돌 대비 제거)
+sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
+
 echo "===== [1/4] 최신 이미지 pull ====="
 $COMPOSE pull
 
