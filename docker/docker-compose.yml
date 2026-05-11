@@ -1,7 +1,7 @@
 services:
   spring:
     image: ${DOCKER_USERNAME}/dummytalk:latest
-    container_name: DummyTalk_Spring
+    container_name: DummyTalk-Spring
     ports:
       - "8080:8080"
     environment:
