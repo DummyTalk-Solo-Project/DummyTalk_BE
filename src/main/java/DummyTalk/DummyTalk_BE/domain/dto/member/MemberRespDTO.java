@@ -35,6 +35,7 @@ public class MemberRespDTO {
     public static class BadgeDTO {
         private String name;
         private String content;
+        private String imageUrl;        // 뱃지 이미지 URL. /uploads/badges/{filename}
         private LocalDateTime acquiredAt; // MemberBadge.createdAt
     }
 

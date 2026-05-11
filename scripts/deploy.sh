@@ -14,6 +14,9 @@ fi
 
 COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env"
 
+# 뱃지 이미지 저장 디렉토리 사전 생성 (컨테이너 bind mount )
+mkdir -p /home/ubuntu/data/badges
+
 echo "===== [1/4] 최신 이미지 pull ====="
 $COMPOSE pull
 

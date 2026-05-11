@@ -18,6 +18,10 @@ services:
       - MAIL_SENDER_PASSWORD=${MAIL_SENDER_PASSWORD}
       - ES_URL=http://elasticsearch:9200
       - DISCORD_WEBHOOK=${DISCORD_WEBHOOK}
+    volumes:
+      # 뱃지 이미지: EC2 /home/ubuntu/data/badges/
+      # 컨테이너 /app/uploads/badges/ (read only)
+      - /home/ubuntu/data/badges:/app/uploads/badges:ro
     depends_on:
       - postgresql
       - redis

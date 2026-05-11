@@ -390,6 +390,7 @@ public class MemberService {
                 .map(mb -> MemberRespDTO.BadgeDTO.builder()
                         .name(mb.getBadge().getName())
                         .content(mb.getBadge().getContent())
+                        .imageUrl(mb.getBadge().getImageUrl())
                         .acquiredAt(mb.getCreatedAt())
                         .build())
                 .toList();
