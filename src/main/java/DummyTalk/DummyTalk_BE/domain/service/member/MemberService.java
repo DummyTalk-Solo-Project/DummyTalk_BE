@@ -276,7 +276,6 @@ public class MemberService {
 
     @Transactional
     public MemberRespDTO.MemberInfoDTO login(MemberReqDTO.LoginRequestDTO dto) {
-
         Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
@@ -302,9 +301,15 @@ public class MemberService {
 
         redisTemplate.opsForValue().set("refresh:"+dto.getEmail(), jwt.getRefreshToken());
 
+        boolean needPasswordChange = "1".equals(redisTemplate.opsForValue().get("reset:" + member.getId()));
+
         log.info("[MemberService - login()] - Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
 
-        return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
+        return MemberRespDTO.MemberInfoDTO.builder()
+                .jwt(jwt)
+                .username(member.getMemberName())
+                .needPasswordChange(needPasswordChange)
+                .build();
     }
 
     @Transactional
