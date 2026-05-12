@@ -62,12 +62,12 @@ public class MemberController {
                 .memberName(memberInfo.getUsername())
                 .isSuccess(true)
                 .accessToken(memberInfo.getJwt().getAccessToken())
+                .needPasswordChange(memberInfo.getNeedPasswordChange())
                 .build();
 
         response.addHeader("Authorization", "Bearer: " + respDTO.getAccessToken());
 
-        // JWT 발급 메소드 호출은 어떻게?
-        return APIResponse.onSuccess(MemberRespDTO.LoginSuccessDTO.builder().isSuccess(true).memberName(memberInfo.getUsername()).accessToken(memberInfo.getJwt().getAccessToken()).build(), SuccessCode.LOGIN_SUCCESS);
+        return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
     }
 
     @PostMapping("/logout")
@@ -125,7 +125,7 @@ public class MemberController {
     }
 
     @GetMapping("/find-email")
-    public APIResponse<MemberRespDTO.FindEmailRespDTO> findEmail(@RequestParam String email) {
+    public APIResponse<String> findEmail(@RequestParam String email) {
         return APIResponse.onSuccess(memberService.findEmail(email), SuccessCode.FIND_EMAIL_SUCCESS);
     }
 

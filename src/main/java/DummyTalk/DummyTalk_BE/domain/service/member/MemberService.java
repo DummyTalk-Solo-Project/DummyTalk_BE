@@ -386,6 +386,9 @@ public class MemberService {
         String tempPassword = generateVerificationCode();
         member.changePassword(bCryptPasswordEncoder.encode(tempPassword));
 
+        // 비밀번호 변경 후 삭제
+        redisTemplate.opsForValue().set("reset:" + member.getId(), "1");
+
         emailService.sendPasswordResetEmailAsync(email, tempPassword); // @Async - 비동기 처리
 
         log.info("[MemberService - resetPassword()] - 임시 비밀번호 발급: {}", email);
