@@ -61,11 +61,4 @@ public class MemberRespDTO {
         private List<BadgeDTO> badgeList; // 보유 뱃지
     }
 
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FindEmailRespDTO{
-        private String email;
-    }
 }

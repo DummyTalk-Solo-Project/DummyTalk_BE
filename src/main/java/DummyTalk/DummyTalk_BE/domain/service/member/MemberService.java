@@ -2,6 +2,7 @@ package DummyTalk.DummyTalk_BE.domain.service.member;
 
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
+import DummyTalk.DummyTalk_BE.domain.service.email.EMailService;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
@@ -42,6 +43,7 @@ public class MemberService {
     private final JavaMailSender mailSender;
     private final JWTProvider jwtProvider;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final EMailService emailService;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
@@ -373,6 +375,21 @@ public class MemberService {
         log.info("[MemberService - withdraw()] - SoftDelete 처리: {}", member.getEmail());
     }
 
+
+    @Transactional
+    public void resetPassword(String email) {
+        findEmail(email);
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        String tempPassword = generateVerificationCode();
+        member.changePassword(bCryptPasswordEncoder.encode(tempPassword));
+
+        emailService.sendPasswordResetEmailAsync(email, tempPassword); // @Async - 비동기 처리
+
+        log.info("[MemberService - resetPassword()] - 임시 비밀번호 발급: {}", email);
+    }
 
     @Transactional(readOnly = true)
     public MemberRespDTO.GetMemberResponseDTO getMyData(Long memberId) {

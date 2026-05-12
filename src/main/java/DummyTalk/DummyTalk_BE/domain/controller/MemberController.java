@@ -124,6 +124,17 @@ public class MemberController {
         return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
     }
 
+    @GetMapping("/find-email")
+    public APIResponse<MemberRespDTO.FindEmailRespDTO> findEmail(@RequestParam String email) {
+        return APIResponse.onSuccess(memberService.findEmail(email), SuccessCode.FIND_EMAIL_SUCCESS);
+    }
+
+    @PostMapping("/reset-password")
+    public APIResponse<Boolean> resetPassword(@RequestParam String email) {
+        memberService.resetPassword(email);
+        return APIResponse.onSuccess(true, SuccessCode.PASSWORD_RESET_SUCCESS);
+    }
+
     @GetMapping("/check-email")
     public APIResponse<Boolean> checkEmailDuplicate(@RequestParam String email) {
         return APIResponse.onSuccess(memberService.checkEmailDuplicate(email), SuccessCode.CHECK_EMAIL_SUCCESS);

@@ -73,4 +73,8 @@ public class Member extends CommonEntity {
     public void restore() { // 계정 복구 - CommonEntity.restore()
         super.restore();
     }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }
