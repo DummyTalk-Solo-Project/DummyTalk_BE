@@ -352,11 +352,11 @@ public class MemberService {
         log.info("[MemberService - logout()] - Success to logout -> {}", member.getEmail());
     }
 
-    public MemberRespDTO.FindEmailRespDTO findEmail(String email) {
+    public String findEmail(String email) {
         boolean existsByEmail = memberRepository.existsByEmail(email);
 
         if (existsByEmail) {
-            return MemberRespDTO.FindEmailRespDTO.builder().email(email).build();
+            return email;
         } else {
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
         }
