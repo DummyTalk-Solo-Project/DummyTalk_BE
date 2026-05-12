@@ -124,6 +124,17 @@ public class MemberController {
         return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
     }
 
+    @GetMapping("/check-email")
+    public APIResponse<Boolean> checkEmailDuplicate(@RequestParam String email) {
+        return APIResponse.onSuccess(memberService.checkEmailDuplicate(email), SuccessCode.CHECK_EMAIL_SUCCESS);
+    }
+
+    @GetMapping("/request-code")
+    public APIResponse<Boolean> requestVerificationCode(@RequestParam String email) {
+        memberService.requestVerificationCode(email);
+        return APIResponse.onSuccess(true, SuccessCode.EMAIL_SEND_SUCCESS);
+    }
+
     // mypage로 변경
     /*@GetMapping("/get-all-data")
     public List<UserResponseDTO.GetUserResponseDTO> getAllData () {
