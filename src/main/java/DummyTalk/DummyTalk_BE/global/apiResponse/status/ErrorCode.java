@@ -59,7 +59,8 @@ public enum ErrorCode implements BaseErrorCode {
     // 탈퇴 후 2주 이내 — 프론트에서 복구 다이얼로그 표시 트리거
     MEMBER_WITHDRAWN_RESTORABLE(HttpStatus.FORBIDDEN, "MEMBER4009", "탈퇴한 계정이에요. 2주 이내라면 계정을 되살릴 수 있어요!"),
     // 탈퇴 후 2주 초과 — 영구 탈퇴 상태
-    MEMBER_WITHDRAWN_EXPIRED(HttpStatus.GONE, "MEMBER4010", "탈퇴 후 2주가 지나 복구가 불가능해요.");
+    MEMBER_WITHDRAWN_EXPIRED(HttpStatus.GONE, "MEMBER4010", "탈퇴 후 2주가 지나 복구가 불가능해요."),
+    WRONG_PASSWORD(HttpStatus.BAD_REQUEST, "MEMBER4011", "현재 비밀번호가 일치하지 않아요.");
 
 
 
