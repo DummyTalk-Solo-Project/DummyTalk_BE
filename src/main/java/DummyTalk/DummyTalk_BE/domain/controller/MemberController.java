@@ -129,6 +129,14 @@ public class MemberController {
         return APIResponse.onSuccess(memberService.findEmail(email), SuccessCode.FIND_EMAIL_SUCCESS);
     }
 
+    @PatchMapping("/change-password")
+    public APIResponse<Boolean> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody MemberReqDTO.ChangePasswordRequestDTO dto) {
+        memberService.changePassword(userDetails.getMember().getId(), dto);
+        return APIResponse.onSuccess(true, SuccessCode.PASSWORD_CHANGE_SUCCESS);
+    }
+
     @PostMapping("/reset-password")
     public APIResponse<Boolean> resetPassword(@RequestParam String email) {
         memberService.resetPassword(email);

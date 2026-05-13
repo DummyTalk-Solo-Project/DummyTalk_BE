@@ -399,6 +399,24 @@ public class MemberService {
         log.info("[MemberService - resetPassword()] - 임시 비밀번호 발급: {}", email);
     }
 
+    @Transactional
+    public void changePassword(Long memberId, MemberReqDTO.ChangePasswordRequestDTO dto) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        // 불일치
+        if (!bCryptPasswordEncoder.matches(dto.getCurrentPassword(), member.getPassword())) {
+            throw new MemberHandler(ErrorCode.WRONG_PASSWORD);
+        }
+
+        member.changePassword(bCryptPasswordEncoder.encode(dto.getNewPassword()));
+
+        // 변경 완료 시 플래그 제거
+        redisTemplate.delete("reset:" + memberId);
+
+        log.info("[MemberService - changePassword()] - 비밀번호 변경 완료: memberId={}", memberId);
+    }
+
     @Transactional(readOnly = true)
     public MemberRespDTO.GetMemberResponseDTO getMyData(Long memberId) {
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
