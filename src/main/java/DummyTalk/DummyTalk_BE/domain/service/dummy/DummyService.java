@@ -76,8 +76,7 @@ public class DummyService {
 
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
-        ///TODO RuntimeException → MemberHandler(ErrorCode.MEMBER_NOT_FOUND)!
-        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         Info info = member.getInfo();
 
         if (info.getReqCount() >= 20){ // 일단 하루 20번으로 설정.
@@ -98,17 +97,17 @@ public class DummyService {
         Rarity selectedRarity = Rarity.defaultRarity();
 
         if (currentCommonStack >= 10) { // COMMON -> RARE
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             log.info("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
             isPityTriggered=true;
         }
         else if (currentRareStack >= 10) { // RARE -> EPIC
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             log.info("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
             isPityTriggered=true;
         }
         else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             log.info("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
             isPityTriggered=true;
         }
@@ -124,12 +123,12 @@ public class DummyService {
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
         if (result == null) {
-            throw new RuntimeException("No dummy found in Redis for rarity: " + selectedRarity.getName());
+            throw new DummyHandler(ErrorCode.WRONG_RARITY);
         }
         Long randomDummyId = Long.valueOf(result.toString());
 
         // 한 번에 찾기
-        Dummy dummy = dummyRepository.findByIdWithRarity(randomDummyId).orElseThrow(() -> new RuntimeException("Dummy not found"));
+        Dummy dummy = dummyRepository.findByIdWithRarity(randomDummyId).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_DUMMY));
 
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
@@ -214,9 +213,8 @@ public class DummyService {
 
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
 
-        ///TODO RuntimeException → DummyHandler(ErrorCode.MEMBER_NOT_FOUND) 또는 전용 ErrorCode 추가 후 교체 필요
         if (members.isEmpty()){
-            throw new RuntimeException("No dummy found in Redis for member id: " + memberId);
+            throw new DummyHandler(ErrorCode.DUMMY_NOT_FOUND);
         }
 
         List<FieldValue> dummyIdList = members.stream()
@@ -291,10 +289,10 @@ public class DummyService {
 
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
         if (result == null) {
-            throw new RuntimeException("No dummy found in Redis for rarity: " + selectedRarity.getName());
+            throw new DummyHandler(ErrorCode.DUMMY_WITH_RARITY_NOT_FOUND);
         }
 
-        Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new RuntimeException("No dummy found in Redis for rarity: " + result));
+        Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new DummyHandler(ErrorCode.DUMMY_WITH_ID_NOT_FOUND));
         log.info("[DummyService - openQuiz()] - randomDummy.id: {}", randomDummy.getId());
 
         // 2. 해당 문제를 통해 OpenAiAPI -> 문제를 만들어줘

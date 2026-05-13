@@ -165,8 +165,9 @@ public class EMailService {
         } catch (MessagingException e) {
             e.printStackTrace();
             throw new GeneralException(ErrorCode.CANT_SEND_EMAIL);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+        } catch (UnsupportedEncodingException e) { // 자바 미지원의 문자 인코딩 사용으로 문자열 변환 or 인코딩/디코딩할 때
+            e.printStackTrace();
+            throw new GeneralException(ErrorCode.CANT_ENCODE_STRING);
         }
 
         log.info("[EMailService - sendEmail()] - saved code {} to {}", redisTemplate.opsForValue().get(email), email);
@@ -210,7 +211,7 @@ public class EMailService {
             log.info("[EMailService - sendPasswordResetEmailAsync()] - 임시 비밀번호 발송 완료: {}", email);
         } catch (MessagingException | UnsupportedEncodingException e) {
             log.error("[EMailService - sendPasswordResetEmailAsync()] - 발송 실패: {}", email, e);
-            throw new GeneralException(ErrorCode.CANT_SEND_EMAIL);
+            throw new GeneralException(ErrorCode.CANT_ENCODE_STRING);
         }
     }
 

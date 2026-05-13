@@ -11,6 +11,8 @@ import DummyTalk.DummyTalk_BE.domain.repository.jpa.BadgeRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.RarityRepository;
 import DummyTalk.DummyTalk_BE.domain.service.badge.BadgeService;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +80,7 @@ public class DummyDataLoader implements ApplicationRunner {
                         return Dummy.createDummy(dto, special);
                     }
                     else{
-                        throw new RuntimeException("Unknown rarity");
+                        throw new GeneralException(ErrorCode.WRONG_RARITY);
                     }
                 })
                 .toList();

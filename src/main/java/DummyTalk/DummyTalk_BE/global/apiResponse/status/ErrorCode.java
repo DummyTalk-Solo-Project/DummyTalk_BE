@@ -21,6 +21,7 @@ public enum ErrorCode implements BaseErrorCode {
     CANT_SEND_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5004", "서버 에러 입니다. 에러 코드: SERVER5004, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
+    CANT_ENCODE_STRING (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5007", "서버 에러 입니다. 에러 코드: SERVER5007, 관리자에게 문의해주세요."),
 
     // SECURITY
     AUTH_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "SERVER_4100", "인증 정보가 없습니다."),
@@ -30,10 +31,19 @@ public enum ErrorCode implements BaseErrorCode {
     CANNOT_FOUND_RT(HttpStatus.UNAUTHORIZED, "SERVER_4104", "리프레쉬 토큰을 찾을 수 없습니다."),
     RT_NOT_FOUND(HttpStatus.UNAUTHORIZED, "G008", "리프레쉬 토큰을 찾을 수 없습니다."),
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "SERVER_4300", "접근 권한이 없습니다."),
+    CANT_FIND_AUTHORITIES(HttpStatus.FORBIDDEN, "SERVER_4300", "권한 정보가 존재하지 않습니다."),
 
 
     // Dummy
+    WRONG_DUMMY(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5001", "알 수 없는 더미 입니다."),
+    DUMMY_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5002", "더미를 찾을 수 없습니다."),
+    DUMMY_WITH_RARITY_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5003", "해당 등급의 더미를 찾을 수 없습니다."),
+    DUMMY_WITH_ID_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5003", "해당 아이디의 더미를 찾을 수 없습니다."),
+
     USED_ALL_CHANCES(HttpStatus.BAD_REQUEST, "DUMMY4001", "모든 무료 요청 횟수를 소모하셨네요, 다음을 기약해주세요 :)"),
+
+    // Rarity
+    WRONG_RARITY(HttpStatus.INTERNAL_SERVER_ERROR, "RARITY5001", "등급을 찾을 수 없습니다"),
 
 
     // QUIZ
