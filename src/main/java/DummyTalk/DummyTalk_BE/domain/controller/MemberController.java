@@ -82,6 +82,7 @@ public class MemberController {
         return APIResponse.onSuccess(true,  SuccessCode.LOGOUT_SUCCESS);
     }
 
+    ///TODO 구독 신청 비즈니스 로직 미구현 — 구독 기간 설정, 결제 연동, Info.isSubscribe / subsExprDate 갱신 필요!
     @PostMapping("/subscribe")
     public APIResponse<Boolean> subscribe (){
         // 구독 신청

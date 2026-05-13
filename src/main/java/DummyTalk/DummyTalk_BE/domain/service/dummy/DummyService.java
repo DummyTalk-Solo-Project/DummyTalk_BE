@@ -76,6 +76,7 @@ public class DummyService {
 
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
+        ///TODO RuntimeException → MemberHandler(ErrorCode.MEMBER_NOT_FOUND)!
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
         Info info = member.getInfo();
 
@@ -213,6 +214,7 @@ public class DummyService {
 
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
 
+        ///TODO RuntimeException → DummyHandler(ErrorCode.MEMBER_NOT_FOUND) 또는 전용 ErrorCode 추가 후 교체 필요
         if (members.isEmpty()){
             throw new RuntimeException("No dummy found in Redis for member id: " + memberId);
         }
@@ -248,10 +250,7 @@ public class DummyService {
         return DummyConverter.toGetMyDummyDListTO(dummyDocumentList);
     }
 
-    @Transactional
-    public String GetDummyDateForNormal(String email, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-        return null;
-    }
+
 
 
     @Transactional(readOnly = true)
@@ -336,6 +335,7 @@ public class DummyService {
 
 
         // 4. openQuiz scheduling
+        ///TODO 시간 계산 버그 — getMinute() 차이만 계산하므로 날짜/시간 차이를 무시. Duration.between(now, openQuizDate).toMinutes() 또는 Instant 직접 사용 필요
         int startTime = openQuizDate.getMinute() - LocalDateTime.now().getMinute() ;
         Instant later = Instant.now().plus(startTime, ChronoUnit.MINUTES);
         taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.OPEN), later);
@@ -423,7 +423,7 @@ public class DummyService {
         memberQuizRepository.save(MemberQuiz.generateMemberQuiz(member, quiz, 1, answer));
 
         // 인덱스 == (등수 - 1)
-        // 퀴즈 종료 후 순위 정산(등수 계산, 보상 차등 지급 등)에 활용 예정
+        ///TODO 퀴즈 종료 후 순위 정산 및 보상 지급 미구현 — quiz:<quizId> list 집계 후 상위 N명 티켓/보상 지급 API 필요
         redisTemplate.opsForList().rightPush("quiz:" + quizId, memberId + ":" + answer);
 
         return true;
