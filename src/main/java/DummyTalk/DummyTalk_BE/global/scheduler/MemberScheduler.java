@@ -33,7 +33,7 @@ public class MemberScheduler {
     /**
      * 관리자용 사이트 정산
      * */
-    @Scheduled(cron = "0 30 0 * * *")
+    @Scheduled(cron = "0 30 0 * * *", zone = "Asia/Seoul")
     public void calculateDummy (){
         log.info("Calculating Dummy Job");
 
@@ -81,20 +81,20 @@ public class MemberScheduler {
     }
 
     // reqCount 초기화: 구독/미구독 모든 회원 매일 자정 0으로 리셋
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public void resetReqCounts() {
         log.info("[MemberScheduler - resetReqCounts()] - reqCount 초기화 시작");
         memberTask.resetAllReqCounts();
     }
 
     // 구독 만료 처리: subsExprDate < now 인 회원 isSubscribe → false (reqCount 초기화 직후 실행)
-    @Scheduled(cron = "0 1 0 * * *")
+    @Scheduled(cron = "0 1 0 * * *", zone = "Asia/Seoul")
     public void expireSubscriptions() {
         log.info("[MemberScheduler - expireSubscriptions()] - 구독 만료 처리 시작");
         memberTask.expireSubscriptions();
     }
 
-    @Scheduled(cron = "0 0 2 * * *")
+    @Scheduled(cron = "0 3 0 * * *", zone = "Asia/Seoul")
     public void terminateMember() {
         log.info("[MemberScheduler - terminateMember()] - 탈퇴 2주 초과 회원 영구 삭제 시작");
         memberTask.terminateExpiredMembers(); // Spring Proxy AOP로 인한 트랜잭션 문제로 Task 분리.
