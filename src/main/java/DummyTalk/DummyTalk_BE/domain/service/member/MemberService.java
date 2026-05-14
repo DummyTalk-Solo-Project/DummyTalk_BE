@@ -19,6 +19,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -51,7 +52,9 @@ public class MemberService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
-    private static final String DISCORD_WEBHOOK_URL = "asdf";
+
+    @Value("${discord.webhook.url}")
+    private static String DISCORD_WEBHOOK_URL;
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private final InfoRepository infoRepository;
     private final MemberQuizRepository memberQuizRepository;
