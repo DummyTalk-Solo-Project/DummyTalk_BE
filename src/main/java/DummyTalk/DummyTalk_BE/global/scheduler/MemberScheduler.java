@@ -1,6 +1,5 @@
 package DummyTalk.DummyTalk_BE.global.scheduler;
 
-import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberDummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.RarityRepository;
