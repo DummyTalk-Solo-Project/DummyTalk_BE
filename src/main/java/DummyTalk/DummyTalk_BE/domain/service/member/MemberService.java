@@ -51,8 +51,7 @@ public class MemberService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
-    private static final String DISCORD_WEBHOOK_URL =
-            "https://discord.com/api/webhooks/1504373405338697739/OUpQoDJbotxczbWdgQ9Mu6ysi7aRSX_3R0U4ot7jfP2NokOWcZV9qRgrxtXrFXhd8fci";
+    private static final String DISCORD_WEBHOOK_URL = "asdf";
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private final InfoRepository infoRepository;
     private final MemberQuizRepository memberQuizRepository;
