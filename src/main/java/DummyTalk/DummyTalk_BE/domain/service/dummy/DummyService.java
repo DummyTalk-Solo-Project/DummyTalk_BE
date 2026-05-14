@@ -79,8 +79,8 @@ public class DummyService {
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         Info info = member.getInfo();
 
-        if (info.getReqCount() >= 20){ // 일단 하루 20번으로 설정.
-            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
+        if ((info.getIsSubscribe() && info.getReqCount() >= 40) || (!info.getIsSubscribe() && info.getReqCount() >= 20)){
+            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES); // 구독자는 40번, 미구독자는 20번
         }
 
         // 1. 천장 있는 지 조회
