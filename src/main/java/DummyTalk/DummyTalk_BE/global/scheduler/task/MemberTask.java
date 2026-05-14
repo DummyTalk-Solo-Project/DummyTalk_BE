@@ -53,4 +53,11 @@ public class MemberTask {
 
         log.info("[MemberTask - expireSubscriptions()] - 구독 만료 처리 완료 ({}명)", expiredInfos.size());
     }
+
+    @Transactional
+    public void resetAllReqCounts() {
+        List<Info> activeInfos = infoRepository.findAllActiveInfos();
+        activeInfos.forEach(Info::resetReqCount);
+        log.info("[MemberTask - resetAllReqCounts()] - reqCount 초기화 완료 ({}명)", activeInfos.size());
+    }
 }

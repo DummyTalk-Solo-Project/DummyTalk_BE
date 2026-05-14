@@ -80,6 +80,13 @@ public class MemberScheduler {
         // return WHAT!?
     }
 
+    // reqCount 초기화: 구독/미구독 모든 회원 매일 자정 0으로 리셋
+    @Scheduled(cron = "0 0 0 * * *")
+    public void resetReqCounts() {
+        log.info("[MemberScheduler - resetReqCounts()] - reqCount 초기화 시작");
+        memberTask.resetAllReqCounts();
+    }
+
     // 구독 만료 처리: subsExprDate < now 인 회원 isSubscribe → false (reqCount 초기화 직후 실행)
     @Scheduled(cron = "0 1 0 * * *")
     public void expireSubscriptions() {

@@ -19,5 +19,8 @@ public interface InfoRepository extends JpaRepository<Info, Long> {
     @Query("SELECT i FROM Info i WHERE i.isSubscribe = true AND i.subsExprDate IS NOT NULL AND i.subsExprDate < :now AND i.member.isDeleted = false")
     List<Info> findAllExpiredSubscriptions(@Param("now") LocalDateTime now);
 
+    // reqCount 초기화 대상: 탈퇴하지 않은 모든 활성 회원
+    @Query("SELECT i FROM Info i WHERE i.member.isDeleted = false")
+    List<Info> findAllActiveInfos();
 
 }
