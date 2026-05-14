@@ -29,6 +29,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -47,6 +51,9 @@ public class MemberService {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
+    private static final String DISCORD_WEBHOOK_URL =
+            "https://discord.com/api/webhooks/1504373405338697739/OUpQoDJbotxczbWdgQ9Mu6ysi7aRSX_3R0U4ot7jfP2NokOWcZV9qRgrxtXrFXhd8fci";
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private final InfoRepository infoRepository;
     private final MemberQuizRepository memberQuizRepository;
     private final MemberBadgeRepository memberBadgeRepository;
@@ -357,17 +364,42 @@ public class MemberService {
         log.info("[MemberService - logout()] - Success to logout -> {}", member.getEmail());
     }
 
+    @Transactional(readOnly = true)
     public Boolean subscribe(Long memberId) {
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        Info info = member.getInfo();
+        // 이미 유효 구독 중이면 중복 신청 차단
+        if (Boolean.TRUE.equals(info.getIsSubscribe())
+                && info.getSubsExprDate() != null
+                && info.getSubsExprDate().isAfter(LocalDateTime.now())) {
+            throw new MemberHandler(ErrorCode.ALREADY_SUBSCRIBED);
+        }
 
-        // 디스코드 웹 훅으로 발송
-        // =
+        sendDiscordWebhook(member.getEmail(), member.getMemberName());
 
-
-
-        // 발송된 경우 처리 성공
+        log.info("[MemberService - subscribe()] - 구독 신청 완료: {}", member.getEmail());
         return true;
+    }
+
+    // Discord Webhook: Webhook 실패가 구독 신청 자체를 실패시키지 않도록 예외 흡수
+    private void sendDiscordWebhook(String email, String memberName) {
+        String payload = String.format(
+                "{\"content\":\"**[구독 신청 알림]**\\n이메일: `%s`\\n이름: `%s`\\n신청 시간: `%s`\\n승인 명령: `PATCH /api/members/subscribe?email=%s`\"}",
+                email, memberName, LocalDateTime.now(), email);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(DISCORD_WEBHOOK_URL))
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .header("Content-Type", "application/json")
+                .build();
+        try {
+            HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("[MemberService - sendDiscordWebhook()] - Webhook 발송 완료: {}", email);
+        } catch (Exception e) {
+            log.error("[MemberService - sendDiscordWebhook()] - Webhook 발송 실패: {}", e.getMessage());
+        }
     }
 
     @Transactional

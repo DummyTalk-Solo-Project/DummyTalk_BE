@@ -23,6 +23,7 @@ public enum SuccessCode  {
     FIND_EMAIL_SUCCESS(HttpStatus.OK, "MEMBER2010", "이메일 확인에 성공했습니다."),
     PASSWORD_RESET_SUCCESS(HttpStatus.OK, "MEMBER2011", "임시 비밀번호가 이메일로 발송되었습니다."),
     PASSWORD_CHANGE_SUCCESS(HttpStatus.OK, "MEMBER2012", "비밀번호 변경에 성공했습니다."),
+    SUBSCRIPTION_POPUP_SUCCESS(HttpStatus.OK, "MEMBER2013", "구독 팝업 확인에 성공했습니다."),
 
     // Dummy
     GET_DUMMY_SUCCESS(HttpStatus.OK, "DUMMY2000", "더미 요청에 성공하셨습니다."),
