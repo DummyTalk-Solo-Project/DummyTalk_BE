@@ -80,6 +80,13 @@ public class MemberScheduler {
         // return WHAT!?
     }
 
+    // 구독 만료 처리: subsExprDate < now 인 회원 isSubscribe → false (reqCount 초기화 직후 실행)
+    @Scheduled(cron = "0 1 0 * * *")
+    public void expireSubscriptions() {
+        log.info("[MemberScheduler - expireSubscriptions()] - 구독 만료 처리 시작");
+        memberTask.expireSubscriptions();
+    }
+
     @Scheduled(cron = "0 0 2 * * *")
     public void terminateMember() {
         log.info("[MemberScheduler - terminateMember()] - 탈퇴 2주 초과 회원 영구 삭제 시작");

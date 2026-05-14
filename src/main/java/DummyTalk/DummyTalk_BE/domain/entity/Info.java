@@ -43,4 +43,8 @@ public class Info extends CommonEntity {
         this.isSubscribe = isSubscribe;
         this.subsExprDate = subsExprDate;
     }
+
+    public void expireSubscription() {
+        this.isSubscribe = false;
+    }
 }

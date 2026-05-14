@@ -1,6 +1,8 @@
 package DummyTalk.DummyTalk_BE.global.scheduler.task;
 
+import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import java.util.List;
 public class MemberTask {
 
     private final MemberRepository memberRepository;
+    private final InfoRepository infoRepository;
 
     @Transactional
     public void terminateExpiredMembers() {
@@ -35,5 +38,19 @@ public class MemberTask {
         memberRepository.deleteAll(expiredMembers);
 
         log.info("[MemberTask - terminateExpiredMembers()] - 영구 삭제 완료 ({}명): {}", emails.size(), emails);
+    }
+
+    @Transactional
+    public void expireSubscriptions() {
+        List<Info> expiredInfos = infoRepository.findAllExpiredSubscriptions(LocalDateTime.now());
+
+        if (expiredInfos.isEmpty()) {
+            log.info("[MemberTask - expireSubscriptions()] - 만료 대상 없음");
+            return;
+        }
+
+        expiredInfos.forEach(Info::expireSubscription);
+
+        log.info("[MemberTask - expireSubscriptions()] - 구독 만료 처리 완료 ({}명)", expiredInfos.size());
     }
 }
