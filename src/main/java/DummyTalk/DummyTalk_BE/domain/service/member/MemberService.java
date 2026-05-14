@@ -9,7 +9,6 @@ import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberBadge;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberBadgeRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
@@ -54,10 +53,9 @@ public class MemberService {
     private static final int CODE_LENGTH = 4;
 
     @Value("${discord.webhook.url}")
-    private static String DISCORD_WEBHOOK_URL;
+    private String discordWebhookUrl;
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private final InfoRepository infoRepository;
-    private final MemberQuizRepository memberQuizRepository;
     private final MemberBadgeRepository memberBadgeRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -392,7 +390,7 @@ public class MemberService {
                 email, memberName, LocalDateTime.now(), email);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(DISCORD_WEBHOOK_URL))
+                .uri(URI.create(discordWebhookUrl))
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
                 .header("Content-Type", "application/json")
                 .build();
@@ -407,15 +405,28 @@ public class MemberService {
     @Transactional
     public Boolean approveSubscription(Long memberId, String requestMemberEmail) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        if (!member.getRole().equals(MemberRole.ADMIN)){ // 관리자 확인
+        if (!member.getRole().equals(MemberRole.ADMIN)) { // 관리자 확인
             throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
         }
 
-        // 해당 이메일이 있는 지 확인
         Member reqMember = memberRepository.findByEmailFetchInfo(requestMemberEmail).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        reqMember.getInfo().updateSubsExprDate(true, LocalDateTime.now().plusDays(30));
 
+        // 남아있으면 만료일 기준으로 연장, 없으면 오늘부터 30일
+        LocalDateTime currentExpiry = reqMember.getInfo().getSubsExprDate();
+        LocalDateTime base = (currentExpiry != null && currentExpiry.isAfter(LocalDateTime.now())) ? currentExpiry : LocalDateTime.now();
+        reqMember.getInfo().updateSubsExprDate(true, base.plusDays(30));
+
+        // 승인 후 최초 홈 진입 팝업 플래그 (checkSubscriptionPopup() 에서 1회 소비)
+        redisTemplate.opsForValue().set("sub_approved:" + reqMember.getId(), "1");
+
+        log.info("[MemberService - approveSubscription()] - 구독 승인 완료: {} (만료: {})", requestMemberEmail, base.plusDays(30));
         return true;
+    }
+
+    public Boolean checkSubscriptionPopup(Long memberId) {
+        // 플래그 조회 + 즉시 삭제 (1회성 팝업) -> 1회성 팝업 설계 필요!
+        Object flag = redisTemplate.opsForValue().getAndDelete("sub_approved:" + memberId);
+        return flag != null;
     }
 
 

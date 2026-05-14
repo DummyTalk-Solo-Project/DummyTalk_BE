@@ -98,6 +98,12 @@ public class MemberController {
         return APIResponse.onSuccess(memberService.approveSubscription(userDetails.getMember().getId(), email), SuccessCode.SUBSCRIBE_SUCCESS);
     }
 
+    // 구독 승인 후 최초 홈 진입 시 팝업 여부 확인 — true면 팝업 노출, 1회 소비 후 false -> 1회성 팝업용 설계가 필요!
+    @GetMapping("/subscription-popup")
+    public APIResponse<Boolean> checkSubscriptionPopup(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return APIResponse.onSuccess(memberService.checkSubscriptionPopup(userDetails.getMember().getId()), SuccessCode.SUBSCRIPTION_POPUP_SUCCESS);
+    }
+
     @GetMapping("/my-page")
     public APIResponse<MemberRespDTO.GetMemberResponseDTO> getMyPage(@AuthenticationPrincipal CustomUserDetails userDetails){
         return APIResponse.onSuccess(memberService.getMyData(userDetails.getMember().getId()), SuccessCode.GET_INFO_SUCCESS);
