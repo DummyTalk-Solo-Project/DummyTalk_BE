@@ -148,7 +148,7 @@ public class DummyService {
                 .rarityName(dummy.getRarity().getName().toString())
                 .isPityTriggered(isPityTriggered)
                 .isNextPityTriggered(isNextPityTriggered)
-                .remainingCount(20 - info.getReqCount())
+                .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
                 .build();
         log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarity.getName());
         return dto;
