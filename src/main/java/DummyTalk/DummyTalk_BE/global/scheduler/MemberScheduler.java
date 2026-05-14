@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.Rarity;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberDummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.RarityRepository;
+import DummyTalk.DummyTalk_BE.global.scheduler.task.MemberTask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -26,12 +27,9 @@ public class MemberScheduler {
     private final MemberRepository memberRepository;
     private final RarityRepository rarityRepository;
     private final RedisTemplate redisTemplate;
+    private final MemberTask memberTask;
 
 
-    ///TODO 탈퇴 후 2주 초과 회원 영구 삭제 스케줄러 미구현
-    ///     삭제 순서: Info → MemberQuiz → MemberDummy → Member (FK 의존성 역순)
-    ///     조건: isDeleted=true AND deletedAt < now()-2weeks
-    ///     주기: @Scheduled(cron = "0 0 2 * * *") 권장
 
     /**
      * 관리자용 사이트 정산
@@ -81,5 +79,11 @@ public class MemberScheduler {
 
         ///TODO 정산 결과 처리 미구현 — DB 저장(통계 테이블), Redis 캐시, 관리자 대시보드 API 응답 등 방향 결정 후 구현 필요
         // return WHAT!?
+    }
+
+    @Scheduled(cron = "0 0 2 * * *")
+    public void terminateMember() {
+        log.info("[MemberScheduler - terminateMember()] - 탈퇴 2주 초과 회원 영구 삭제 시작");
+        memberTask.terminateExpiredMembers(); // Spring Proxy AOP로 인한 트랜잭션 문제로 Task 분리.
     }
 }

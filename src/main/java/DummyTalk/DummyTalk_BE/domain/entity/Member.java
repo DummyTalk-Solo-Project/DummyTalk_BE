@@ -3,6 +3,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberBadge;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -50,6 +51,10 @@ public class Member extends CommonEntity {
     @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<MemberQuiz> memberQuizList = new ArrayList<>();
+
+    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<MemberBadge> memberBadgeList = new ArrayList<>();
 
     /// deprecated
     @Override

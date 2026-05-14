@@ -40,4 +40,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByEmail(String mail);
 
     long countMemberByCreatedAtBetween(LocalDateTime createdAtAfter, LocalDateTime createdAtBefore);
+
+    // 탈퇴 후 2주 초과 → 영구 삭제 대상 조회
+    @Query("SELECT m FROM Member m WHERE m.isDeleted = true AND m.deletedAt < :cutoff")
+    List<Member> findAllExpiredMembers(@Param("cutoff") LocalDateTime cutoff);
 }
