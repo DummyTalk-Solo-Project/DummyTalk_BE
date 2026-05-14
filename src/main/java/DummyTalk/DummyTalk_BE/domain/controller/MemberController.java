@@ -84,9 +84,18 @@ public class MemberController {
 
     ///TODO 구독 신청 비즈니스 로직 미구현 — 구독 기간 설정, 결제 연동, Info.isSubscribe / subsExprDate 갱신 필요!
     @PostMapping("/subscribe")
-    public APIResponse<Boolean> subscribe (){
+    public APIResponse<Boolean> subscribe (@AuthenticationPrincipal CustomUserDetails userDetails){
         // 구독 신청
-        return APIResponse.onSuccess(true, SuccessCode.SUBSCRIBE_SUCCESS);
+        return APIResponse.onSuccess(memberService.subscribe(userDetails.getMember().getId()), SuccessCode.SUBSCRIBE_SUCCESS);
+    }
+
+    /**
+     * Only Admin
+     * */
+    @PatchMapping("/subscribe")
+    public APIResponse<Boolean> approveSubscription (@AuthenticationPrincipal CustomUserDetails userDetails,
+                                                     @RequestParam String email){
+        return APIResponse.onSuccess(memberService.approveSubscription(userDetails.getMember().getId(), email), SuccessCode.SUBSCRIBE_SUCCESS);
     }
 
     @GetMapping("/my-page")

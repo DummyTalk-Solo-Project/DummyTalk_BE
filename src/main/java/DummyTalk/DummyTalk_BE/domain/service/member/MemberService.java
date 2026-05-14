@@ -357,6 +357,34 @@ public class MemberService {
         log.info("[MemberService - logout()] - Success to logout -> {}", member.getEmail());
     }
 
+    public Boolean subscribe(Long memberId) {
+
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        // 디스코드 웹 훅으로 발송
+        // =
+
+
+
+        // 발송된 경우 처리 성공
+        return true;
+    }
+
+    @Transactional
+    public Boolean approveSubscription(Long memberId, String requestMemberEmail) {
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (!member.getRole().equals(MemberRole.ADMIN)){ // 관리자 확인
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        // 해당 이메일이 있는 지 확인
+        Member reqMember = memberRepository.findByEmailFetchInfo(requestMemberEmail).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        reqMember.getInfo().updateSubsExprDate(true, LocalDateTime.now().plusDays(30));
+
+        return true;
+    }
+
+
     public String findEmail(String email) {
         boolean existsByEmail = memberRepository.existsByEmail(email);
 
