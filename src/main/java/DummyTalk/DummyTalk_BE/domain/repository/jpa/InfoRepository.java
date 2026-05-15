@@ -23,4 +23,8 @@ public interface InfoRepository extends JpaRepository<Info, Long> {
     @Query("SELECT i FROM Info i WHERE i.member.isDeleted = false")
     List<Info> findAllActiveInfos();
 
+    // 정산 시점 현재 구독자 수
+    @Query("SELECT COUNT(i) FROM Info i WHERE i.isSubscribe = true AND i.member.isDeleted = false")
+    long countActiveSubscribers();
+
 }
