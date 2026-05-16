@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface InfoRepository extends JpaRepository<Info, Long> {
 
@@ -26,5 +27,8 @@ public interface InfoRepository extends JpaRepository<Info, Long> {
     // 정산 시점 현재 구독자 수
     @Query("SELECT COUNT(i) FROM Info i WHERE i.isSubscribe = true AND i.member.isDeleted = false")
     long countActiveSubscribers();
+
+    // 퀴즈 보상 지급 시 memberId로 구독 정보 조회
+    Optional<Info> findByMember_Id(Long memberId);
 
 }
