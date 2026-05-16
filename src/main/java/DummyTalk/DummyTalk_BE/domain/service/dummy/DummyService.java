@@ -420,8 +420,7 @@ public class DummyService {
         // memberGrade은 deprecated. 실제 등수는 아래 Redis list 순서로 집계 예정
         memberQuizRepository.save(MemberQuiz.generateMemberQuiz(member, quiz, 1, answer));
 
-        // 인덱스 == (등수 - 1)
-        ///TODO 퀴즈 종료 후 순위 정산 및 보상 지급 미구현 — quiz:<quizId> list 집계 후 상위 N명 티켓/보상 지급 API 필요
+        // 인덱스 == (등수 - 1), CLOSE 시 QuizTask.settleQuizReward()가 상위 5명에게 7일 구독권 지급
         redisTemplate.opsForList().rightPush("quiz:" + quizId, memberId + ":" + answer);
 
         return true;
