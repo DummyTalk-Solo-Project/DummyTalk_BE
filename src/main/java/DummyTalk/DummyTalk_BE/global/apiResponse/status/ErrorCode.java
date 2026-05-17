@@ -54,6 +54,7 @@ public enum ErrorCode implements BaseErrorCode {
     ALREADY_SUBMIT(HttpStatus.BAD_REQUEST, "QUIZ4005", "한 번 푸셨던 문제는 다시 풀 수 없어요. 다른 사용자에게 배려해주세요 :) "),
     TICKET_IS_DONE (HttpStatus.BAD_REQUEST, "QUIZ4006", "퀴즈는 풀었지만 이제 티켓을 받을 수는 없네요"),
     QUIZ_IS_CLOSED (HttpStatus.BAD_REQUEST, "QUIZ4007", "아쉽게도 퀴즈가 닫혔어요...."),
+    QUIZ_INVALID_OPEN_TIME(HttpStatus.BAD_REQUEST, "QUIZ4008", "퀴즈 오픈 시간은 현재 시간 이후여야 해요."),
 
 
     // Member

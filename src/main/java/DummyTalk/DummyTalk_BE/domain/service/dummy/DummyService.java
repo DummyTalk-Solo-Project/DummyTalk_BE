@@ -40,9 +40,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -329,17 +330,22 @@ public class DummyService {
 
         // 3. 해당 시간에 Quiz 생성 & return
         Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
-        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), 3, TimeUnit.MINUTES);
-
 
         // 4. openQuiz scheduling
-        ///TODO 시간 계산 버그 — getMinute() 차이만 계산하므로 날짜/시간 차이를 무시. Duration.between(now, openQuizDate).toMinutes() 또는 Instant 직접 사용 필요
-        int startTime = openQuizDate.getMinute() - LocalDateTime.now().getMinute() ;
-        Instant later = Instant.now().plus(startTime, ChronoUnit.MINUTES);
-        taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.OPEN), later);
+        // LocalDateTime → Instant  (시스템 타임존 기준): getMinute() 차분 방식의 날짜 + 시간 무시 버그 수정
+        Instant now = Instant.now();
+        Instant openInstant  = openQuizDate.atZone(ZoneId.systemDefault()).toInstant();
+        Instant closeInstant = savedQuiz.getEndTime().atZone(ZoneId.systemDefault()).toInstant(); // Quiz.endTime = startTime+5min
 
-        Instant closeTime = Instant.now().plus(startTime+1, ChronoUnit.MINUTES);
-        taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.CLOSE), closeTime);
+        // 과거 시간 검증 — 이미 지난 시간으로 스케줄하면 즉시 실행되므로 차단
+        if (openInstant.isBefore(now)) {
+            throw new QuizHandler(ErrorCode.QUIZ_INVALID_OPEN_TIME);
+        }
+
+        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), Duration.between(now, closeInstant).getSeconds(), TimeUnit.SECONDS); // Redis 키 TTL = 퀴즈가 닫히는 시점까지 유지 (동적으로)
+
+        taskScheduler.schedule(quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.OPEN),  openInstant);
+        taskScheduler.schedule(quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.CLOSE), closeInstant);
 
 
         return savedQuiz;
