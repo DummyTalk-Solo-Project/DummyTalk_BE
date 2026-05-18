@@ -1,7 +1,6 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
-import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
@@ -45,19 +44,6 @@ public class DummyController {
         return APIResponse.onSuccess(dummyService.getMyDummyListWithKeyword(userDetails.getMember().getId(), keyword, page),  SuccessCode.GET_DUMMY_SUCCESS);
     }
 
-
-    /**
-     * Only Admin Service!
-     * @param userDetails
-     * @param date
-     * @return Boolean isSuccess
-     */
-    @PostMapping("/open-quiz")
-    public APIResponse<Quiz> openQuiz (@AuthenticationPrincipal CustomUserDetails userDetails,
-                                       @RequestParam (value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)  LocalDateTime date) {
-
-        return APIResponse.onSuccess(dummyService.openQuiz(userDetails.getMember().getId(), date), SuccessCode.OPEN_QUIZ_SUCCESS);
-    }
 
     @GetMapping("/quiz")
     public APIResponse<DummyRespDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){

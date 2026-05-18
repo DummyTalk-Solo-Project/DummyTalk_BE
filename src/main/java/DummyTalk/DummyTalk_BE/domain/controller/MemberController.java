@@ -89,15 +89,6 @@ public class MemberController {
         return APIResponse.onSuccess(memberService.subscribe(userDetails.getMember().getId()), SuccessCode.SUBSCRIBE_SUCCESS);
     }
 
-    /**
-     * Only Admin
-     * */
-    @PatchMapping("/subscribe")
-    public APIResponse<Boolean> approveSubscription (@AuthenticationPrincipal CustomUserDetails userDetails,
-                                                     @RequestParam String email){
-        return APIResponse.onSuccess(memberService.approveSubscription(userDetails.getMember().getId(), email), SuccessCode.SUBSCRIBE_SUCCESS);
-    }
-
     // 구독 승인 후 최초 홈 진입 시 팝업 여부 확인 — true면 팝업 노출, 1회 소비 후 false -> 1회성 팝업용 설계가 필요!
     @GetMapping("/subscription-popup")
     public APIResponse<Boolean> checkSubscriptionPopup(@AuthenticationPrincipal CustomUserDetails userDetails) {
