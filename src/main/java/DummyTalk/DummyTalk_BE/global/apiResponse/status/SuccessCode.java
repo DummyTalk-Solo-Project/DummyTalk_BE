@@ -32,6 +32,18 @@ public enum SuccessCode  {
     SOLVE_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2003", "퀴즈 풀이에 성공하셨습니다."),
     CHECK_QUIZ_SUCCESS(HttpStatus.OK, "DUMMY2004", "퀴즈 체킹에 성공하셨습니다."),
 
+    // ADMIN
+    GET_SETTLEMENT_SUCCESS(HttpStatus.OK, "ADMIN2001", "정산 데이터 조회에 성공했습니다."),
+    OPEN_QUIZ_ADMIN_SUCCESS(HttpStatus.OK, "ADMIN2002", "(Admin) 퀴즈 오픈에 성공했습니다."),
+    APPROVE_SUBSCRIBE_SUCCESS(HttpStatus.OK, "ADMIN2003", "(Admin) 구독 승인에 성공했습니다."),
+
+    // NOTICE
+    GET_NOTICE_SUCCESS(HttpStatus.OK, "NOTICE2001", "공지사항 조회에 성공했습니다."),
+    CREATE_NOTICE_SUCCESS(HttpStatus.CREATED, "NOTICE2002", "공지사항 작성에 성공했습니다."),
+    UPDATE_NOTICE_SUCCESS(HttpStatus.OK, "NOTICE2003", "공지사항 수정에 성공했습니다."),
+    DELETE_NOTICE_SUCCESS(HttpStatus.OK, "NOTICE2004", "공지사항 삭제에 성공했습니다."),
+    TOGGLE_NOTICE_PUBLISH_SUCCESS(HttpStatus.OK, "NOTICE2005", "공지사항 공개 상태가 변경되었습니다."),
+
     // Test 처리 성공 응답
     TEST_EXCEPTION_SUCCESS(HttpStatus.PARTIAL_CONTENT, "TEST200", " 테스트에 성공했습니다.");
 
