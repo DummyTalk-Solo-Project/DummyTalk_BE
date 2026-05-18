@@ -72,7 +72,10 @@ public enum ErrorCode implements BaseErrorCode {
     // 탈퇴 후 2주 초과 — 영구 탈퇴 상태
     MEMBER_WITHDRAWN_EXPIRED(HttpStatus.GONE, "MEMBER4010", "탈퇴 후 2주가 지나 복구가 불가능해요."),
     WRONG_PASSWORD(HttpStatus.BAD_REQUEST, "MEMBER4011", "현재 비밀번호가 일치하지 않아요."),
-    ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 구독 중이에요!"); // 근데 늘리는 방식으로 가지 않을까
+    ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 구독 중이에요!"), // 근데 늘리는 방식으로 가지 않을까
+
+    // ADMIN
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 날짜의 정산 데이터가 없습니다.");
 
 
 

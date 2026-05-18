@@ -1,6 +1,12 @@
 package DummyTalk.DummyTalk_BE.domain.controller;
 
+import DummyTalk.DummyTalk_BE.domain.dto.admin.AdminRespDTO;
+import DummyTalk.DummyTalk_BE.domain.entity.Quiz;
+import DummyTalk.DummyTalk_BE.domain.service.admin.AdminService;
+import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
+import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,14 +24,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminController {
 
+    private final DummyService dummyService;
+    private final MemberService memberService;
+    private final AdminService adminService;
+
     // ===================== 대시보드 (DailySettlement) =====================
 
-    // 특정 날짜 정산 조회 — AdminTask가 매일 00:30에 저장한 DailySettlement 단건 반환
+    // 특정 날짜 정산 단건 조회 — AdminTask 가 전날치를 00:30 에 저장하므로 오늘 날짜는 없음
     @GetMapping("/dashboard/daily")
-    public APIResponse<Object> getDailySettlement(
+    public APIResponse<AdminRespDTO.DailySettlementRespDTO> getDailySettlement(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return null;
+        return APIResponse.onSuccess(
+                adminService.getDailySettlement(userDetails.getMember().getId(), date),
+                SuccessCode.GET_SETTLEMENT_SUCCESS);
     }
 
     // 기간별 정산 목록 조회
@@ -97,19 +109,23 @@ public class AdminController {
 
     // ===================== 기존 Admin 기능 이관 =====================
 
-    // 퀴즈 오픈 — DummyController에서 이관
+    // 퀴즈 오픈 — DummyService.openQuiz() 에서 ADMIN 체크 포함
     @PostMapping("/quiz/open")
-    public APIResponse<Object> openQuiz(
+    public APIResponse<Quiz> openQuiz(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date) {
-        return null;
+        return APIResponse.onSuccess(
+                dummyService.openQuiz(userDetails.getMember().getId(), date),
+                SuccessCode.OPEN_QUIZ_ADMIN_SUCCESS);
     }
 
-    // 구독 승인 — MemberController에서 이관
+    // 구독 승인 — MemberService.approveSubscription() 에서 ADMIN 체크 포함
     @PatchMapping("/members/subscribe")
     public APIResponse<Boolean> approveSubscription(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam String email) {
-        return null;
+        return APIResponse.onSuccess(
+                memberService.approveSubscription(userDetails.getMember().getId(), email),
+                SuccessCode.APPROVE_SUBSCRIBE_SUCCESS);
     }
 }
