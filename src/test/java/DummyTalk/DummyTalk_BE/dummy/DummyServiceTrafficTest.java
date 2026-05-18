@@ -3,7 +3,7 @@ package DummyTalk.DummyTalk_BE.dummy;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
-import DummyTalk.DummyTalk_BE.domain.service.dummy.impl.DummyServiceImplV3;
+import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
@@ -39,7 +39,7 @@ public class DummyServiceTrafficTest {
     private MemberService userService;
 
     @Autowired
-    private DummyServiceImplV3 dummyService;
+    private DummyService dummyService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -74,15 +74,15 @@ public class DummyServiceTrafficTest {
     @Test
     @DisplayName("문제 오픈 테스트")
     public void openQuizTest(){
-        dummyService.openQuiz(TEST_EMAIL, LocalDateTime.of(2021, 11, 1, 12, 1)); // 테스트용 오픈
+        dummyService.openQuiz(1L, LocalDateTime.of(2021, 11, 1, 12, 1)); // 테스트용 오픈
     }
 
     @Test
     @DisplayName("문제 풀이 테스트")
     public void solveQuizTest(){
-        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 //        dummyService.solveQuiz(user.getEmail(), TEST_QUIZ_ID, 1);
-        dummyService.solveQuizVer3(member.getEmail(), 1);
+        dummyService.solveQuiz(1L, 1L, 1);
     }
 
     @Test
@@ -93,14 +93,14 @@ public class DummyServiceTrafficTest {
         final ExecutorService executorService = Executors.newFixedThreadPool(32); // 32개의 멀티 스레드 환경 허용
         final CountDownLatch countDownLatch = new CountDownLatch(threadCount);
 
-        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmail(TEST_EMAIL).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         // 실패(중복제출 예외) 횟수 카운트
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
 
         redisTemplate.delete(QUIZ_HASH_KEY);
         redisTemplate.delete(QUIZ_ANSWER_LIST_KEY);
-        dummyService.openQuiz("jijysun@naver.com", LocalDateTime.now().minusHours(2)); // quiz open
+        dummyService.openQuiz(1L, LocalDateTime.now().minusHours(2)); // quiz open
 
 
         // [추가] 성능 측정을 위한 StopWatch 생성
@@ -117,7 +117,7 @@ public class DummyServiceTrafficTest {
 
 //                    dummyService.solveQuiz(TEST_EMAIL, TEST_QUIZ_ID,1);
 //                    dummyService.solveQuizVer2(TEST_EMAIL, 1);
-                    dummyService.solveQuizVer3(TEST_EMAIL, 1);
+                    dummyService.solveQuiz(1L, 1L, 1);
 /*                    dummyService.solveQuizVer4(DummyRequestDTO.SolveQuizReqDTO.builder()
                             .quizId(29L)
                             .email(TEST_EMAIL)
@@ -204,14 +204,14 @@ public class DummyServiceTrafficTest {
 
         // 퀴즈 오픈 (편의상 서비스 직접 호출)
         try {
-            dummyService.openQuiz("jijysun@naver.com", LocalDateTime.now().minusHours(1));
+            dummyService.openQuiz(1L, LocalDateTime.now().minusHours(1));
         } catch (Exception e) {
             log.warn("퀴즈 설정 중 오류 (이미 열려있을 수 있음): {}", e.getMessage());
         }
 
         // [수정] user 객체는 테스트 마지막 검증(then)에서 ID를 사용할 때 필요
         Member member = memberRepository.findByEmail(TEST_EMAIL)
-                .orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         // 실패(중복제출 예외) 횟수 카운트
         AtomicInteger successCount = new AtomicInteger(0);
