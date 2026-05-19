@@ -47,7 +47,7 @@ public class DummyDataLoader implements ApplicationRunner {
         if (rarityRepository.count() != 4){
             common = rarityRepository.save(Rarity.createRarity(RarityType.COMMON, "F4F0E4", 50.0));
             rare = rarityRepository.save(Rarity.createRarity(RarityType.RARE, "44A194", 30.0));
-            epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "537D96", 12.0));
+            epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "DE99FF", 12.0));
             special = rarityRepository.save(Rarity.createRarity(RarityType.SPECIAL, "EC8F8D", 3.0));
         }
         else{
