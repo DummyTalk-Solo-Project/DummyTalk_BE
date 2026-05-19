@@ -3,6 +3,7 @@ package DummyTalk.DummyTalk_BE.dummy;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.Member;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
+import DummyTalk.DummyTalk_BE.domain.service.admin.AdminService;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
@@ -42,6 +43,9 @@ public class DummyServiceTrafficTest {
     private DummyService dummyService;
 
     @Autowired
+    private AdminService adminService;
+
+    @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
@@ -74,7 +78,7 @@ public class DummyServiceTrafficTest {
     @Test
     @DisplayName("문제 오픈 테스트")
     public void openQuizTest(){
-        dummyService.openQuiz(1L, LocalDateTime.of(2021, 11, 1, 12, 1)); // 테스트용 오픈
+        adminService.openQuiz(1L, LocalDateTime.of(2021, 11, 1, 12, 1)); // 테스트용 오픈
     }
 
     @Test
@@ -100,7 +104,7 @@ public class DummyServiceTrafficTest {
 
         redisTemplate.delete(QUIZ_HASH_KEY);
         redisTemplate.delete(QUIZ_ANSWER_LIST_KEY);
-        dummyService.openQuiz(1L, LocalDateTime.now().minusHours(2)); // quiz open
+        adminService.openQuiz(1L, LocalDateTime.now().minusHours(2)); // quiz open
 
 
         // [추가] 성능 측정을 위한 StopWatch 생성
@@ -204,7 +208,7 @@ public class DummyServiceTrafficTest {
 
         // 퀴즈 오픈 (편의상 서비스 직접 호출)
         try {
-            dummyService.openQuiz(1L, LocalDateTime.now().minusHours(1));
+            adminService.openQuiz(1L, LocalDateTime.now().minusHours(1));
         } catch (Exception e) {
             log.warn("퀴즈 설정 중 오류 (이미 열려있을 수 있음): {}", e.getMessage());
         }
