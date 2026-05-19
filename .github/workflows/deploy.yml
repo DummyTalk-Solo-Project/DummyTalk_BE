@@ -109,7 +109,7 @@ jobs:
             sudo docker image prune -f
 
             echo "===== [4/4] deploy done ====="
-            sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | tee ~/dummytalk/deploy.log
+            sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
   notify:
     needs: [build-and-push, ec2-deploy]
