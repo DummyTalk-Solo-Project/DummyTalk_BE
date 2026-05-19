@@ -1,5 +1,7 @@
 package DummyTalk.DummyTalk_BE.global.security.jwt;
 
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetailsService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -112,7 +114,7 @@ public class JWTProvider {
 
         if (authoritiesString.isEmpty() || claims.get("auth") == null) {
             ///  GenerationException 으로 수정하기
-            throw new RuntimeException("권한 정보가 없는 이상한 토큰입니다");
+            throw new GeneralException(ErrorCode.CANT_FIND_AUTHORITIES);
         }
 
         // 표준 필드로 변경

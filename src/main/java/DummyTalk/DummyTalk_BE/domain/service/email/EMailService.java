@@ -165,13 +165,55 @@ public class EMailService {
         } catch (MessagingException e) {
             e.printStackTrace();
             throw new GeneralException(ErrorCode.CANT_SEND_EMAIL);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+        } catch (UnsupportedEncodingException e) { // 자바 미지원의 문자 인코딩 사용으로 문자열 변환 or 인코딩/디코딩할 때
+            e.printStackTrace();
+            throw new GeneralException(ErrorCode.CANT_ENCODE_STRING);
         }
 
         log.info("[EMailService - sendEmail()] - saved code {} to {}", redisTemplate.opsForValue().get(email), email);
     }
 
+
+    @Async("mailExecutor")
+    public void sendPasswordResetEmailAsync(String email, String tempPassword) {
+        MimeMessage msg = mailSender.createMimeMessage();
+        MimeMessageHelper helper;
+        try {
+            helper = new MimeMessageHelper(msg, true, "utf-8");
+            helper.setTo(email);
+            helper.setFrom("no-reply@mail.com", "no-reply@mail.com");
+            helper.setSubject("더미톡 임시 비밀번호 안내");
+            helper.setText("<!DOCTYPE html>\n" +
+                    "<html lang=\"ko\"><head><meta charset=\"UTF-8\">" +
+                    "<style>body{font-family:'Noto Sans KR',Arial,sans-serif;background-color:#f4f6f9;margin:0;padding:0;}" +
+                    ".container{width:100%;max-width:580px;margin:40px auto;background:#fff;border-radius:12px;" +
+                    "box-shadow:0 6px 15px rgba(0,0,0,.05);overflow:hidden;border:1px solid #e9ecef;}" +
+                    ".header{padding:30px 20px 20px;text-align:center;}" +
+                    ".header h2{font-size:24px;color:#212529;font-weight:700;margin:0;}" +
+                    ".content{padding:20px;text-align:center;line-height:1.6;color:#495057;}" +
+                    ".temp-pw{display:inline-block;background-color:#fff3cd;padding:15px 30px;font-size:28px;" +
+                    "font-weight:bold;letter-spacing:3px;border-radius:8px;color:#856404;" +
+                    "border:1px dashed #ced4da;-webkit-user-select:all;user-select:all;}" +
+                    ".footer{text-align:center;padding:20px;border-top:1px solid #e9ecef;font-size:12px;" +
+                    "color:#adb5bd;background-color:#f8f9fa;}</style></head>" +
+                    "<body><div class=\"container\">" +
+                    "<div class=\"header\"><h2>더미톡 임시 비밀번호</h2></div>" +
+                    "<div class=\"content\">" +
+                    "<p>안녕하세요, 더미톡입니다. 아래 임시 비밀번호로 로그인 후 반드시 비밀번호를 변경해 주세요.</p>" +
+                    "<div><span class=\"temp-pw\">  " + tempPassword + "  </span></div>" +
+                    "<p style=\"margin-top:20px;font-size:14px;color:#6c757d;\">본인이 요청하지 않은 경우 즉시 고객센터로 문의하세요.</p>" +
+                    "</div>" +
+                    "<div class=\"footer\"><p>이 메일은 발신 전용입니다.</p>" +
+                    "<p>&copy; 2025 DummyTalk. All Rights Reserved.</p></div>" +
+                    "</div></body></html>", true);
+            helper.setReplyTo("no-reply@mail.com");
+            mailSender.send(msg);
+            log.info("[EMailService - sendPasswordResetEmailAsync()] - 임시 비밀번호 발송 완료: {}", email);
+        } catch (MessagingException | UnsupportedEncodingException e) {
+            log.error("[EMailService - sendPasswordResetEmailAsync()] - 발송 실패: {}", email, e);
+            throw new GeneralException(ErrorCode.CANT_ENCODE_STRING);
+        }
+    }
 
     public void sendReminderEmail(String toEmail, String nickname) {
         SimpleMailMessage message = new SimpleMailMessage();

@@ -16,6 +16,7 @@ public class MemberRespDTO {
         private Boolean isSuccess;
         private String memberName;
         private String accessToken;
+        private Boolean needPasswordChange; // 임시 비밀번호 로그인 시
     }
 
     @Getter
@@ -25,6 +26,7 @@ public class MemberRespDTO {
     public static class MemberInfoDTO {
         private JWT jwt;
         private String username;
+        private Boolean needPasswordChange;
     }
 
     // 마이페이지 뱃지 항목
@@ -61,11 +63,4 @@ public class MemberRespDTO {
         private List<BadgeDTO> badgeList; // 보유 뱃지
     }
 
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class FindEmailRespDTO{
-        private String email;
-    }
 }

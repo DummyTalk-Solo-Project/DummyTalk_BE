@@ -4,14 +4,15 @@ on:
   push:
     branches:
       - main
+
 jobs:
-  build-and-push-to-docker:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: checking repo...
+      - name: checkout repo
         uses: actions/checkout@v4
 
-      - name: setting jdk...
+      - name: setup jdk 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -44,57 +45,129 @@ jobs:
       - name: copy deploy files to ec2...
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{secrets.EC2_HOST}}
-          username: ${{secrets.EC2_USERNAME}}
-          key: ${{secrets.EC2_PRIVATE_KEY}}
-          # docker/ 와 scripts/ 구조를 EC2 에 그대로 복사 (디렉토리 구조 유지)
-          source: "docker/docker-compose.yml, docker/prometheus.yml, scripts/deploy.sh"
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          source: "docker/docker-compose.yml,docker/prometheus.yml"
           target: "~/dummytalk"
 
   ec2-deploy:
-    needs: build-and-push-to-docker
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: working in ec2...
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{secrets.EC2_HOST}}
-          username: ${{secrets.EC2_USERNAME}}
-          key: ${{secrets.EC2_PRIVATE_KEY}}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script_stop: true  # 스크립트 내 오류 발생 시 즉시 실패 처리 (기존 deploy.sh의 set -eo pipefail 대체)
           script: |
-            mkdir -p ~/dummytalk
-            cd ~/dummytalk
+            mkdir -p ~/dummytalk && cd ~/dummytalk
 
-            # PostgreSQL 접속 정보 (application.yml: ${DB_HOST}, ${DB_NAME}, ${DB_USERNAME}, ${DB_PASSWORD})
-            echo "DB_HOST=${{secrets.DB_HOST}}" > .env
-            echo "DB_NAME=${{secrets.DB_NAME}}" >> .env
-            echo "DB_USERNAME=${{secrets.DB_USERNAME}}" >> .env
-            echo "DB_PASSWORD=${{secrets.DB_PASSWORD}}" >> .env
+            # .env 생성
+            {
+              echo "DB_HOST=${{ secrets.DB_HOST }}"
+              echo "DB_NAME=${{ secrets.DB_NAME }}"
+              echo "DB_USERNAME=${{ secrets.DB_USERNAME }}"
+              echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
+              echo "MAIL_SENDER_HOST=${{ secrets.MAIL_SENDER_HOST }}"
+              echo "MAIL_SENDER_USERNAME=${{ secrets.MAIL_SENDER_USERNAME }}"
+              echo "MAIL_SENDER_PASSWORD=${{ secrets.MAIL_SENDER_PASSWORD }}"
+              echo "REDIS_HOST=${{ secrets.REDIS_HOST }}"
+              echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}"
+              echo "OPENAI_KEY=${{ secrets.OPENAI_KEY }}"
+              echo "ES_URL=http://elasticsearch:9200"
+              echo "DISCORD_WEBHOOK=${{ secrets.DISCORD_WEBHOOK }}"
+              echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
+            } > .env
 
-            # 메일 발송
-            echo "MAIL_SENDER_HOST=${{secrets.MAIL_SENDER_HOST}}" >> .env
-            echo "MAIL_SENDER_USERNAME=${{secrets.MAIL_SENDER_USERNAME}}" >> .env
-            echo "MAIL_SENDER_PASSWORD=${{secrets.MAIL_SENDER_PASSWORD}}" >> .env
+            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
-            # Redis
-            echo "REDIS_HOST=${{secrets.REDIS_HOST}}" >> .env
+            # Docker Compose v2 플러그인 확인 및 자동 설치
+            if ! docker compose version &>/dev/null; then
+              echo "Docker Compose v2 없음 → 설치 중..."
+              sudo apt-get update -qq
+              sudo apt-get install -y docker-compose-plugin
+            fi
 
-            # JWT
-            echo "JWT_SECRET_KEY=${{secrets.JWT_SECRET_KEY}}" >> .env
+            COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env"
 
-            # OpenAI (application.yml: ${OPENAI_KEY})
-            echo "OPENAI_KEY=${{secrets.OPENAI_KEY}}" >> .env
+            # 뱃지 이미지 bind mount 디렉토리 사전 생성
+            mkdir -p /home/ubuntu/data/badges
 
-            # Elasticsearch - Spring 앱과 ES 컨테이너가 같은 Docker 네트워크에 있으므로 컨테이너명 사용
-            echo "ES_URL=http://elasticsearch:9200" >> .env
+            # 기존 Spring 컨테이너 강제 제거 (컨테이너명 충돌 방지)
+            sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
 
-            # Discord 웹훅
-            echo "DISCORD_WEBHOOK=${{secrets.DISCORD_WEBHOOK}}" >> .env
+            echo "===== [1/4] pull latest images ====="
+            $COMPOSE pull
 
-            # docker-compose.yml의 elasticsearch image 태그에 사용 (${DOCKER_USERNAME}/elasticsearch-nori:8.11.1)
-            echo "DOCKER_USERNAME=${{secrets.DOCKER_USERNAME}}" >> .env
+            echo "===== [2/4] up all services ====="
+            $COMPOSE up -d
 
-            sudo docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_PASSWORD}}
-          
-            chmod +x scripts/deploy.sh
-            sudo bash scripts/deploy.sh 2>&1 | sudo tee deploy.log
+            echo "===== [3/4] prune old images ====="
+            sudo docker image prune -f
+
+            echo "===== [4/4] deploy done ====="
+            sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | tee ~/dummytalk/deploy.log
+
+  notify:
+    needs: [build-and-push, ec2-deploy]
+    runs-on: ubuntu-latest
+    if: always()  # 성공/실패 무관!
+    steps:
+      - name: discord — success
+        if: needs.ec2-deploy.result == 'success'
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          payload=$(jq -n \
+            --arg sha "${COMMIT_SHA:0:7}" \
+            --arg msg "$COMMIT_MSG" \
+            --arg url "$RUN_URL" \
+            '{embeds: [{
+              title: "DummyTalk 배포 성공",
+              color: 5763719,
+              fields: [
+                {name: "커밋", value: $sha, inline: true},
+                {name: "메시지", value: $msg, inline: false},
+                {name: "Actions 로그", value: $url, inline: false}
+              ]
+            }]}')
+          curl -sS -H "Content-Type: application/json" -X POST -d "$payload" "$DISCORD_WEBHOOK"
+
+      - name: discord — failure
+        if: needs.build-and-push.result == 'failure' || needs.ec2-deploy.result == 'failure'
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BUILD_RESULT: ${{ needs.build-and-push.result }}
+          DEPLOY_RESULT: ${{ needs.ec2-deploy.result }}
+        run: |
+          if [ "$BUILD_RESULT" = "failure" ]; then
+            FAILED_STAGE="빌드 / Docker Push"
+          else
+            FAILED_STAGE="EC2 배포"
+          fi
+
+          payload=$(jq -n \
+            --arg sha "${COMMIT_SHA:0:7}" \
+            --arg msg "$COMMIT_MSG" \
+            --arg url "$RUN_URL" \
+            --arg stage "$FAILED_STAGE" \
+            '{embeds: [{
+              title: "DummyTalk 배포 실패",
+              color: 15548997,
+              fields: [
+                {name: "실패 단계", value: $stage, inline: true},
+                {name: "커밋", value: $sha, inline: true},
+                {name: "메시지", value: $msg, inline: false},
+                {name: "Actions 로그", value: $url, inline: false}
+              ]
+            }]}')
+          curl -sS -H "Content-Type: application/json" -X POST -d "$payload" "$DISCORD_WEBHOOK"

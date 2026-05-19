@@ -3,6 +3,7 @@ package DummyTalk.DummyTalk_BE.domain.entity;
 import DummyTalk.DummyTalk_BE.domain.entity.common.CommonEntity;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
+import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberBadge;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberDummy;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberQuiz;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -51,6 +52,10 @@ public class Member extends CommonEntity {
     @JsonManagedReference
     private List<MemberQuiz> memberQuizList = new ArrayList<>();
 
+    @OneToMany (mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private List<MemberBadge> memberBadgeList = new ArrayList<>();
+
     /// deprecated
     @Override
     public String toString() {
@@ -72,5 +77,9 @@ public class Member extends CommonEntity {
 
     public void restore() { // 계정 복구 - CommonEntity.restore()
         super.restore();
+    }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 }

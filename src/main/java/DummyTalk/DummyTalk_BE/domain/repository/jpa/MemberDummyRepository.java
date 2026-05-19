@@ -24,4 +24,10 @@ public interface MemberDummyRepository extends JpaRepository<MemberDummy, Long> 
     List<Long> findAllByCreatedAtToday (@Param("createdAtAfter") LocalDateTime createdAtAfter, @Param("createdAtBefore") LocalDateTime createdAtBefore);
     
     long countByMember_Id(Long memberId); // 뱃지 조건 체크용 특정 사용자의 누적 더미 조회 횟수
+
+    // 날짜 범위 내 MemberDummy → Dummy → Rarity 연결로 등급별 조회 수 집계
+    @Query("SELECT d.rarity.name, COUNT(md) FROM MemberDummy md JOIN md.dummy d " +
+           "WHERE md.createdAt BETWEEN :start AND :end GROUP BY d.rarity.name")
+    List<Object[]> countByRarityAndCreatedAtBetween(
+            @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

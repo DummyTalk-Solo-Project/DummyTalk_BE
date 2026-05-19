@@ -41,6 +41,15 @@ public class MemberReqDTO {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    public static class ChangePasswordRequestDTO {
+        private String currentPassword;
+        private String newPassword;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class AIRequestDTO{
         private String email;
         private String username;

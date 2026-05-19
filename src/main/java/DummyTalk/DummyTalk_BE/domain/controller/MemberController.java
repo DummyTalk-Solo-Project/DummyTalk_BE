@@ -62,12 +62,12 @@ public class MemberController {
                 .memberName(memberInfo.getUsername())
                 .isSuccess(true)
                 .accessToken(memberInfo.getJwt().getAccessToken())
+                .needPasswordChange(memberInfo.getNeedPasswordChange())
                 .build();
 
         response.addHeader("Authorization", "Bearer: " + respDTO.getAccessToken());
 
-        // JWT 발급 메소드 호출은 어떻게?
-        return APIResponse.onSuccess(MemberRespDTO.LoginSuccessDTO.builder().isSuccess(true).memberName(memberInfo.getUsername()).accessToken(memberInfo.getJwt().getAccessToken()).build(), SuccessCode.LOGIN_SUCCESS);
+        return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
     }
 
     @PostMapping("/logout")
@@ -82,10 +82,17 @@ public class MemberController {
         return APIResponse.onSuccess(true,  SuccessCode.LOGOUT_SUCCESS);
     }
 
+    ///TODO 구독 신청 비즈니스 로직 미구현 — 구독 기간 설정, 결제 연동, Info.isSubscribe / subsExprDate 갱신 필요!
     @PostMapping("/subscribe")
-    public APIResponse<Boolean> subscribe (){
+    public APIResponse<Boolean> subscribe (@AuthenticationPrincipal CustomUserDetails userDetails){
         // 구독 신청
-        return APIResponse.onSuccess(true, SuccessCode.SUBSCRIBE_SUCCESS);
+        return APIResponse.onSuccess(memberService.subscribe(userDetails.getMember().getId()), SuccessCode.SUBSCRIBE_SUCCESS);
+    }
+
+    // 구독 승인 후 최초 홈 진입 시 팝업 여부 확인 — true면 팝업 노출, 1회 소비 후 false -> 1회성 팝업용 설계가 필요!
+    @GetMapping("/subscription-popup")
+    public APIResponse<Boolean> checkSubscriptionPopup(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return APIResponse.onSuccess(memberService.checkSubscriptionPopup(userDetails.getMember().getId()), SuccessCode.SUBSCRIPTION_POPUP_SUCCESS);
     }
 
     @GetMapping("/my-page")
@@ -122,6 +129,36 @@ public class MemberController {
                 .build();
 
         return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
+    }
+
+    @GetMapping("/find-email")
+    public APIResponse<String> findEmail(@RequestParam String email) {
+        return APIResponse.onSuccess(memberService.findEmail(email), SuccessCode.FIND_EMAIL_SUCCESS);
+    }
+
+    @PatchMapping("/change-password")
+    public APIResponse<Boolean> changePassword(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody MemberReqDTO.ChangePasswordRequestDTO dto) {
+        memberService.changePassword(userDetails.getMember().getId(), dto);
+        return APIResponse.onSuccess(true, SuccessCode.PASSWORD_CHANGE_SUCCESS);
+    }
+
+    @PostMapping("/reset-password")
+    public APIResponse<Boolean> resetPassword(@RequestParam String email) {
+        memberService.resetPassword(email);
+        return APIResponse.onSuccess(true, SuccessCode.PASSWORD_RESET_SUCCESS);
+    }
+
+    @GetMapping("/check-email")
+    public APIResponse<Boolean> checkEmailDuplicate(@RequestParam String email) {
+        return APIResponse.onSuccess(memberService.checkEmailDuplicate(email), SuccessCode.CHECK_EMAIL_SUCCESS);
+    }
+
+    @GetMapping("/request-code")
+    public APIResponse<Boolean> requestVerificationCode(@RequestParam String email) {
+        memberService.requestVerificationCode(email);
+        return APIResponse.onSuccess(true, SuccessCode.EMAIL_SEND_SUCCESS);
     }
 
     // mypage로 변경

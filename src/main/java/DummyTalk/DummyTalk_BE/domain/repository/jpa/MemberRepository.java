@@ -31,13 +31,15 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m join FETCH Info i on i.member.id = m.id where m.id = :memberId")
     Optional<Member> findByIdFetchJoinInfo (Long memberId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT u FROM Member u JOIN FETCH Info i ON i.member.id = u.id WHERE u.email = :email")
-    Optional<Member>findByEmailFetchInfoWithLock(@Param("email") String email);
-
-    Optional<Member> findByEmailAndPassword(String email, String password);
 
     boolean existsByEmail(String mail);
 
     long countMemberByCreatedAtBetween(LocalDateTime createdAtAfter, LocalDateTime createdAtBefore);
+
+    // 탈퇴 후 2주 초과 → 영구 삭제 대상 조회
+    @Query("SELECT m FROM Member m WHERE m.isDeleted = true AND m.deletedAt < :cutoff")
+    List<Member> findAllExpiredMembers(@Param("cutoff") LocalDateTime cutoff);
+
+    // 정산 시점 활성 회원 총 수
+    long countByIsDeletedFalse();
 }

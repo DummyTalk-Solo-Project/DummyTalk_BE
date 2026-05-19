@@ -11,6 +11,8 @@ import DummyTalk.DummyTalk_BE.domain.repository.jpa.BadgeRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.DummyRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.RarityRepository;
 import DummyTalk.DummyTalk_BE.domain.service.badge.BadgeService;
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +47,7 @@ public class DummyDataLoader implements ApplicationRunner {
         if (rarityRepository.count() != 4){
             common = rarityRepository.save(Rarity.createRarity(RarityType.COMMON, "F4F0E4", 50.0));
             rare = rarityRepository.save(Rarity.createRarity(RarityType.RARE, "44A194", 30.0));
-            epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "537D96", 12.0));
+            epic = rarityRepository.save(Rarity.createRarity(RarityType.EPIC, "DE99FF", 12.0));
             special = rarityRepository.save(Rarity.createRarity(RarityType.SPECIAL, "EC8F8D", 3.0));
         }
         else{
@@ -78,7 +80,7 @@ public class DummyDataLoader implements ApplicationRunner {
                         return Dummy.createDummy(dto, special);
                     }
                     else{
-                        throw new RuntimeException("Unknown rarity");
+                        throw new GeneralException(ErrorCode.WRONG_RARITY);
                     }
                 })
                 .toList();

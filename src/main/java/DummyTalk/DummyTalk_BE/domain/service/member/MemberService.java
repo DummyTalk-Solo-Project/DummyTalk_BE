@@ -2,13 +2,13 @@ package DummyTalk.DummyTalk_BE.domain.service.member;
 
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberReqDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.member.MemberRespDTO;
+import DummyTalk.DummyTalk_BE.domain.service.email.EMailService;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.mapping.MemberBadge;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberBadgeRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberQuizRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
@@ -18,6 +18,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -28,6 +29,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -42,11 +47,15 @@ public class MemberService {
     private final JavaMailSender mailSender;
     private final JWTProvider jwtProvider;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final EMailService emailService;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 4;
+
+    @Value("${discord.webhook.url}")
+    private String discordWebhookUrl;
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private final InfoRepository infoRepository;
-    private final MemberQuizRepository memberQuizRepository;
     private final MemberBadgeRepository memberBadgeRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -274,7 +283,6 @@ public class MemberService {
 
     @Transactional
     public MemberRespDTO.MemberInfoDTO login(MemberReqDTO.LoginRequestDTO dto) {
-
         Member member = memberRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
@@ -300,9 +308,15 @@ public class MemberService {
 
         redisTemplate.opsForValue().set("refresh:"+dto.getEmail(), jwt.getRefreshToken());
 
+        boolean needPasswordChange = "1".equals(redisTemplate.opsForValue().get("reset:" + member.getId()));
+
         log.info("[MemberService - login()] - Success to login -> {} - {}", dto.getEmail(), jwt.getRefreshToken());
 
-        return MemberRespDTO.MemberInfoDTO.builder().jwt(jwt).username(member.getMemberName()).build();
+        return MemberRespDTO.MemberInfoDTO.builder()
+                .jwt(jwt)
+                .username(member.getMemberName())
+                .needPasswordChange(needPasswordChange)
+                .build();
     }
 
     @Transactional
@@ -350,11 +364,77 @@ public class MemberService {
         log.info("[MemberService - logout()] - Success to logout -> {}", member.getEmail());
     }
 
-    public MemberRespDTO.FindEmailRespDTO findEmail(String email) {
+    @Transactional(readOnly = true)
+    public Boolean subscribe(Long memberId) {
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        Info info = member.getInfo();
+        // 이미 유효 구독 중이면 중복 신청 차단
+        if (Boolean.TRUE.equals(info.getIsSubscribe())
+                && info.getSubsExprDate() != null
+                && info.getSubsExprDate().isAfter(LocalDateTime.now())) {
+            throw new MemberHandler(ErrorCode.ALREADY_SUBSCRIBED);
+        }
+
+        sendDiscordWebhook(member.getEmail(), member.getMemberName());
+
+        log.info("[MemberService - subscribe()] - 구독 신청 완료: {}", member.getEmail());
+        return true;
+    }
+
+    // Discord Webhook: Webhook 실패가 구독 신청 자체를 실패시키지 않도록 예외 흡수
+    private void sendDiscordWebhook(String email, String memberName) {
+        String payload = String.format(
+                "{\"content\":\"**[구독 신청 알림]**\\n이메일: `%s`\\n이름: `%s`\\n신청 시간: `%s`\\n승인 명령: `PATCH /api/members/subscribe?email=%s`\"}",
+                email, memberName, LocalDateTime.now(), email);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(discordWebhookUrl))
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .header("Content-Type", "application/json")
+                .build();
+        try {
+            HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("[MemberService - sendDiscordWebhook()] - Webhook 발송 완료: {}", email);
+        } catch (Exception e) {
+            log.error("[MemberService - sendDiscordWebhook()] - Webhook 발송 실패: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public Boolean approveSubscription(Long memberId, String requestMemberEmail) {
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (!member.getRole().equals(MemberRole.ADMIN)) { // 관리자 확인
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        Member reqMember = memberRepository.findByEmailFetchInfo(requestMemberEmail).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        // 남아있으면 만료일 기준으로 연장, 없으면 오늘부터 30일
+        LocalDateTime currentExpiry = reqMember.getInfo().getSubsExprDate();
+        LocalDateTime base = (currentExpiry != null && currentExpiry.isAfter(LocalDateTime.now())) ? currentExpiry : LocalDateTime.now();
+        reqMember.getInfo().updateSubsExprDate(true, base.plusDays(30));
+
+        // 승인 후 최초 홈 진입 팝업 플래그 (checkSubscriptionPopup() 에서 1회 소비)
+        redisTemplate.opsForValue().set("sub_approved:" + reqMember.getId(), "1");
+
+        log.info("[MemberService - approveSubscription()] - 구독 승인 완료: {} (만료: {})", requestMemberEmail, base.plusDays(30));
+        return true;
+    }
+
+    public Boolean checkSubscriptionPopup(Long memberId) {
+        // 플래그 조회 + 즉시 삭제 (1회성 팝업) -> 1회성 팝업 설계 필요!
+        Object flag = redisTemplate.opsForValue().getAndDelete("sub_approved:" + memberId);
+        return flag != null;
+    }
+
+
+    public String findEmail(String email) {
         boolean existsByEmail = memberRepository.existsByEmail(email);
 
         if (existsByEmail) {
-            return MemberRespDTO.FindEmailRespDTO.builder().email(email).build();
+            return email;
         } else {
             throw new MemberHandler(ErrorCode.MEMBER_NOT_FOUND);
         }
@@ -373,6 +453,42 @@ public class MemberService {
         log.info("[MemberService - withdraw()] - SoftDelete 처리: {}", member.getEmail());
     }
 
+
+    @Transactional
+    public void resetPassword(String email) {
+        findEmail(email);
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        String tempPassword = generateVerificationCode();
+        member.changePassword(bCryptPasswordEncoder.encode(tempPassword));
+
+        // 비밀번호 변경 후 삭제
+        redisTemplate.opsForValue().set("reset:" + member.getId(), "1");
+
+        emailService.sendPasswordResetEmailAsync(email, tempPassword); // @Async - 비동기 처리
+
+        log.info("[MemberService - resetPassword()] - 임시 비밀번호 발급: {}", email);
+    }
+
+    @Transactional
+    public void changePassword(Long memberId, MemberReqDTO.ChangePasswordRequestDTO dto) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+
+        // 불일치
+        if (!bCryptPasswordEncoder.matches(dto.getCurrentPassword(), member.getPassword())) {
+            throw new MemberHandler(ErrorCode.WRONG_PASSWORD);
+        }
+
+        member.changePassword(bCryptPasswordEncoder.encode(dto.getNewPassword()));
+
+        // 변경 완료 시 플래그 제거
+        redisTemplate.delete("reset:" + memberId);
+
+        log.info("[MemberService - changePassword()] - 비밀번호 변경 완료: memberId={}", memberId);
+    }
 
     @Transactional(readOnly = true)
     public MemberRespDTO.GetMemberResponseDTO getMyData(Long memberId) {

@@ -13,6 +13,7 @@ public enum ErrorCode implements BaseErrorCode {
     // CLIENT
     INVALID_TOKEN(HttpStatus.BAD_REQUEST, "CLIENT4000", "로그인이 필요해요"),
 
+
     // SERVER
     INTERNAL_SERVER_ERROR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5000", "서버 에러 입니다,. 에러 코드: SERVER5001, 관리자에게 연락 주시기 바랍니다"),
     PARSING_ERROR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5001", "서버 에러 입니다. 에러 코드: SERVER5001, 관리자에게 연락 주시기 바랍니다"),
@@ -21,6 +22,8 @@ public enum ErrorCode implements BaseErrorCode {
     CANT_SEND_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5004", "서버 에러 입니다. 에러 코드: SERVER5004, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
+    CANT_ENCODE_STRING (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5007", "서버 에러 입니다. 에러 코드: SERVER5007, 관리자에게 문의해주세요."),
+
 
     // SECURITY
     AUTH_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "SERVER_4100", "인증 정보가 없습니다."),
@@ -30,10 +33,20 @@ public enum ErrorCode implements BaseErrorCode {
     CANNOT_FOUND_RT(HttpStatus.UNAUTHORIZED, "SERVER_4104", "리프레쉬 토큰을 찾을 수 없습니다."),
     RT_NOT_FOUND(HttpStatus.UNAUTHORIZED, "G008", "리프레쉬 토큰을 찾을 수 없습니다."),
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "SERVER_4300", "접근 권한이 없습니다."),
+    CANT_FIND_AUTHORITIES(HttpStatus.FORBIDDEN, "SERVER_4300", "권한 정보가 존재하지 않습니다."),
 
 
     // Dummy
+    WRONG_DUMMY(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5001", "알 수 없는 더미 입니다."),
+    DUMMY_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5002", "더미를 찾을 수 없습니다."),
+    DUMMY_WITH_RARITY_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5003", "해당 등급의 더미를 찾을 수 없습니다."),
+    DUMMY_WITH_ID_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5003", "해당 아이디의 더미를 찾을 수 없습니다."),
+
     USED_ALL_CHANCES(HttpStatus.BAD_REQUEST, "DUMMY4001", "모든 무료 요청 횟수를 소모하셨네요, 다음을 기약해주세요 :)"),
+
+
+    // Rarity
+    WRONG_RARITY(HttpStatus.INTERNAL_SERVER_ERROR, "RARITY5001", "등급을 찾을 수 없습니다"),
 
 
     // QUIZ
@@ -44,6 +57,7 @@ public enum ErrorCode implements BaseErrorCode {
     ALREADY_SUBMIT(HttpStatus.BAD_REQUEST, "QUIZ4005", "한 번 푸셨던 문제는 다시 풀 수 없어요. 다른 사용자에게 배려해주세요 :) "),
     TICKET_IS_DONE (HttpStatus.BAD_REQUEST, "QUIZ4006", "퀴즈는 풀었지만 이제 티켓을 받을 수는 없네요"),
     QUIZ_IS_CLOSED (HttpStatus.BAD_REQUEST, "QUIZ4007", "아쉽게도 퀴즈가 닫혔어요...."),
+    QUIZ_INVALID_OPEN_TIME(HttpStatus.BAD_REQUEST, "QUIZ4008", "퀴즈 오픈 시간은 현재 시간 이후여야 해요."),
 
 
     // Member
@@ -59,7 +73,20 @@ public enum ErrorCode implements BaseErrorCode {
     // 탈퇴 후 2주 이내 — 프론트에서 복구 다이얼로그 표시 트리거
     MEMBER_WITHDRAWN_RESTORABLE(HttpStatus.FORBIDDEN, "MEMBER4009", "탈퇴한 계정이에요. 2주 이내라면 계정을 되살릴 수 있어요!"),
     // 탈퇴 후 2주 초과 — 영구 탈퇴 상태
-    MEMBER_WITHDRAWN_EXPIRED(HttpStatus.GONE, "MEMBER4010", "탈퇴 후 2주가 지나 복구가 불가능해요.");
+    MEMBER_WITHDRAWN_EXPIRED(HttpStatus.GONE, "MEMBER4010", "탈퇴 후 2주가 지나 복구가 불가능해요."),
+    WRONG_PASSWORD(HttpStatus.BAD_REQUEST, "MEMBER4011", "현재 비밀번호가 일치하지 않아요."),
+    ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 구독 중이에요!"), // 근데 늘리는 방식으로 가지 않을까
+
+
+    // ADMIN
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 날짜의 정산 데이터가 없습니다."),
+
+
+    // NOTICE
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTICE4001", "공지사항을 찾을 수 없습니다."),
+    // isPublished=false인 공지사항을 일반 사용자가 조회 시
+    NOTICE_NOT_PUBLISHED(HttpStatus.NOT_FOUND, "NOTICE4002", "공개되지 않은 공지사항입니다.");
+
 
 
 

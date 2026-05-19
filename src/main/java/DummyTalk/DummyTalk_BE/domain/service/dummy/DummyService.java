@@ -40,9 +40,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -63,24 +64,19 @@ public class DummyService {
 
     private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ThreadPoolTaskScheduler taskScheduler;
-    private final QuizScheduler quizScheduler;
 
-    private final ObjectMapper objectMapper;
     private final MemberQuizRepository memberQuizRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Value("${spring.ai.openai.api-key}")
-    private String openAiKey;
 
 
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
-        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         Info info = member.getInfo();
 
-        if (info.getReqCount() >= 20){ // 일단 하루 20번으로 설정.
-            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
+        if ((info.getIsSubscribe() && info.getReqCount() >= 40) || (!info.getIsSubscribe() && info.getReqCount() >= 20)){
+            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES); // 구독자는 40번, 미구독자는 20번
         }
 
         // 1. 천장 있는 지 조회
@@ -97,17 +93,17 @@ public class DummyService {
         Rarity selectedRarity = Rarity.defaultRarity();
 
         if (currentCommonStack >= 10) { // COMMON -> RARE
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             log.info("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
             isPityTriggered=true;
         }
         else if (currentRareStack >= 10) { // RARE -> EPIC
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             log.info("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
             isPityTriggered=true;
         }
         else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new RuntimeException("Rarity not found"));
+            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             log.info("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
             isPityTriggered=true;
         }
@@ -123,12 +119,12 @@ public class DummyService {
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
         if (result == null) {
-            throw new RuntimeException("No dummy found in Redis for rarity: " + selectedRarity.getName());
+            throw new DummyHandler(ErrorCode.WRONG_RARITY);
         }
         Long randomDummyId = Long.valueOf(result.toString());
 
         // 한 번에 찾기
-        Dummy dummy = dummyRepository.findByIdWithRarity(randomDummyId).orElseThrow(() -> new RuntimeException("Dummy not found"));
+        Dummy dummy = dummyRepository.findByIdWithRarity(randomDummyId).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_DUMMY));
 
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
@@ -148,7 +144,7 @@ public class DummyService {
                 .rarityName(dummy.getRarity().getName().toString())
                 .isPityTriggered(isPityTriggered)
                 .isNextPityTriggered(isNextPityTriggered)
-                .remainingCount(20 - info.getReqCount())
+                .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
                 .build();
         log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarity.getName());
         return dto;
@@ -214,7 +210,7 @@ public class DummyService {
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId + ":dummy");
 
         if (members.isEmpty()){
-            throw new RuntimeException("No dummy found in Redis for member id: " + memberId);
+            throw new DummyHandler(ErrorCode.DUMMY_NOT_FOUND);
         }
 
         List<FieldValue> dummyIdList = members.stream()
@@ -248,12 +244,6 @@ public class DummyService {
         return DummyConverter.toGetMyDummyDListTO(dummyDocumentList);
     }
 
-    @Transactional
-    public String GetDummyDateForNormal(String email, DummyRequestDTO.RequestInfoDTO requestInfoDTO) {
-        return null;
-    }
-
-
     @Transactional(readOnly = true)
     public Rarity getRandomRarity (){
         List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
@@ -271,82 +261,6 @@ public class DummyService {
         return null;
     }
 
-    /**
-     * 퀴즈를 만든 후 Redis 저장 및 캐시화
-     *
-     * @param memberId
-     * @param openQuizDate
-     * @return
-     */
-    @Transactional
-    public Quiz openQuiz(Long memberId, LocalDateTime openQuizDate) {
-
-        // NotAdmin? reject!
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        if (member.getRole().equals(MemberRole.MEMBER)){
-            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
-        }
-
-        // 1. Special 제외 랜덤 문제 조회
-        Rarity selectedRarity = getRandomRarity();
-
-        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
-        if (result == null) {
-            throw new RuntimeException("No dummy found in Redis for rarity: " + selectedRarity.getName());
-        }
-
-        Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new RuntimeException("No dummy found in Redis for rarity: " + result));
-        log.info("[DummyService - openQuiz()] - randomDummy.id: {}", randomDummy.getId());
-
-        // 2. 해당 문제를 통해 OpenAiAPI -> 문제를 만들어줘
-        DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(new DummyRequestDTO.Message(
-                        "user",
-                        AIPrompt.generateNewQuizPrompt(randomDummy))))
-                .max_tokens(200)
-                .build();
-
-        WebClient webClient = WebClient.builder()
-                .baseUrl("https://api.openai.com/v1")
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + openAiKey)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
-
-        String text = webClient.post()
-                .uri("/chat/completions")
-                .bodyValue(dto)
-                .retrieve()
-                .bodyToFlux(ChatCompletionResponseDTO.class)
-                .map(resp -> resp.getChoices().get(0).getMessage().getContent())
-                .blockLast();
-
-        DummyRespDTO.GetQuizFromAIResponseDTO resp;
-        try {
-            resp = objectMapper.readValue(text, DummyRespDTO.GetQuizFromAIResponseDTO.class);
-        } catch (JsonProcessingException e) {
-            throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
-        }
-
-        log.info("[DummyService - openQuiz()] - resp: {}", resp);
-
-        // 3. 해당 시간에 Quiz 생성 & return
-        Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
-        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), 3, TimeUnit.MINUTES);
-
-
-        // 4. openQuiz scheduling
-        int startTime = openQuizDate.getMinute() - LocalDateTime.now().getMinute() ;
-        Instant later = Instant.now().plus(startTime, ChronoUnit.MINUTES);
-        taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.OPEN), later);
-
-        Instant closeTime = Instant.now().plus(startTime+1, ChronoUnit.MINUTES);
-        taskScheduler.schedule (quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.CLOSE), closeTime);
-
-
-        return savedQuiz;
-    }
-
 
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
@@ -359,22 +273,6 @@ public class DummyService {
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
         return DummyRespDTO.GetQuizInfoResponseDTO.createDTO(quiz);
-    }
-
-    /**
-     * Admin 전용
-     * */
-    public DummyRespDTO.CheckQuizDTO checkQuiz (Long memberId){
-        // NotAdmin? reject!
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        if (member.getRole().equals(MemberRole.MEMBER)){
-            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
-        }
-
-        return DummyRespDTO.CheckQuizDTO.builder()
-                .activeCount(taskScheduler.getActiveCount())
-                .poolSize(taskScheduler.getPoolSize())
-                .build();
     }
 
 
@@ -422,8 +320,7 @@ public class DummyService {
         // memberGrade은 deprecated. 실제 등수는 아래 Redis list 순서로 집계 예정
         memberQuizRepository.save(MemberQuiz.generateMemberQuiz(member, quiz, 1, answer));
 
-        // 인덱스 == (등수 - 1)
-        // 퀴즈 종료 후 순위 정산(등수 계산, 보상 차등 지급 등)에 활용 예정
+        // 인덱스 == (등수 - 1), CLOSE 시 QuizTask.settleQuizReward()가 상위 5명에게 7일 구독권 지급
         redisTemplate.opsForList().rightPush("quiz:" + quizId, memberId + ":" + answer);
 
         return true;
