@@ -58,10 +58,10 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                     log.info("[JWTAuthenticationFilter] - Invalid Token, Dont save authentication!");
                 }
             }
-            else {
+            /*else {
                 log.warn("[JWTAuthenticationFilter] - This is request with Empty or Invalid Token");
-//            throw new GeneralException(ErrorCode.AUTH_UNAUTHORIZED);
-            }
+            throw new GeneralException(ErrorCode.AUTH_UNAUTHORIZED);
+            }*/
         }
         catch (ExpiredJwtException e){
             log.warn("[JWTAuthenticationFilter] - AT expired, attempting to refresh token");
