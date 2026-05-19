@@ -581,18 +581,355 @@ Authorization: Bearer: <accessToken>
 
 ---
 
-### 15. 퀴즈 오픈 (Admin Only)
+## Notice API `/api/notices`
+
+> 인증 불필요. 공개된 공지사항만 반환.
+
+### 15. 공지사항 목록 조회
+
+```
+GET /api/notices?page=0
+```
+
+**Request Query**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `page` | `number` | `0` | 페이지 번호 (0부터, 페이지당 20개) |
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "NOTICE2001",
+  "message": "공지사항 조회에 성공했습니다.",
+  "result": [
+    {
+      "id": 1,
+      "title": "서비스 점검 안내",
+      "isPinned": true,
+      "isPublished": true,
+      "authorName": "관리자",
+      "createdAt": "2025-05-01T12:00:00"
+    }
+  ]
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | `number` | 공지사항 ID |
+| `title` | `string` | 제목 |
+| `isPinned` | `boolean` | 상단 고정 여부 — `true`인 항목이 목록 최상단 |
+| `isPublished` | `boolean` | 공개 여부 (목록에서는 항상 `true`) |
+| `authorName` | `string \| null` | 작성자 이름 |
+| `createdAt` | `string` | 작성일시 (ISO 8601) |
+
+---
+
+### 16. 공지사항 상세 조회
+
+```
+GET /api/notices/{id}
+```
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "NOTICE2001",
+  "message": "공지사항 조회에 성공했습니다.",
+  "result": {
+    "id": 1,
+    "title": "서비스 점검 안내",
+    "content": "5월 10일 02:00~04:00 서비스 점검이 예정되어 있습니다.",
+    "isPinned": true,
+    "isPublished": true,
+    "authorName": "관리자",
+    "createdAt": "2025-05-01T12:00:00",
+    "updatedAt": "2025-05-02T09:00:00"
+  }
+}
+```
+
+**Error Codes**
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `NOTICE4001` | 404 | 공지사항을 찾을 수 없습니다. | 존재하지 않거나 삭제된 ID |
+| `NOTICE4002` | 404 | 공개되지 않은 공지사항입니다. | `isPublished=false`인 공지사항 접근 |
+
+---
+
+## Admin API `/api/admin`
+
+> **모든 Admin API는 Admin 계정 필수.** 일반 MEMBER 권한으로 호출 시 `SERVER_4300` 반환.
+
+### 대시보드
+
+#### 17. 정산 단건 조회
+
+```
+GET /api/admin/dashboard/daily?date=2025-05-10
+```
+
+**Request Header** (필수, Admin)
+
+```
+Authorization: Bearer: <adminAccessToken>
+```
+
+**Request Query**
+
+| 파라미터 | 타입 | 설명 |
+|----------|------|------|
+| `date` | `string` | 조회 날짜. ISO 8601 (`yyyy-MM-dd`). 오늘 날짜는 불가 (00:30에 전날치 저장) |
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "ADMIN2001",
+  "message": "정산 데이터 조회에 성공했습니다.",
+  "result": {
+    "settlementDate": "2025-05-10",
+    "totalDummyViews": 1250,
+    "newMemberCount": 15,
+    "commonCount": 800,
+    "rareCount": 300,
+    "epicCount": 120,
+    "specialCount": 30,
+    "activeMemberCount": 430,
+    "activeSubscriberCount": 55
+  }
+}
+```
+
+**Error Codes**
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `ADMIN4001` | 404 | 해당 날짜의 정산 데이터가 없습니다. | 해당 날짜 데이터 미존재 |
+
+---
+
+#### 18. 기간별 정산 목록 조회
+
+```
+GET /api/admin/dashboard/range?from=2025-05-01&to=2025-05-10
+```
+
+**Request Query**
+
+| 파라미터 | 타입 | 설명 |
+|----------|------|------|
+| `from` | `string` | 시작 날짜 (`yyyy-MM-dd`) |
+| `to` | `string` | 종료 날짜 (`yyyy-MM-dd`) |
+
+**Response** — `result`가 `17번` 단건 DTO의 배열. 날짜 오름차순 정렬.
+
+```json
+{
+  "isSuccess": true,
+  "code": "ADMIN2001",
+  "message": "정산 데이터 조회에 성공했습니다.",
+  "result": [
+    { "settlementDate": "2025-05-01", "totalDummyViews": 980, ... },
+    { "settlementDate": "2025-05-02", "totalDummyViews": 1050, ... }
+  ]
+}
+```
+
+---
+
+#### 19. 최근 N일 정산 목록 조회
+
+```
+GET /api/admin/dashboard/latest?days=7
+```
+
+**Request Query**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `days` | `number` | `7` | 최근 며칠치 조회. 어제 기준 N일 전 ~ 어제 |
+
+**Response** — `result`가 `17번` 단건 DTO의 배열. 날짜 오름차순 정렬.
+
+---
+
+### 공지사항 관리
+
+#### 20. 공지사항 전체 목록 조회 (비공개 포함)
+
+```
+GET /api/admin/notices?page=0
+```
+
+**Request Query**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `page` | `number` | `0` | 페이지 번호 (페이지당 20개) |
+
+**Response** — `15번`과 동일한 구조. `isPublished=false`(임시저장) 포함.
+
+---
+
+#### 21. 공지사항 상세 조회 (비공개 포함)
+
+```
+GET /api/admin/notices/{id}
+```
+
+**Response** — `16번`과 동일한 구조. 비공개 공지사항도 조회 가능.
+
+---
+
+#### 22. 공지사항 작성
+
+```
+POST /api/admin/notices
+```
+
+**Request Body**
+
+```json
+{
+  "title": "서비스 점검 안내",
+  "content": "5월 10일 02:00~04:00 서비스 점검이 예정되어 있습니다.",
+  "isPinned": false
+}
+```
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `title` | `string` | ✅ | 제목 |
+| `content` | `string` | ✅ | 본문 |
+| `isPinned` | `boolean` | - | 상단 고정 여부. 미전송 시 `false` |
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "NOTICE2002",
+  "message": "공지사항 작성에 성공했습니다.",
+  "result": {
+    "id": 3,
+    "title": "서비스 점검 안내",
+    "content": "5월 10일 02:00~04:00 서비스 점검이 예정되어 있습니다.",
+    "isPinned": false,
+    "isPublished": false,
+    "authorName": "관리자",
+    "createdAt": "2025-05-19T10:00:00",
+    "updatedAt": "2025-05-19T10:00:00"
+  }
+}
+```
+
+> 작성 직후 `isPublished=false` (임시저장 상태). 공개하려면 `22번` 토글 호출.
+
+---
+
+#### 23. 공지사항 수정
+
+```
+PATCH /api/admin/notices/{id}
+```
+
+> 부분 수정 — 전송하지 않은 필드(`null`)는 변경되지 않습니다.
+
+**Request Body**
+
+```json
+{
+  "title": "수정된 제목",
+  "content": null,
+  "isPinned": true
+}
+```
+
+**Response** — `22번`과 동일한 구조 (수정된 상태 반환).
+
+```json
+{
+  "isSuccess": true,
+  "code": "NOTICE2003",
+  "message": "공지사항 수정에 성공했습니다.",
+  "result": { ... }
+}
+```
+
+**Error Codes**
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `NOTICE4001` | 404 | 공지사항을 찾을 수 없습니다. | 존재하지 않거나 이미 삭제된 ID |
+
+---
+
+#### 24. 공지사항 삭제 (Soft Delete)
+
+```
+DELETE /api/admin/notices/{id}
+```
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "NOTICE2004",
+  "message": "공지사항 삭제에 성공했습니다.",
+  "result": true
+}
+```
+
+**Error Codes**
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `NOTICE4001` | 404 | 공지사항을 찾을 수 없습니다. | 존재하지 않거나 이미 삭제된 ID |
+
+---
+
+#### 25. 공지사항 공개/비공개 토글
+
+```
+PATCH /api/admin/notices/{id}/publish
+```
+
+**Response** — `result`는 변경 후 현재 `isPublished` 값.
+
+```json
+{
+  "isSuccess": true,
+  "code": "NOTICE2005",
+  "message": "공지사항 공개 상태가 변경되었습니다.",
+  "result": true
+}
+```
+
+**Error Codes**
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `NOTICE4001` | 404 | 공지사항을 찾을 수 없습니다. | 존재하지 않거나 이미 삭제된 ID |
+
+---
+
+### 퀴즈 / 회원 관리
+
+#### 26. 퀴즈 오픈 (Admin Only)
 
 퀴즈를 생성하고 오픈 스케줄을 등록합니다.
 
 ```
-POST /api/dummies/open-quiz?open-time=2025-05-01T18:00:00
-```
-
-**Request Header** (필수, Admin 계정)
-
-```
-Authorization: Bearer: <adminAccessToken>
+POST /api/admin/quiz/open?open-time=2025-05-01T18:00:00
 ```
 
 **Request Query**
@@ -606,15 +943,15 @@ Authorization: Bearer: <adminAccessToken>
 ```json
 {
   "isSuccess": true,
-  "code": "DUMMY2001",
-  "message": "(Only Admin) 퀴즈 오픈에 성공하셨습니다.",
+  "code": "ADMIN2002",
+  "message": "(Admin) 퀴즈 오픈에 성공했습니다.",
   "result": {
     "id": 1,
     "title": "다음 중 수박의 원산지는?",
     "answerList": ["동남아시아", "아프리카", "남미", "중앙아시아"],
     "answer": 2,
     "description": "수박은 아프리카 사막 지대가 원산지입니다.",
-    "ticket": 5,
+    "ticket": 10,
     "status": "NOT_OPEN",
     "startTime": "2025-05-01T18:00:00",
     "endTime": "2025-05-01T18:05:00"
@@ -628,20 +965,14 @@ Authorization: Bearer: <adminAccessToken>
 
 | 코드 | 메시지 | 상황 |
 |------|--------|------|
-| `SERVER_4300` | 접근 권한이 없습니다. | Admin 권한 없음 |
+| `QUIZ4008` | 퀴즈 오픈 시간은 현재 시간 이후여야 해요. | 과거 시간으로 오픈 시도 |
 
 ---
 
-### 16. 퀴즈 스케줄러 상태 확인 (Admin Only)
+#### 27. 퀴즈 스케줄러 상태 확인 (Admin Only)
 
 ```
-GET /api/dummies/check-quiz
-```
-
-**Request Header** (필수, Admin 계정)
-
-```
-Authorization: Bearer: <adminAccessToken>
+GET /api/admin/check-quiz
 ```
 
 **Response**
@@ -665,6 +996,31 @@ Authorization: Bearer: <adminAccessToken>
 
 ---
 
+#### 28. 구독 승인 (Admin Only)
+
+```
+PATCH /api/admin/members/subscribe?email=user@example.com
+```
+
+**Request Query**
+
+| 파라미터 | 타입 | 설명 |
+|----------|------|------|
+| `email` | `string` | 승인할 회원 이메일 |
+
+**Response**
+
+```json
+{
+  "isSuccess": true,
+  "code": "ADMIN2003",
+  "message": "(Admin) 구독 승인에 성공했습니다.",
+  "result": true
+}
+```
+
+---
+
 ## 공통 에러 코드
 
 ### 인증/보안
@@ -685,6 +1041,13 @@ Authorization: Bearer: <adminAccessToken>
 | `MEMBER4008` | 401 | 이미 탈퇴한 계정입니다. | 일반 탈퇴 에러 (미사용, 하위 호환용) |
 | `MEMBER4009` | 403 | 탈퇴한 계정이에요. 2주 이내라면 계정을 되살릴 수 있어요! | 탈퇴 후 2주 이내 로그인 → 복구 다이얼로그 트리거 |
 | `MEMBER4010` | 410 | 탈퇴 후 2주가 지나 복구가 불가능해요. | 탈퇴 후 2주 초과 복구 시도 |
+
+### 공지사항
+
+| 코드 | HTTP | 메시지 | 상황 |
+|------|------|--------|------|
+| `NOTICE4001` | 404 | 공지사항을 찾을 수 없습니다. | 존재하지 않거나 삭제된 ID |
+| `NOTICE4002` | 404 | 공개되지 않은 공지사항입니다. | 비공개 공지사항 일반 사용자 접근 |
 
 ### 서버
 
@@ -714,3 +1077,20 @@ Authorization: Bearer: <adminAccessToken>
 | `NOT_OPEN` | 오픈 대기 |
 | `OPEN` | 진행 중 |
 | `CLOSE` | 종료 |
+
+---
+
+## MVP 현황 (2026-05-19 기준)
+
+| 도메인 | 기능 | 상태 |
+|--------|------|------|
+| Member | 이메일 인증/회원가입/로그인/로그아웃/탈퇴/복구/마이페이지 | ✅ 완성 |
+| Member | 구독 신청 (`/subscribe`) | ⚠️ 항상 true 반환 (결제 미연동) |
+| Dummy | 가챠/목록/검색/퀴즈 조회·풀이 | ✅ 완성 |
+| Notice | 공개 목록/상세 조회 | ✅ 완성 |
+| Admin | 공지사항 CRUD + 공개 토글 | ✅ 완성 |
+| Admin | 정산 단건/기간/최근N일 조회 | ✅ 완성 |
+| Admin | 퀴즈 오픈/스케줄러 확인/구독 승인 | ✅ 완성 |
+| Member | 연속 출석 체크 | ❌ 미구현 |
+| Global | 분산락 (Redisson) | ❌ 미구현 |
+| Global | HTTPS/도메인 | ❌ 미적용 |

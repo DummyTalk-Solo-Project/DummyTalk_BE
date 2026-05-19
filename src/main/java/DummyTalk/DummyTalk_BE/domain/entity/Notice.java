@@ -35,4 +35,21 @@ public class Notice extends CommonEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id")
     private Member author;
+
+    // 제목·본문·고정 여부 부분 수정 — null 필드는 변경하지 않음
+    public void update(String title, String content, Boolean isPinned) {
+        if (title != null) this.title = title;
+        if (content != null) this.content = content;
+        if (isPinned != null) this.isPinned = isPinned;
+    }
+
+    // 공개/비공개 토글
+    public void togglePublish() {
+        this.isPublished = !this.isPublished;
+    }
+
+    // softDelete() 위임 — CommonEntity.softDelete()는 protected
+    public void delete() {
+        softDelete();
+    }
 }

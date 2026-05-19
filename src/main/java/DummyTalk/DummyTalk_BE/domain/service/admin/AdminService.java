@@ -35,6 +35,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +73,38 @@ public class AdminService {
 
         log.info("[AdminService - getDailySettlement()] - 정산 조회 | 날짜={}", date);
         return AdminRespDTO.DailySettlementRespDTO.from(settlement);
+    }
+
+    // 기간별 정산 목록 조회
+    @Transactional(readOnly = true)
+    public List<AdminRespDTO.DailySettlementRespDTO> getSettlementRange(Long memberId, LocalDate from, LocalDate to) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (member.getRole().equals(MemberRole.MEMBER)) {
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+        log.info("[AdminService - getSettlementRange()] - 기간별 정산 조회 | from={}, to={}", from, to);
+        return dailySettlementRepository.findBySettlementDateBetweenOrderBySettlementDateAsc(from, to)
+                .stream()
+                .map(AdminRespDTO.DailySettlementRespDTO::from)
+                .collect(Collectors.toList());
+    }
+
+    // 최근 N일 정산 목록 조회 — AdminTask 기준 어제까지 유효
+    @Transactional(readOnly = true)
+    public List<AdminRespDTO.DailySettlementRespDTO> getLatestSettlements(Long memberId, Integer days) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (member.getRole().equals(MemberRole.MEMBER)) {
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDate from = yesterday.minusDays(days - 1);
+        log.info("[AdminService - getLatestSettlements()] - 최근 {}일 정산 조회 | from={}, to={}", days, from, yesterday);
+        return dailySettlementRepository.findBySettlementDateBetweenOrderBySettlementDateAsc(from, yesterday)
+                .stream()
+                .map(AdminRespDTO.DailySettlementRespDTO::from)
+                .collect(Collectors.toList());
     }
 
     /**

@@ -13,6 +13,7 @@ public enum ErrorCode implements BaseErrorCode {
     // CLIENT
     INVALID_TOKEN(HttpStatus.BAD_REQUEST, "CLIENT4000", "로그인이 필요해요"),
 
+
     // SERVER
     INTERNAL_SERVER_ERROR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5000", "서버 에러 입니다,. 에러 코드: SERVER5001, 관리자에게 연락 주시기 바랍니다"),
     PARSING_ERROR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5001", "서버 에러 입니다. 에러 코드: SERVER5001, 관리자에게 연락 주시기 바랍니다"),
@@ -22,6 +23,7 @@ public enum ErrorCode implements BaseErrorCode {
     CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
     CANT_ENCODE_STRING (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5007", "서버 에러 입니다. 에러 코드: SERVER5007, 관리자에게 문의해주세요."),
+
 
     // SECURITY
     AUTH_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "SERVER_4100", "인증 정보가 없습니다."),
@@ -41,6 +43,7 @@ public enum ErrorCode implements BaseErrorCode {
     DUMMY_WITH_ID_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "DUMMY5003", "해당 아이디의 더미를 찾을 수 없습니다."),
 
     USED_ALL_CHANCES(HttpStatus.BAD_REQUEST, "DUMMY4001", "모든 무료 요청 횟수를 소모하셨네요, 다음을 기약해주세요 :)"),
+
 
     // Rarity
     WRONG_RARITY(HttpStatus.INTERNAL_SERVER_ERROR, "RARITY5001", "등급을 찾을 수 없습니다"),
@@ -74,8 +77,15 @@ public enum ErrorCode implements BaseErrorCode {
     WRONG_PASSWORD(HttpStatus.BAD_REQUEST, "MEMBER4011", "현재 비밀번호가 일치하지 않아요."),
     ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "MEMBER4012", "이미 구독 중이에요!"), // 근데 늘리는 방식으로 가지 않을까
 
+
     // ADMIN
-    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 날짜의 정산 데이터가 없습니다.");
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 날짜의 정산 데이터가 없습니다."),
+
+
+    // NOTICE
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTICE4001", "공지사항을 찾을 수 없습니다."),
+    // isPublished=false인 공지사항을 일반 사용자가 조회 시
+    NOTICE_NOT_PUBLISHED(HttpStatus.NOT_FOUND, "NOTICE4002", "공개되지 않은 공지사항입니다.");
 
 
 
