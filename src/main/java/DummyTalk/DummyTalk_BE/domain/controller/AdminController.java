@@ -115,7 +115,7 @@ public class AdminController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(value = "open-time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date) {
         return APIResponse.onSuccess(
-                dummyService.openQuiz(userDetails.getMember().getId(), date),
+                adminService.openQuiz(userDetails.getMember().getId(), date),
                 SuccessCode.OPEN_QUIZ_ADMIN_SUCCESS);
     }
 
@@ -127,5 +127,10 @@ public class AdminController {
         return APIResponse.onSuccess(
                 memberService.approveSubscription(userDetails.getMember().getId(), email),
                 SuccessCode.APPROVE_SUBSCRIBE_SUCCESS);
+    }
+
+    @GetMapping("/check-quiz")
+    public APIResponse<Object> checkQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
+        return APIResponse.onSuccess(adminService.checkQuiz(userDetails.getMember().getId()), SuccessCode.CHECK_QUIZ_SUCCESS);
     }
 }

@@ -64,15 +64,10 @@ public class DummyService {
 
     private final ElasticsearchOperations elasticsearchOperations;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ThreadPoolTaskScheduler taskScheduler;
-    private final QuizScheduler quizScheduler;
 
-    private final ObjectMapper objectMapper;
     private final MemberQuizRepository memberQuizRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Value("${spring.ai.openai.api-key}")
-    private String openAiKey;
 
 
     @Transactional
@@ -249,9 +244,6 @@ public class DummyService {
         return DummyConverter.toGetMyDummyDListTO(dummyDocumentList);
     }
 
-
-
-
     @Transactional(readOnly = true)
     public Rarity getRandomRarity (){
         List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
@@ -269,88 +261,6 @@ public class DummyService {
         return null;
     }
 
-    /**
-     * 퀴즈를 만든 후 Redis 저장 및 캐시화
-     *
-     * @param memberId
-     * @param openQuizDate
-     * @return
-     */
-    @Transactional
-    public Quiz openQuiz(Long memberId, LocalDateTime openQuizDate) {
-
-        // NotAdmin? reject!
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        if (member.getRole().equals(MemberRole.MEMBER)){
-            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
-        }
-
-        // 1. Special 제외 랜덤 문제 조회
-        Rarity selectedRarity = getRandomRarity();
-
-        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
-        if (result == null) {
-            throw new DummyHandler(ErrorCode.DUMMY_WITH_RARITY_NOT_FOUND);
-        }
-
-        Dummy randomDummy = dummyRepository.findById(Long.valueOf(result.toString())).orElseThrow(() -> new DummyHandler(ErrorCode.DUMMY_WITH_ID_NOT_FOUND));
-        log.info("[DummyService - openQuiz()] - randomDummy.id: {}", randomDummy.getId());
-
-        // 2. 해당 문제를 통해 OpenAiAPI -> 문제를 만들어줘
-        DummyRequestDTO.GetDummyQuizDTO dto = DummyRequestDTO.GetDummyQuizDTO.builder()
-                .model("gpt-4o-mini")
-                .messages(List.of(new DummyRequestDTO.Message(
-                        "user",
-                        AIPrompt.generateNewQuizPrompt(randomDummy))))
-                .max_tokens(200)
-                .build();
-
-        WebClient webClient = WebClient.builder()
-                .baseUrl("https://api.openai.com/v1")
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + openAiKey)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
-
-        String text = webClient.post()
-                .uri("/chat/completions")
-                .bodyValue(dto)
-                .retrieve()
-                .bodyToFlux(ChatCompletionResponseDTO.class)
-                .map(resp -> resp.getChoices().get(0).getMessage().getContent())
-                .blockLast();
-
-        DummyRespDTO.GetQuizFromAIResponseDTO resp;
-        try {
-            resp = objectMapper.readValue(text, DummyRespDTO.GetQuizFromAIResponseDTO.class);
-        } catch (JsonProcessingException e) {
-            throw new DummyHandler(ErrorCode.AI_PARSING_ERROR);
-        }
-
-        log.info("[DummyService - openQuiz()] - resp: {}", resp);
-
-        // 3. 해당 시간에 Quiz 생성 & return
-        Quiz savedQuiz = quizRepository.save(Quiz.createNewQuiz(resp.getTitle(), resp.getAnswerList(), resp.getAnswer(), resp.getDescription(), 10, openQuizDate));
-
-        // 4. openQuiz scheduling
-        // LocalDateTime → Instant  (시스템 타임존 기준): getMinute() 차분 방식의 날짜 + 시간 무시 버그 수정
-        Instant now = Instant.now();
-        Instant openInstant  = openQuizDate.atZone(ZoneId.systemDefault()).toInstant();
-        Instant closeInstant = savedQuiz.getEndTime().atZone(ZoneId.systemDefault()).toInstant(); // Quiz.endTime = startTime+5min
-
-        // 과거 시간 검증 — 이미 지난 시간으로 스케줄하면 즉시 실행되므로 차단
-        if (openInstant.isBefore(now)) {
-            throw new QuizHandler(ErrorCode.QUIZ_INVALID_OPEN_TIME);
-        }
-
-        redisTemplate.opsForValue().set("quiz", savedQuiz.getId(), Duration.between(now, closeInstant).getSeconds(), TimeUnit.SECONDS); // Redis 키 TTL = 퀴즈가 닫히는 시점까지 유지 (동적으로)
-
-        taskScheduler.schedule(quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.OPEN),  openInstant);
-        taskScheduler.schedule(quizScheduler.controlQuiz(savedQuiz.getId(), QuizStatus.CLOSE), closeInstant);
-
-
-        return savedQuiz;
-    }
-
 
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
@@ -363,22 +273,6 @@ public class DummyService {
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
         return DummyRespDTO.GetQuizInfoResponseDTO.createDTO(quiz);
-    }
-
-    /**
-     * Admin 전용
-     * */
-    public DummyRespDTO.CheckQuizDTO checkQuiz (Long memberId){
-        // NotAdmin? reject!
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        if (member.getRole().equals(MemberRole.MEMBER)){
-            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
-        }
-
-        return DummyRespDTO.CheckQuizDTO.builder()
-                .activeCount(taskScheduler.getActiveCount())
-                .poolSize(taskScheduler.getPoolSize())
-                .build();
     }
 
 

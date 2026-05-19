@@ -44,7 +44,6 @@ public class DummyController {
         return APIResponse.onSuccess(dummyService.getMyDummyListWithKeyword(userDetails.getMember().getId(), keyword, page),  SuccessCode.GET_DUMMY_SUCCESS);
     }
 
-
     @GetMapping("/quiz")
     public APIResponse<DummyRespDTO.GetQuizInfoResponseDTO> getQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
         return APIResponse.onSuccess(dummyService.getQuiz(userDetails.getMember().getId()), SuccessCode.GET_QUIZ_SUCCESS);
@@ -54,10 +53,5 @@ public class DummyController {
     public APIResponse<Boolean> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
 //        dummyServiceInterface.solveQuiz(userDetails.getMember(), quizId, answer);
         return APIResponse.onSuccess(   dummyService.solveQuiz(userDetails.getMember().getId(), quizId, answer), SuccessCode.SOLVE_QUIZ_SUCCESS);
-    }
-
-    @GetMapping("/check-quiz")
-    public APIResponse<Object> checkQuiz (@AuthenticationPrincipal CustomUserDetails userDetails){
-        return APIResponse.onSuccess(dummyService.checkQuiz(userDetails.getMember().getId()), SuccessCode.CHECK_QUIZ_SUCCESS);
     }
 }
