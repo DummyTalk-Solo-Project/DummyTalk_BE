@@ -85,3 +85,10 @@ management:
 discord:
   webhook:
     url: ${DISCORD_WEBHOOK}
+
+# prod 프로파일 없이 배포 환경에서 Swagger 비활성화
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
