@@ -306,7 +306,7 @@ public class MemberService {
         Authentication authentication = new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword(), authorities);
         JWT jwt = jwtProvider.generateToken(authentication);
 
-        redisTemplate.opsForValue().set("refresh:"+dto.getEmail(), jwt.getRefreshToken());
+        redisTemplate.opsForValue().set("refresh:" + dto.getEmail(), jwt.getRefreshToken(), 7, TimeUnit.DAYS); // RT 7일 세팅
 
         boolean needPasswordChange = "1".equals(redisTemplate.opsForValue().get("reset:" + member.getId()));
 
@@ -342,7 +342,7 @@ public class MemberService {
         Authentication authentication = new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword(), authorities);
         JWT jwt = jwtProvider.generateToken(authentication);
 
-        redisTemplate.opsForValue().set("refresh:" + dto.getEmail(), jwt.getRefreshToken());
+        redisTemplate.opsForValue().set("refresh:" + dto.getEmail(), jwt.getRefreshToken(), 7, TimeUnit.DAYS);
 
         log.info("[MemberService - restoreAccount()] - 계정 복구 완료: {}", dto.getEmail());
 
