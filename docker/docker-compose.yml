@@ -58,27 +58,9 @@ services:
       TZ: Asia/Seoul
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # batch_table_init.sql 은 EC2 에 복사되지 않으므로 주석 처리
-      # - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
     restart: always
     networks:
       - dummytalk-network
-
-#  mysql:
-#    image: mysql:8.0
-#    container_name: DummyTalk_MySQL
-#    ports:
-#      - "3306:3306"
-#    environment:
-#      MYSQL_DATABASE: ${DB_NAME}
-#      MYSQL_USER: ${DB_USERNAME}
-#      MYSQL_PASSWORD: ${DB_PASSWORD}
-#      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-#    volumes:
-#      - mysql_data:/var/lib/mysql
-#      - ./src/main/resources/sql/batch_table_init.sql:/docker-entrypoint-initdb.d/batch_table_init.sql
-#    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-#    restart: always
 
   redis:
     image: redis:7-alpine
