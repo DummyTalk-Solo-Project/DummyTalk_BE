@@ -1,6 +1,11 @@
 # DummyTalk API 명세서
 
-> FE ClaudeCode Agent용. Base URL: `http://localhost:8080` (개발) / 배포 미적용.
+> FE ClaudeCode Agent용.
+>
+> | 환경 | Base URL |
+> |------|----------|
+> | 개발 | `http://localhost:8080` |
+> | 배포 | `https://ddotg.dev` |
 
 ---
 
@@ -31,8 +36,54 @@
 인증이 필요한 API는 요청 Header에 Access Token을 포함합니다.
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
+
+> **RFC 6750 표준 형식.** `Bearer:` (콜론 포함) 형식은 사용하지 않습니다.
+
+---
+
+### CORS
+
+아래 Origin에서의 요청만 허용됩니다.
+
+| Origin | 용도 |
+|--------|------|
+| `https://dummytalk.vercel.app` | Vercel 배포 |
+| `http://localhost:3000` | 로컬 개발 |
+| `http://localhost:5173` | 로컬 개발 (Vite) |
+
+**모든 API 요청에 `withCredentials: true` 필수** — RT 쿠키 자동 첨부를 위해 필요합니다.
+
+```js
+axios.defaults.withCredentials = true;
+```
+
+---
+
+### AT 자동 갱신
+
+별도의 갱신 엔드포인트가 없습니다. AT 만료 후 요청 시 BE 필터가 자동 처리합니다.
+
+**FE 구현 필수사항:** 모든 응답의 `Authorization` 헤더를 확인하여 새 AT가 있으면 저장합니다.
+
+```js
+axios.interceptors.response.use((response) => {
+  const newToken = response.headers['authorization'];
+  if (newToken?.startsWith('Bearer ')) {
+    saveToken(newToken.slice(7));
+  }
+  return response;
+});
+```
+
+| 항목 | 값 |
+|------|-----|
+| AT 만료 | 1시간 |
+| RT 만료 | 7일 |
+| RT 쿠키 | `HttpOnly; Secure; SameSite=None` |
+
+> `SameSite=None`: FE(Vercel)·BE(EC2)가 다른 도메인이므로 크로스 사이트 쿠키 전송을 위해 필요. `Secure` 필수이므로 HTTPS 환경에서만 동작.
 
 ---
 
@@ -173,8 +224,9 @@ POST /api/members/login
 }
 ```
 
-> 응답 Header `Set-Cookie`에 `refreshToken`(HttpOnly, Secure, 7일) 포함.  
-> 응답 Header `Authorization: Bearer: <accessToken>` 포함.
+> **응답 Header**
+> - `Authorization: Bearer <accessToken>`
+> - `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=None; Max-Age=604800`
 
 **Error Codes**
 
@@ -197,7 +249,7 @@ POST /api/members/logout
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Response**
@@ -232,7 +284,7 @@ POST /api/members/subscribe
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Response**
@@ -257,7 +309,7 @@ GET /api/members/my-page
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Response**
@@ -299,7 +351,7 @@ PATCH /api/members/withdrawal
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Response**
@@ -350,8 +402,9 @@ PATCH /api/members/restore
 }
 ```
 
-> 응답 Header `Set-Cookie`에 `refreshToken`(HttpOnly, Secure, 7일) 포함.  
-> 응답 Header `Authorization: Bearer: <accessToken>` 포함.
+> **응답 Header**
+> - `Authorization: Bearer <accessToken>`
+> - `Set-Cookie: refreshToken=...; HttpOnly; Secure; SameSite=None; Max-Age=604800`
 
 **Error Codes**
 
@@ -375,7 +428,7 @@ GET /api/dummies/dummy
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Response**
@@ -424,7 +477,7 @@ GET /api/dummies/my-dummy?page=0
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Request Query**
@@ -477,7 +530,7 @@ GET /api/dummies/my-dummy/keyword?keyword=수박&page=0
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Request Query**
@@ -502,7 +555,7 @@ GET /api/dummies/quiz
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Response**
@@ -547,7 +600,7 @@ POST /api/dummies/quiz?id=5&answer=1
 **Request Header** (필수)
 
 ```
-Authorization: Bearer: <accessToken>
+Authorization: Bearer <accessToken>
 ```
 
 **Request Query**
@@ -678,7 +731,7 @@ GET /api/admin/dashboard/daily?date=2025-05-10
 **Request Header** (필수, Admin)
 
 ```
-Authorization: Bearer: <adminAccessToken>
+Authorization: Bearer <adminAccessToken>
 ```
 
 **Request Query**
@@ -1080,7 +1133,7 @@ PATCH /api/admin/members/subscribe?email=user@example.com
 
 ---
 
-## MVP 현황 (2026-05-19 기준)
+## MVP 현황 (2026-05-21 기준)
 
 | 도메인 | 기능 | 상태 |
 |--------|------|------|
@@ -1093,4 +1146,4 @@ PATCH /api/admin/members/subscribe?email=user@example.com
 | Admin | 퀴즈 오픈/스케줄러 확인/구독 승인 | ✅ 완성 |
 | Member | 연속 출석 체크 | ❌ 미구현 |
 | Global | 분산락 (Redisson) | ❌ 미구현 |
-| Global | HTTPS/도메인 | ❌ 미적용 |
+| Global | HTTPS/도메인 (`ddotg.dev`, Cloudflare Full Strict + nginx) | ✅ 적용 |
