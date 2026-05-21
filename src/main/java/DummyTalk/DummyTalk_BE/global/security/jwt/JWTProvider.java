@@ -25,9 +25,9 @@ import java.util.stream.Collectors;
 @Component
 public class JWTProvider {
 
-    // 일단 1시간으로 세팅
-    private static final Long ACCESS_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;
-    private static final Long REFRESH_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;
+    private static final Long ACCESS_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60;       // 1시간
+    // Cookie maxAge & Redis TTL과 통일
+    private static final Long REFRESH_TOKEN_EXPIRE_TIME = (long) 1000 * 60 * 60 * 24 * 7; // 7일
 
     private final Key key;
     private final CustomUserDetailsService customUserDetailsService;

@@ -48,7 +48,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "docker/docker-compose.yml,docker/prometheus.yml"
+          source: "docker/docker-compose.yml,docker/prometheus.yml,docker/nginx.conf"
           target: "~/dummytalk"
 
   ec2-deploy:

@@ -76,8 +76,8 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
 
     private String resolveAccessToken(HttpServletRequest request){
         String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer: ")) {
-            return bearerToken.substring(7).trim(); // 앞 뒤 공백 제거, "Bearer ~~~" 형식으로 통일
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7).trim();
         }
         return null;
     }
@@ -123,10 +123,12 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                     .secure(true)
                     .path("/")
                     .maxAge(7 * 24 * 60 * 60) // 7일
-                    .sameSite("Strict")
+                    // SameSite=None: FE(Vercel)·BE(EC2)가 다른 도메인이므로 크로스 사이트 쿠키 전송 필요
+                    // Secure=true 와 함께 사용 시에만 동작 → HTTPS 배포 필수
+                    .sameSite("None")
                     .build();
             response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-            redisTemplate.opsForValue().set("refresh:"+username, newJWT.getRefreshToken());
+            redisTemplate.opsForValue().set("refresh:"+username, newJWT.getRefreshToken(), 7, java.util.concurrent.TimeUnit.DAYS);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             log.info("[JWTAuthenticationFilter] - Successfully refreshed token and set security context for user: {}", username);
