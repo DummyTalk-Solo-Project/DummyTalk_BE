@@ -3,12 +3,9 @@ services:
     image: nginx:alpine
     container_name: DummyTalk_Nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:80"  # Cloudflare Proxy ON → Cloudflare가 SSL 처리, EC2는 80만 사용
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro # SCP로 EC2 ~/dummytalk/docker/ 에 복사
-      - /etc/letsencrypt:/etc/letsencrypt:ro # Let's Encrypt 인증서: EC2에서 certbot으로 최초 발급 후 자동 갱신
-      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - spring
     restart: always
@@ -18,8 +15,8 @@ services:
   spring:
     image: ${DOCKER_USERNAME}/dummytalk:latest
     container_name: DummyTalk-Spring
-    ports:
-      - "8080:8080"
+    expose: # nginx가 프록시하므로 외부 직접 접근 차단 (같은 container 끼리는 가능)
+      - "8080"
     environment:
       - DB_HOST=postgresql
       - DB_NAME=${DB_NAME}
