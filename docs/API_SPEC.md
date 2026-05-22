@@ -34,6 +34,15 @@
 Authorization: Bearer: <accessToken>
 ```
 
+### JWT 클레임 구조
+
+| 클레임 | 키 | 값 예시 | 설명 |
+|--------|-----|---------|------|
+| Subject | `sub` | `user@example.com` | 이메일 (사용자 식별자) |
+| 권한 (Spring Security) | `auth` | `ADMIN` | 서버 내부 인증용 |
+| 권한 (FE) | `role` | `ADMIN` | FE 권한 체크용. `ADMIN` 또는 `MEMBER` |
+| 만료 | `exp` | - | 표준 만료 시각 (Unix timestamp) |
+
 ---
 
 ## Member API `/api/members`
