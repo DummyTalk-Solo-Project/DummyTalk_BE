@@ -99,8 +99,8 @@ jobs:
             echo "===== [1/5] pull all images ====="
             sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
 
-            echo "===== [2/5] down existing containers ====="
-            sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env down
+            echo "===== [2/5] remove existing containers ====="
+            sudo docker rm -f DummyTalk_Nginx DummyTalk_Spring DummyTalk_Postgres DummyTalk_Redis DummyTalk_ElasticSearch DummyTalk_Prometheus DummyTalk_Grafana 2>/dev/null || true
 
             echo "===== [3/5] up all services ====="
             sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d
