@@ -96,18 +96,14 @@ jobs:
             # 뱃지 이미지 bind mount 디렉토리 사전 생성
             mkdir -p /home/ubuntu/data/badges
 
-            # 기존 Spring 컨테이너 강제 제거 (컨테이너명 충돌 방지)
-            sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
-
             # 최초 배포 = 전체 서비스 up
             # 이후 업데이트 = spring 이미지만 pull 후 재기동 (의존 서비스는 이미 실행 중)
             if sudo docker ps --format '{{.Names}}' | grep -q "DummyTalk_ElasticSearch"; then
               echo "===== [1/4] pull spring image only ====="
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull spring
 
-              echo "===== [2/4] up spring + reload prometheus config ====="
-              # --no-deps: depends_on(postgresql, redis, elasticsearch) 재생성 시도 방지 (이미 실행 중인 서비스는 그대로 유지)
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d --no-deps spring
+              echo "===== [2/4] up spring + reload prometheus config =====" 
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d --no-deps spring # 나머지 컨테이너 재생성 시도 방지
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env restart prometheus
             else
               echo "===== [1/4] pull all images (first deploy) ====="
