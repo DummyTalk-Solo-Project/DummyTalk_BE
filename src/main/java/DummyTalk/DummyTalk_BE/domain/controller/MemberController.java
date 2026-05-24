@@ -49,12 +49,13 @@ public class MemberController {
 
         MemberRespDTO.MemberInfoDTO memberInfo = memberService.login(dto);
 
+        // SameSite=None: FE(Vercel)·BE(EC2)가 다른 도메인 → 크로스 사이트 쿠키 전송 필요, Secure 필수
         ResponseCookie cookie = ResponseCookie.from("refreshToken", memberInfo.getJwt().getRefreshToken())
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
                 .maxAge(7 * 24 * 60 * 60) // 7일
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
         response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
@@ -65,7 +66,8 @@ public class MemberController {
                 .needPasswordChange(memberInfo.getNeedPasswordChange())
                 .build();
 
-        response.addHeader("Authorization", "Bearer: " + respDTO.getAccessToken());
+        // RFC 6750 표준: "Bearer <token>" (콜론 없음)
+        response.addHeader("Authorization", "Bearer " + respDTO.getAccessToken());
 
         return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
     }
@@ -76,7 +78,7 @@ public class MemberController {
             HttpServletRequest request){
 
         String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer: ")) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             memberService.logout(bearerToken.substring(7).trim(), customUserDetails.getMember().getId());
         }
         return APIResponse.onSuccess(true,  SuccessCode.LOGOUT_SUCCESS);
@@ -112,15 +114,16 @@ public class MemberController {
 
         MemberRespDTO.MemberInfoDTO memberInfo = memberService.restoreAccount(dto);
 
+        // SameSite=None: 크로스 도메인 쿠키 전송 필요, Secure 필수
         ResponseCookie cookie = ResponseCookie.from("refreshToken", memberInfo.getJwt().getRefreshToken())
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
                 .maxAge(7 * 24 * 60 * 60)
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
         response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        response.addHeader("Authorization", "Bearer: " + memberInfo.getJwt().getAccessToken());
+        response.addHeader("Authorization", "Bearer " + memberInfo.getJwt().getAccessToken());
 
         MemberRespDTO.LoginSuccessDTO respDTO = MemberRespDTO.LoginSuccessDTO.builder()
                 .memberName(memberInfo.getUsername())

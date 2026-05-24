@@ -69,7 +69,8 @@ public class JWTProvider {
         return Jwts.builder()
 //                .claim("username", email)
                 .subject(email) // 표준 필드로 수정
-                .claim("auth", authorities != null ? authorities : "ROLE_USER") // authorities 있는 경우 Member 필드의 Role 반환
+                .claim("auth", authorities != null ? authorities : "ROLE_MEMBER") // authorities 있는 경우 Member 필드의 Role 반환
+                .claim("role", authorities != null ? authorities : "ROLE_MEMBER") // authorities 있는 경우 Member 필드의 Role 반환
                 .expiration(expireDate)
                 .signWith(key)
                 .compact();

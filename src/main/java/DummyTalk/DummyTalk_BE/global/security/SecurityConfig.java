@@ -45,6 +45,7 @@ public class SecurityConfig{
                 .authorizeHttpRequests((auth) -> {
                     auth
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                            .requestMatchers("/actuator/prometheus", "/actuator/health").permitAll() // 접근 허용 + Grafana는 잠그기
                             .requestMatchers("/actuator/**").hasRole("ADMIN") // 관리자만 허용
                             .requestMatchers("/api/admin/**").hasRole("ADMIN") // 관리자만 허용
                             .requestMatchers("/api/alarms/**").authenticated()
