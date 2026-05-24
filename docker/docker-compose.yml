@@ -37,10 +37,14 @@ services:
       # 뱃지 이미지: EC2 /home/ubuntu/data/badges/
       # 컨테이너 /app/uploads/badges/ (read only)
       - /home/ubuntu/data/badges:/app/uploads/badges:ro
+    # ES 늦게 켜져서 condition 추가
     depends_on:
-      - postgresql
-      - redis
-      - elasticsearch
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     restart: always
     networks:
       - dummytalk-network
@@ -57,6 +61,11 @@ services:
       TZ: Asia/Seoul
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: always
     networks:
       - dummytalk-network
@@ -68,6 +77,11 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: always
     networks:
       - dummytalk-network
@@ -116,6 +130,12 @@ services:
       - "9300:9300"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health?wait_for_status=yellow || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - dummytalk-network
 
