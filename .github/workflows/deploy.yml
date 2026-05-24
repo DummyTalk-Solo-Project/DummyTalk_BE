@@ -99,13 +99,21 @@ jobs:
             # 기존 Spring 컨테이너 강제 제거 (컨테이너명 충돌 방지)
             sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
 
-            echo "===== [1/4] pull latest images ====="
-            $COMPOSE pull spring
+            # 최초 배포 = 전체 up 
+            # 이후 = Spring만 재시작
+            if sudo docker ps --format '{{.Names}}' | grep -q "DummyTalk_ElasticSearch"; then
+              echo "===== [1/4] pull spring image only ====="
+              $COMPOSE pull spring
 
-            # 타 컨테이너 충돌 오류. 어차피 업데이트는 웬만하면 Spring만 될 예정.
+              echo "===== [2/4] up spring only ====="
+              $COMPOSE up -d --no-deps spring
+            else
+              echo "===== [1/4] pull all images (first deploy) ====="
+              $COMPOSE pull
 
-            echo "===== [2/4] up all services ====="
-            $COMPOSE up -d spring
+              echo "===== [2/4] up all services (first deploy) ====="
+              $COMPOSE up -d
+            fi
 
             echo "===== [3/4] prune old images ====="
             sudo docker image prune -f
