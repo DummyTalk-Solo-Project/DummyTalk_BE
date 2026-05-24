@@ -91,28 +91,26 @@ jobs:
               sudo apt-get install -y docker-compose-plugin
             fi
 
-            COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env"
-
             # 뱃지 이미지 bind mount 디렉토리 사전 생성
             mkdir -p /home/ubuntu/data/badges
 
             # 기존 Spring 컨테이너 강제 제거 (컨테이너명 충돌 방지)
             sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
 
-            # 최초 배포 = 전체 up 
-            # 이후 = Spring만 재시작
+            # 최초 배포 = 전체 서비스 up
+            # 이후 업데이트 = spring 이미지만 pull 후 재기동 (의존 서비스는 이미 실행 중)
             if sudo docker ps --format '{{.Names}}' | grep -q "DummyTalk_ElasticSearch"; then
               echo "===== [1/4] pull spring image only ====="
-              $COMPOSE pull spring
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull spring
 
               echo "===== [2/4] up spring only ====="
-              $COMPOSE up -d --no-deps spring
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
             else
               echo "===== [1/4] pull all images (first deploy) ====="
-              $COMPOSE pull
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
 
               echo "===== [2/4] up all services (first deploy) ====="
-              $COMPOSE up -d
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring elasticsearch grafana nginx postgresql prometheus redis
             fi
 
             echo "===== [3/4] prune old images ====="
