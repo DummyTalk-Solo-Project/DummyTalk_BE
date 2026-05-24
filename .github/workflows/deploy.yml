@@ -105,10 +105,10 @@ jobs:
               echo "===== [1/4] pull spring image only ====="
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull spring
 
-              echo "===== [2/4] up spring ====="
-              # echo "===== [2/4] up spring + reload prometheus config ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
-              # sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env restart prometheus
+              echo "===== [2/4] up spring + reload prometheus config ====="
+              # --no-deps: depends_on(postgresql, redis, elasticsearch) 재생성 시도 방지 (이미 실행 중인 서비스는 그대로 유지)
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d --no-deps spring
+              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env restart prometheus
             else
               echo "===== [1/4] pull all images (first deploy) ====="
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
