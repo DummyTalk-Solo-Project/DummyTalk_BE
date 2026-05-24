@@ -12,6 +12,8 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     scrape_interval: 5s
     static_configs:
-      # docker-compose container_name: DummyTalk_Spring (same network 내 DNS 해석)
-      - targets: ['DummyTalk_Spring:8080']
+      # docker-compose 서비스명 기준으로 지정 (container_name 아님)
+      # Docker 내부 DNS는 서비스명(spring)을 호스트명으로 등록한다.
+      # container_name(DummyTalk_Spring)의 언더스코어는 Tomcat 10.x Host 헤더 검증에서 RFC 위반으로 400 반환.
+      - targets: ['spring:8080']
 
