@@ -105,9 +105,10 @@ jobs:
               echo "===== [1/4] pull spring image only ====="
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull spring
 
-              echo "===== [2/4] up spring + reload prometheus config ====="
+              echo "===== [2/4] up spring ====="
+              # echo "===== [2/4] up spring + reload prometheus config ====="
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env restart prometheus
+              # sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env restart prometheus
             else
               echo "===== [1/4] pull all images (first deploy) ====="
               sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
