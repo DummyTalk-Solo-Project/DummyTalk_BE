@@ -100,10 +100,12 @@ jobs:
             sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
 
             echo "===== [1/4] pull latest images ====="
-            $COMPOSE pull
+            $COMPOSE pull spring
+
+            # 타 컨테이너 충돌 오류. 어차피 업데이트는 웬만하면 Spring만 될 예정.
 
             echo "===== [2/4] up all services ====="
-            $COMPOSE up -d
+            $COMPOSE up -d spring
 
             echo "===== [3/4] prune old images ====="
             sudo docker image prune -f
