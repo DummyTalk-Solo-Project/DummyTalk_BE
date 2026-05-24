@@ -48,7 +48,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "docker/docker-compose.yml,docker/prometheus.yml,docker/nginx.conf"
+          source: "docker/docker-compose.yml,docker/prometheus.yml"
           target: "~/dummytalk"
 
   ec2-deploy:
@@ -81,8 +81,10 @@ jobs:
               echo "DISCORD_WEBHOOK=${{ secrets.DISCORD_WEBHOOK }}"
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
             } > .env
+            
+            cp .env docker/.env
 
-            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
             # Docker Compose v2 플러그인 확인 및 자동 설치
             if ! docker compose version &>/dev/null; then
@@ -91,27 +93,19 @@ jobs:
               sudo apt-get install -y docker-compose-plugin
             fi
 
+            COMPOSE="sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env"
+
             # 뱃지 이미지 bind mount 디렉토리 사전 생성
             mkdir -p /home/ubuntu/data/badges
 
             # 기존 Spring 컨테이너 강제 제거 (컨테이너명 충돌 방지)
             sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
 
-            # 최초 배포 = 전체 서비스 up
-            # 이후 업데이트 = spring 이미지만 pull 후 재기동 (의존 서비스는 이미 실행 중)
-            if sudo docker ps --format '{{.Names}}' | grep -q "DummyTalk_ElasticSearch"; then
-              echo "===== [1/4] pull spring image only ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull spring
+            echo "===== [1/4] pull latest images ====="
+            $COMPOSE pull
 
-              echo "===== [2/4] up spring only ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
-            else
-              echo "===== [1/4] pull all images (first deploy) ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
-
-              echo "===== [2/4] up all services (first deploy) ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring elasticsearch grafana nginx postgresql prometheus redis
-            fi
+            echo "===== [2/4] up all services ====="
+            $COMPOSE up -d
 
             echo "===== [3/4] prune old images ====="
             sudo docker image prune -f
