@@ -3,7 +3,7 @@ name: dummytalk github_action deploy!
 on:
   push:
     branches:
-      - branch
+      - develop
 
 jobs:
   build-and-push:
