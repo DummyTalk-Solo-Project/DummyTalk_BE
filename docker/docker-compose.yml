@@ -16,7 +16,7 @@ services:
 
   spring:
     image: ${DOCKER_USERNAME}/dummytalk:latest
-    container_name: DummyTalk-Spring
+    container_name: DummyTalk_Spring
     expose: # nginx가 프록시하므로 외부 직접 접근 차단 (같은 container 끼리는 가능)
       - "8080"
     environment:
