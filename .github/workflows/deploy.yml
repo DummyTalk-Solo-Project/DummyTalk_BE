@@ -96,16 +96,19 @@ jobs:
             # 뱃지 이미지 bind mount 디렉토리 사전 생성
             mkdir -p /home/ubuntu/data/badges
 
-            echo "===== [1/4] pull all images ====="
+            echo "===== [1/5] pull all images ====="
             sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
 
-            echo "===== [2/4] up all services ====="
+            echo "===== [2/5] down existing containers ====="
+            sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env down
+
+            echo "===== [3/5] up all services ====="
             sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d
 
-            echo "===== [3/4] prune old images ====="
+            echo "===== [4/5] prune old images ====="
             sudo docker image prune -f
 
-            echo "===== [4/4] deploy done ====="
+            echo "===== [5/5] deploy done ====="
             sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
   notify:
