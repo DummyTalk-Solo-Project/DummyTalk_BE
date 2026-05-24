@@ -82,7 +82,7 @@ jobs:
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
             } > .env
 
-            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
             # Docker Compose v2 플러그인 확인 및 자동 설치
             if ! docker compose version &>/dev/null; then
