@@ -86,6 +86,12 @@ discord:
   webhook:
     url: ${DISCORD_WEBHOOK}
 
+# K6 테스트용 더미 유저 적재 (TestMemberDataLoader)
+# false(기본값) = 비활성, true = 앱 기동 시 test1~200@test.com 자동 생성
+# EC2 시딩 방법은 TestMemberDataLoader.java 주석 참고
+test:
+  load-users: false
+
 # prod 프로파일 없이 배포 환경에서 Swagger 비활성화
 springdoc:
   api-docs:

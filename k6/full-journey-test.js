@@ -37,10 +37,9 @@
  *   3. AccessToken 만료 시간 > 테스트 전체 시간
  *   4. (선택) 퀴즈가 OPEN 상태 — 없으면 퀴즈 단계는 QUIZ_NOT_OPEN 에러로 스킵
  *
- * [실행 방법]
- *   k6 run k6/full-journey-test.js
- *   k6 run --out json=k6/results/journey-result.json k6/full-journey-test.js
- *   k6 run --out influxdb=http://localhost:8086/k6 k6/full-journey-test.js  (Grafana 연동)
+ * [실행 방법] (EC2 운영환경 대상)
+ *   k6 run -e BASE_URL=http://<EC2_IP>:8080 k6/full-journey-test.js
+ *   k6 run -e BASE_URL=http://<EC2_IP>:8080 --out json=k6/results/journey-result.json k6/full-journey-test.js
  *
  * [결과 확인 포인트]
  *   1. 콘솔에서 [BADGE BUG], [RACE SUSPECT] 로그 개수 확인
@@ -70,8 +69,9 @@ const quizFailed      = new Counter('quiz_submit_failed');
 const dummyDuration = new Trend('dummy_req_duration_ms');
 const quizDuration  = new Trend('quiz_req_duration_ms');
 
-const BASE_URL = 'http://localhost:8080';
-const VU_COUNT = 50;
+// EC2 대상 실행: k6 run -e BASE_URL=http://<EC2_IP>:8080 k6/full-journey-test.js
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const VU_COUNT = parseInt(__ENV.VU_COUNT) || 50;
 
 // ─── 시나리오 설정 ──────────────────────────────────────────────────────────────
 export const options = {

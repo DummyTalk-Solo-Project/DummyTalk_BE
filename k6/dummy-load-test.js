@@ -1,14 +1,14 @@
 /**
- * DummyTalk 트래픽 테스트 시나리오
+ * DummyTalk 트래픽 테스트 시나리오 (EC2 운영환경 대상)
  *
  * 전제 조건:
- *   1. test1~200@test.com 유저가 DB에 생성되어 있어야 함 (k6/setup.sql 참고)
- *   2. Redis 에 dummy:{RARITY} Set 이 세팅되어 있어야 함
- *   3. application.yml AccessToken 만료 시간 > 테스트 시간 (RTR 갱신 로직 생략)
+ *   1. test1~200@test.com 유저가 EC2 DB에 생성되어 있어야 함 (k6/setup.sql 참고)
+ *   2. Redis 에 dummy:{RARITY} Set 이 세팅되어 있어야 함 (앱 기동 시 DummyDataLoader 자동 처리)
+ *   3. AccessToken 만료 시간 > 테스트 전체 시간 (RTR 갱신 로직 생략)
  *
  * 실행:
- *   k6 run k6/dummy-load-test.js
- *   k6 run --out influxdb=http://localhost:8086/k6 k6/dummy-load-test.js  (Grafana 연동 시)
+ *   k6 run -e BASE_URL=http://<EC2_IP>:8080 k6/dummy-load-test.js
+ *   k6 run -e BASE_URL=http://<EC2_IP>:8080 --out json=k6/results/dummy-result.json k6/dummy-load-test.js
  */
 
 import http from 'k6/http';
@@ -41,7 +41,8 @@ export const options = {
   },
 };
 
-const BASE_URL = 'http://localhost:8080';
+// EC2 대상 실행: k6 run -e BASE_URL=http://<EC2_IP>:8080 k6/dummy-load-test.js
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 
 // ─── 메인 시나리오 ──────────────────────────────────────────────────────────────
 export default function () {
