@@ -54,7 +54,15 @@ jobs:
   ec2-deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    outputs:
+      start_time: ${{ steps.record_start.outputs.start_time }}
+      ram_avail: ${{ steps.mem_check.outputs.ram_avail }}
+      swap_used: ${{ steps.mem_check.outputs.swap_used }}
     steps:
+      - name: Record start time
+        id: record_start
+        run: echo "start_time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: working in ec2...
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -81,8 +89,10 @@ jobs:
               echo "DISCORD_WEBHOOK=${{ secrets.DISCORD_WEBHOOK }}"
               echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}"
             } > .env
+            
+            cp .env docker/.env
 
-            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
 
             # Docker Compose v2 플러그인 확인 및 자동 설치
             if ! docker compose version &>/dev/null; then
@@ -94,88 +104,123 @@ jobs:
             # 뱃지 이미지 bind mount 디렉토리 사전 생성
             mkdir -p /home/ubuntu/data/badges
 
-            # 기존 Spring 컨테이너 강제 제거 (컨테이너명 충돌 방지)
-            sudo docker rm -f DummyTalk_Spring 2>/dev/null || true
+            echo "===== [1/5] pull all images ====="
+            sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
 
-            # 최초 배포 = 전체 서비스 up
-            # 이후 업데이트 = spring 이미지만 pull 후 재기동 (의존 서비스는 이미 실행 중)
-            if sudo docker ps --format '{{.Names}}' | grep -q "DummyTalk_ElasticSearch"; then
-              echo "===== [1/4] pull spring image only ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull spring
+            echo "===== [2/5] remove existing containers ====="
+            sudo docker rm -f DummyTalk_Nginx DummyTalk_Spring DummyTalk_Postgres DummyTalk_Redis DummyTalk_ElasticSearch DummyTalk_Prometheus DummyTalk_Grafana 2>/dev/null || true
 
-              echo "===== [2/4] up spring only ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
-            else
-              echo "===== [1/4] pull all images (first deploy) ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env pull
+            echo "===== [3/5] up all services ====="
+            sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d
 
-              echo "===== [2/4] up all services (first deploy) ====="
-              sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring elasticsearch grafana nginx postgresql prometheus redis
-            fi
-
-            echo "===== [3/4] prune old images ====="
+            echo "===== [4/5] prune old images ====="
             sudo docker image prune -f
 
-            echo "===== [4/4] deploy done ====="
+            echo "===== [5/5] deploy done ====="
             sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Capture EC2 memory stats
+        id: mem_check
+        run: |
+          # 배포 직후 EC2 메모리 현황을 캡처해 notify job에 전달
+          echo "${{ secrets.EC2_PRIVATE_KEY }}" > /tmp/ec2_key
+          chmod 600 /tmp/ec2_key
+          RAM=$(ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "free -m | awk '/^Mem:/{print \$7}'")
+          SWAP=$(ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "free -m | awk '/^Swap:/{print \$3}'")
+          echo "ram_avail=${RAM}MB" >> $GITHUB_OUTPUT
+          echo "swap_used=${SWAP}MB" >> $GITHUB_OUTPUT
+          rm -f /tmp/ec2_key
 
   notify:
     needs: [build-and-push, ec2-deploy]
     runs-on: ubuntu-latest
-    if: always()  # 성공/실패 무관!
+    if: always()  # 성공/실패/취소 무관
+    env:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      COMMIT_SHA: ${{ github.sha }}
+      COMMIT_MSG: ${{ github.event.head_commit.message }}
+      AUTHOR: ${{ github.actor }}
+      BRANCH: ${{ github.ref_name }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+      ROLE_MENTION: "<@&1508662908685385728>"
     steps:
+      - name: Calculate Duration
+        id: duration
+        run: |
+          START=${{ needs.ec2-deploy.outputs.start_time }}
+          END=$(date +%s)
+          DIFF=$((END - START))
+          MIN=$((DIFF / 60))
+          SEC=$((DIFF % 60))
+          if [ $MIN -eq 0 ]; then
+            echo "time=${SEC}초" >> $GITHUB_OUTPUT
+          else
+            echo "time=${MIN}분 ${SEC}초" >> $GITHUB_OUTPUT
+          fi
+
       - name: discord — success
         if: needs.ec2-deploy.result == 'success'
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          COMMIT_SHA: ${{ github.sha }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           payload=$(jq -n \
             --arg sha "${COMMIT_SHA:0:7}" \
             --arg msg "$COMMIT_MSG" \
             --arg url "$RUN_URL" \
+            --arg curl "$COMMIT_URL" \
+            --arg author "$AUTHOR" \
+            --arg branch "$BRANCH" \
+            --arg duration "${{ steps.duration.outputs.time }}" \
+            --arg mem "RAM Avail ${{ needs.ec2-deploy.outputs.ram_avail }} / SWAP Used ${{ needs.ec2-deploy.outputs.swap_used }}" \
             '{embeds: [{
               title: "DummyTalk 배포 성공",
               color: 5763719,
               fields: [
-                {name: "커밋", value: $sha, inline: true},
+                {name: "브랜치", value: $branch, inline: true},
+                {name: "작성자", value: $author, inline: true},
+                {name: "커밋", value: "[\( $sha )](\( $curl ))", inline: true},
                 {name: "메시지", value: $msg, inline: false},
-                {name: "Actions 로그", value: $url, inline: false}
-              ]
+                {name: "소요 시간", value: $duration, inline: true},
+                {name: "서버 리소스", value: $mem, inline: true},
+                {name: "Actions 로그", value: "[바로가기](\( $url ))", inline: false}
+              ],
+              footer: {text: "DummyTalk Production Environment"}
             }]}')
           curl -sS -H "Content-Type: application/json" -X POST -d "$payload" "$DISCORD_WEBHOOK"
 
       - name: discord — failure
-        if: needs.build-and-push.result == 'failure' || needs.ec2-deploy.result == 'failure'
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          COMMIT_SHA: ${{ github.sha }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           BUILD_RESULT: ${{ needs.build-and-push.result }}
           DEPLOY_RESULT: ${{ needs.ec2-deploy.result }}
         run: |
           if [ "$BUILD_RESULT" = "failure" ]; then
-            FAILED_STAGE="빌드 / Docker Push"
+            FAILED_STAGE="🚨 빌드 / Docker Push 실패"
+          elif [ "$DEPLOY_RESULT" = "failure" ]; then
+            FAILED_STAGE="🚀 EC2 배포 단계 실패"
           else
-            FAILED_STAGE="EC2 배포"
+            FAILED_STAGE="⏹️ 파이프라인 취소됨"
           fi
 
           payload=$(jq -n \
             --arg sha "${COMMIT_SHA:0:7}" \
             --arg msg "$COMMIT_MSG" \
             --arg url "$RUN_URL" \
+            --arg curl "$COMMIT_URL" \
             --arg stage "$FAILED_STAGE" \
-            '{embeds: [{
-              title: "DummyTalk 배포 실패",
-              color: 15548997,
-              fields: [
-                {name: "실패 단계", value: $stage, inline: true},
-                {name: "커밋", value: $sha, inline: true},
-                {name: "메시지", value: $msg, inline: false},
-                {name: "Actions 로그", value: $url, inline: false}
-              ]
-            }]}')
+            --arg author "$AUTHOR" \
+            --arg mention "$ROLE_MENTION" \
+            '{
+              content: "\( $mention ) 배포 파이프라인 실패! 즉시 확인 바랍니다.",
+              embeds: [{
+                title: "DummyTalk 배포 실패",
+                color: 15548997,
+                fields: [
+                  {name: "상태", value: $stage, inline: false},
+                  {name: "작성자", value: $author, inline: true},
+                  {name: "커밋", value: "[\( $sha )](\( $curl ))", inline: true},
+                  {name: "메시지", value: $msg, inline: false},
+                  {name: "Actions 로그", value: "[이동하기](\( $url ))", inline: false}
+                ]
+              }]
+            }')
           curl -sS -H "Content-Type: application/json" -X POST -d "$payload" "$DISCORD_WEBHOOK"

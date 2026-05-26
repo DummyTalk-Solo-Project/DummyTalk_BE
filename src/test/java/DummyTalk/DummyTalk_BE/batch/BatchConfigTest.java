@@ -35,7 +35,7 @@ public class BatchConfigTest {
         JobExecution jobExecution = jobLauncherTestUtils.launchJob();
 
         // then
-        Member member = memberRepository.findByEmailFetchInfo("jijysun@naver.com").orElseThrow(() -> new MemberHandler(ErrorCode.CANT_FIND_USER));
+        Member member = memberRepository.findByEmailFetchInfo("jijysun@naver.com").orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         Assertions.assertThat(jobExecution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
 

@@ -1,14 +1,26 @@
 /**
- * DummyTalk 트래픽 테스트 시나리오
+ * DummyTalk 트래픽 테스트 시나리오 (EC2 운영환경 대상)
  *
  * 전제 조건:
- *   1. test1~200@test.com 유저가 DB에 생성되어 있어야 함 (k6/setup.sql 참고)
- *   2. Redis 에 dummy:{RARITY} Set 이 세팅되어 있어야 함
- *   3. application.yml AccessToken 만료 시간 > 테스트 시간 (RTR 갱신 로직 생략)
+ *   1. test1~200@test.com 유저가 EC2 DB에 생성되어 있어야 함 (TestMemberDataLoader 참고)
+ *   2. Redis 에 dummy:{RARITY} Set 이 세팅되어 있어야 함 (앱 기동 시 DummyDataLoader 자동 처리)
+ *   3. AccessToken 만료 시간 > 테스트 전체 시간 (RTR 갱신 로직 생략)
  *
- * 실행:
- *   k6 run k6/dummy-load-test.js
- *   k6 run --out influxdb=http://localhost:8086/k6 k6/dummy-load-test.js  (Grafana 연동 시)
+ * ── 환경변수 옵션 ─────────────────────────────────────────────────────────────
+ *   BASE_URL : 대상 서버 (기본: http://localhost:8080)
+ *   VUS      : 최대 동시 VU 수 (기본: 50)
+ *   SLEEP    : 뽑기 사이 대기 시간(초) (기본: 3  /  0 = 동시성 집중 테스트)
+ *   POOL     : 유저 풀 크기, test1~N@test.com (기본: 200)
+ *
+ * ── 실행 예시 ─────────────────────────────────────────────────────────────────
+ *   [기본 - 현실 시나리오]
+ *   k6 run -e BASE_URL=https://ddotg.dev k6/dummy-load-test.js
+ *
+ *   [동시성 집중 - Grafana 극적 그래프용]
+ *   k6 run -e BASE_URL=https://ddotg.dev -e VUS=100 -e SLEEP=0 k6/dummy-load-test.js
+ *
+ *   [결과 파일 저장]
+ *   k6 run -e BASE_URL=https://ddotg.dev --out json=k6/results/dummy-result.json k6/dummy-load-test.js
  */
 
 import http from 'k6/http';
@@ -21,6 +33,12 @@ const limitHitRate   = new Rate('dummy_limit_hit_rate');        // 20회 제한 
 const raceSuspect    = new Counter('race_condition_suspect');   // remainingCount 이상 감지 횟수
 const dummyDuration  = new Trend('dummy_req_duration_ms');      // 뽑기 응답 시간
 
+// ─── 파라미터 (환경변수로 override 가능) ────────────────────────────────────────
+const BASE_URL  = __ENV.BASE_URL          || 'http://localhost:8080';
+const VU_COUNT  = parseInt(__ENV.VUS)     || 50;   // 최대 동시 VU (기본 50)
+const SLEEP_S   = parseFloat(__ENV.SLEEP) || 3;    // 뽑기 사이 sleep 초 (0 = 동시성 집중)
+const USER_POOL = parseInt(__ENV.POOL)    || 200;  // 유저 풀 크기 (test1~N@test.com)
+
 // ─── 시나리오 설정 ──────────────────────────────────────────────────────────────
 export const options = {
   scenarios: {
@@ -28,25 +46,23 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '30s', target: 50 },  // 0→50 VU 증가 (동시 접속 램프업)
-        { duration: '2m',  target: 50 },  // 50 VU 유지 (동시성 집중 테스트)
-        { duration: '30s', target: 0 },   // 종료
+        { duration: '30s', target: VU_COUNT },  // 램프업
+        { duration: '2m',  target: VU_COUNT },  // 유지
+        { duration: '30s', target: 0 },          // 종료
       ],
     },
   },
   thresholds: {
-    http_req_duration:    ['p(95)<2000'],  // 뽑기 응답 95%가 2초 이내
-    http_req_failed:      ['rate<0.05'],   // 예상치 못한 에러율 5% 미만
-    dummy_req_duration_ms:['p(95)<1500'],  // 뽑기 자체 응답 1.5초 이내
+    http_req_duration:    ['p(95)<2000'],  // 전체 응답 95%가 2초 이내
+    http_req_failed:      ['rate<0.05'],   // 에러율 5% 미만
+    dummy_req_duration_ms:['p(95)<1500'],  // 뽑기 응답 1.5초 이내
   },
 };
 
-const BASE_URL = 'http://localhost:8080';
-
 // ─── 메인 시나리오 ──────────────────────────────────────────────────────────────
 export default function () {
-  // VU 번호로 테스트 유저 분배 (1~200 순환)
-  const userNum = (__VU % 200) + 1;
+  // VU 번호로 테스트 유저 분배 (1~USER_POOL 순환)
+  const userNum = (__VU % USER_POOL) + 1;
   const email    = `test${userNum}@test.com`;
   const password = 'Test1234!';
 
@@ -113,8 +129,8 @@ export default function () {
         break;
       }
 
-      // FE 라이브타이핑 애니메이션 대기 시간 (3초)
-      sleep(3);
+      // FE 라이브타이핑 대기 (SLEEP=0 이면 동시성 집중 모드)
+      if (SLEEP_S > 0) sleep(SLEEP_S);
     }
   });
 
