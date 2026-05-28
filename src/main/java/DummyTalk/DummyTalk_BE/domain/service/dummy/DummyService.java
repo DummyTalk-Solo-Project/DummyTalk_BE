@@ -217,31 +217,23 @@ public class DummyService {
                 .map(id -> FieldValue.of(id.toString()))
                 .toList();
 
-        // 검색 쿼리 구조: MUST(필수 조건) + SHOULD(관련도 가산) + FILTER(범위 제한)
-        //
-        // [MUST] multiMatch — fuzziness=AUTO, operator=AND
-        //   - fuzziness=AUTO: 단어 길이에 따라 편집 거리 자동 결정 (3~5글자→거리1, 6글자↑→거리2)
-        //     예) "깅아지"(3글자, 편집거리1) → "강아지" 매칭. 고정값보다 짧은 단어에서 노이즈 적음
-        //   - operator=AND: 복합 키워드("강아지 물")의 모든 단어를 포함한 문서만 선택
-        //     기본 OR은 "물"만 있는 무관 문서도 반환해 정밀도 하락. 본인 더미 내 검색이므로 recall 손실 미미
-        //   - title^2: 제목 매칭이 내용 매칭보다 2배 점수 가중치
-        //
-        // [SHOULD] matchPhrase — 필수 조건 아님, 충족 시 추가 점수 부여
-        //   - MUST의 AND 조건으로 두 단어를 포함하는 문서를 이미 선택하지만,
-        //     구문 순서까지 일치하는 문서("강아지가 물을 마시는")가 더 관련도 높으므로 상위 노출
-        //   - title boost=3: 제목 구문 일치 시 최우선 노출 (content boost=1보다 높게)
-        //
-        // [FILTER] terms on _id — 점수 계산 제외, 캐시 가능 → must보다 성능 우위
-        //   - "내가 조회한 더미"만 검색하는 핵심 제약, Redis에서 가져온 dummyIdList로 범위 제한
+
         NativeQuery nq = NativeQuery.builder()
                 .withQuery(q -> q
                         .bool(b -> b
                                 .must(m -> m
                                         .multiMatch(mm -> mm
-                                                .fields("title^2", "content")
+                                                .fields("title.nori^2", "content")
                                                 .query(keyword)
                                                 .fuzziness("AUTO")
                                                 .operator(co.elastic.clients.elasticsearch._types.query_dsl.Operator.And)
+                                        )
+                                )
+                                .should(s -> s
+                                        .match(mp -> mp
+                                                .field("title")
+                                                .query(keyword)
+                                                .boost(1.5f)
                                         )
                                 )
                                 .should(s -> s
