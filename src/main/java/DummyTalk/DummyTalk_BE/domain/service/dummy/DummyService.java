@@ -69,7 +69,11 @@ public class DummyService {
     private final ApplicationEventPublisher eventPublisher;
 
 
-
+    /**
+     * 트랜잭션의 동기화가 이루어져있지 않음
+     * PostgreSQL -> 트랜잭션 수행 중 연산 오류로 인한 롤백 -> Redis는....?
+     * @return
+     */
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
         ///  READ - 따닥 급의 동일 사용자, n번의 요청
