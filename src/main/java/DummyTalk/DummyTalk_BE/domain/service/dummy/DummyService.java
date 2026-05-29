@@ -134,7 +134,8 @@ public class DummyService {
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
-        
+
+        /// 기록이 많은 사용자의 경우 O(N) 이상의 시간이 걸릴 수 있음.
         long totalDummyCount = memberDummyRepository.countByMember_Id(memberId); // 뱃지 체크용 누적 횟수 (save 직후 동일 트랜잭션에서!)
 
 
@@ -142,6 +143,9 @@ public class DummyService {
         info.updateReqCount();
 
         // 비동기 뱃지 이벤트 발행 (트랜잭션 커밋 후 MailExecutor 풀에서 처리)
+        /*
+        * 실행시점: 트랜잭션 Commit 전 = MemmberDummy에 대한 기록이 존재하지 않음!!!!
+        * */
         eventPublisher.publishEvent(new DummyViewedEvent(memberId, dummy.getRarity().getName().toString(), isPityTriggered, totalDummyCount));
 
         DummyRespDTO.GetDummyRespDTO dto = DummyRespDTO.GetDummyRespDTO.builder()
