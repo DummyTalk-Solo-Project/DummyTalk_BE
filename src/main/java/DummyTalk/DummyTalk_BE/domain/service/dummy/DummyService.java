@@ -72,9 +72,11 @@ public class DummyService {
 
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
+        ///  READ - 따닥 급의 동일 사용자, n번의 요청
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         Info info = member.getInfo();
 
+        ///  MODIFY - n개의 스레드 통과
         if ((info.getIsSubscribe() && info.getReqCount() >= 40) || (!info.getIsSubscribe() && info.getReqCount() >= 20)){
             throw new DummyHandler(ErrorCode.USED_ALL_CHANCES); // 구독자는 40번, 미구독자는 20번
         }
@@ -83,7 +85,6 @@ public class DummyService {
         String pityKey = "pity:" + memberId;
         Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
 
-        // 의미가 헷갈린다.
         int currentCommonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
         int currentRareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
         int currentEpicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
@@ -132,6 +133,8 @@ public class DummyService {
         
         long totalDummyCount = memberDummyRepository.countByMember_Id(memberId); // 뱃지 체크용 누적 횟수 (save 직후 동일 트랜잭션에서!)
 
+
+        ///  WRITE - Concurrency Problem!!!
         info.updateReqCount();
 
         // 비동기 뱃지 이벤트 발행 (트랜잭션 커밋 후 MailExecutor 풀에서 처리)
