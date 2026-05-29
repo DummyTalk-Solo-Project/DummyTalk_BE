@@ -321,11 +321,13 @@ public class DummyService {
         if (memberQuizRepository.existsByMemberIdAndQuizId(memberId, quizId)) {
             throw new QuizHandler(ErrorCode.ALREADY_SUBMIT);
         }
+        /// READ 성공 - 따닥 급의 동일 사용자, n번의 요청
 
         // 주의! 없을 경우 save() 부분에서 EntityNotFoundException 발생
         Member member = memberRepository.getReferenceById(memberId);
 
         // Quiz 조회 with PESSIMISTIC_WRITE - ticket 감소 전 배타적 잠금 획득
+        ///  MODIFY - n개의 스레드 모두 락 대기 후 획득
         Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId)
                 .orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
@@ -346,6 +348,8 @@ public class DummyService {
         if (!quiz.decreaseTicket()) {
             throw new QuizHandler(ErrorCode.TICKET_IS_DONE);
         }
+
+        ///  WRITE - 락 획득 후 기록 = Concurrency Problem!!!
 
         // memberGrade은 deprecated. 실제 등수는 아래 Redis list 순서로 집계 예정
         memberQuizRepository.save(MemberQuiz.generateMemberQuiz(member, quiz, 1, answer));
