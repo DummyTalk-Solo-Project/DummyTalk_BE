@@ -98,6 +98,8 @@ public class MemberService {
         }
     }
 
+
+    /// 비동기 처리가 필요!
     public void sendVerificationEmail(String email) {
         MimeMessage msg = mailSender.createMimeMessage();
         MimeMessageHelper helper;
@@ -523,7 +525,7 @@ public class MemberService {
                 .badgeList(badgeDTOList)
                 .build();
 
-        log.info("[MemberService - getMyData()] - dto: {}", dto);
+        log.info("[MemberService - getMyData()] - dto 발급 완료");
         return dto;
     }
 }
