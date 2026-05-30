@@ -1,12 +1,8 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.converter.DummyConverter;
-import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
@@ -18,43 +14,25 @@ import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
 import DummyTalk.DummyTalk_BE.global.event.DummyViewedEvent;
-import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
-import DummyTalk.DummyTalk_BE.global.scheduler.QuizScheduler;
 import co.elastic.clients.elasticsearch._types.FieldValue;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DummyService {
 
-
-    // 3. 동시성 관련 로직 or @Async 추가
-    // Security 잠시 빼기
 
     private final MemberRepository memberRepository;
     private final RarityRepository rarityRepository;
@@ -310,14 +288,6 @@ public class DummyService {
     }
 
 
-    /**
-     * 퀴즈 풀이 메서드 (비관적 락 적용)
-     *
-     * 동시성 전략: PESSIMISTIC_WRITE (SELECT FOR UPDATE)
-     * - 동일 quizId 요청을 DB 레벨에서 직렬화하여 ticket 감소의 Lost Update 방지
-     * - HikariCP 풀 고갈 등 문제 발생 시 Redisson 분산락(@DistributedLock)으로 전환 예정
-     * - PESSIMISTIC_WRITE 동안 하는 작업이 너무 많으므로 개선 필요.
-     */
     @Transactional
     public Boolean solveQuiz(Long memberId, Long quizId, Integer answer) {
 
