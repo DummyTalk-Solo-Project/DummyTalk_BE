@@ -139,7 +139,7 @@ public class AdminController {
     }
 
     // 구독 승인 — MemberService.approveSubscription() 에서 ADMIN 체크 포함
-    @PatchMapping("/members/subscribe")
+//    @PatchMapping("/members/subscribe")
     public APIResponse<Boolean> approveSubscription(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam String email) {
