@@ -160,10 +160,4 @@ public class MemberController {
         memberService.requestVerificationCode(email);
         return APIResponse.onSuccess(true, SuccessCode.EMAIL_SEND_SUCCESS);
     }
-
-    // mypage로 변경
-    /*@GetMapping("/get-all-data")
-    public List<UserResponseDTO.GetUserResponseDTO> getAllData () {
-        return userService.getAllData();
-    }*/
 }

@@ -38,6 +38,7 @@ public class Member extends CommonEntity {
     @Enumerated(EnumType.STRING)
     private MemberRole role;
 
+    @Setter
     private LocalDateTime lastLogin;
 
     @Setter
@@ -67,10 +68,6 @@ public class Member extends CommonEntity {
                 '}';
     }
 
-    public void setLastLogin(LocalDateTime lastLogin) {
-        this.lastLogin = lastLogin;
-    }
-    
     public void withdraw() { // 회원 탈퇴 처리 - CommonEntity.softDelete()
         softDelete();
     }

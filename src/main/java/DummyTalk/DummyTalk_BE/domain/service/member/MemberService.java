@@ -100,6 +100,7 @@ public class MemberService {
 
 
     /// 비동기 처리가 필요!
+    /// 또는 외부 이메일 발송 서비스를 사용
     public void sendVerificationEmail(String email) {
         MimeMessage msg = mailSender.createMimeMessage();
         MimeMessageHelper helper;
