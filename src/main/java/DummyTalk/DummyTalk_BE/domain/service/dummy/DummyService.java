@@ -48,9 +48,32 @@ public class DummyService {
 
 
     /**
-     * 트랜잭션의 동기화가 이루어져있지 않음
+     * 1. 트랜잭션의 동기화가 이루어져있지 않음
      * PostgreSQL -> 트랜잭션 수행 중 연산 오류로 인한 롤백 -> Redis는....?
-     * @return
+     * - Transactional Syncronization? 아직 안해본 영역이라 해봐야 함.
+     *
+     * 2. 은근 많은 쿼리 발생
+     * - PostgreSQL: 영속화를 위한 1차 캐시, selectedRarity용 쿼리, dummy 단일 조회, save(), count(), updateReqCount(), 필터 인증 조회 = 7번
+     *   - N+1은 이론상 조회 X. 실제 로직에서도 제대로 확인은 못했으나 확인은 안됨.
+     * - Redis: entires(), updatePityStack(), randomMember() = 총 3번
+     * = jpa.getReferenceById로 영속화 줄이기? 이거에 대한 EntityNotFoundException 처리는? 기본적으로 필터 단에서 findBy~()로 확인하니까 상관 없나?
+     * = Redis는 3번으로 충분.
+     *
+     * 3. 동시성 문제 - 한 명의 사용자가 동시다발적 요청에 대한 동시성 문제 발생
+     * - info 대조 후 다른 조치 사항이 없음.
+     * => info.getReqCount()++ 해도, 메소드가 끝나야 트랜잭션 발생 & 늦은 반영으로 동시성 해결 불가
+     * => RedisTemplate SETNX로 해결이 가능하나, 1번과도 밀접한 문제. 만약 트랜잭션 오류로 롤백해야 하는 경우, REDIS에 대한 조치는 없음
+     * => 이거에 대한 Redis 분산락이 해결 대책이 될 수 있나?
+     * => 기본 메서드에 대한 트랜잭션 분리? 여러 개의 메소드로 나누고, Transactional? 이럼 DB Connection Pool을 잡는 개수만 더 늘어나는 거 아냐?
+     *
+     *
+     * 4. 비동기 스레드 VS transaction
+     * - 비동시 스레드 실행 시점: 코드 실핼 부분 == 트랜잭션 실행 전 == 불일치 현상 발생.
+     *
+     *
+     * => Redis에 대한 분산 락과 트랜잭션 전이나 동기화가 필요?
+     *
+     * @return DummyRespDTO.GetDummyRespDTO
      */
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
@@ -179,6 +202,23 @@ public class DummyService {
             }
         }
         return false;
+    }
+
+    @Transactional(readOnly = true)
+    public Rarity getRandomRarity (){
+        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
+        double pivot = Math.random() * 100;
+        double cumulative = 0;
+        for (int i = 0; i < rarityList.size(); i++) {
+            Rarity r = rarityList.get(i);
+            cumulative += r.getProbability();
+
+            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
+            if (pivot <= cumulative || i == rarityList.size() - 1) {
+                return r;
+            }
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)
