@@ -29,12 +29,6 @@ public class SecurityConfig{
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-        /*
-         * 현 서비스는 로그인이 주 기능이 아니다.
-         * = 일단 모든 URL에 대한 요청은 받아야 한다.
-         * = 그래도 SecurityContextHolder 와 JWT를 이용해서 인증은 해야 한다!
-         * */
-
         http
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))

@@ -1,7 +1,5 @@
 package DummyTalk.DummyTalk_BE.domain.dto.member;
 
-import DummyTalk.DummyTalk_BE.domain.entity.constant.Login;
-import DummyTalk.DummyTalk_BE.domain.entity.Info;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -44,16 +42,5 @@ public class MemberReqDTO {
     public static class ChangePasswordRequestDTO {
         private String currentPassword;
         private String newPassword;
-    }
-
-    @Getter
-    @Builder
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class AIRequestDTO{
-        private String email;
-        private String username;
-        private Login login;
-        private Info info;
     }
 }

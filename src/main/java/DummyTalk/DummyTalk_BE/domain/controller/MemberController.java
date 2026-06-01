@@ -6,7 +6,6 @@ import DummyTalk.DummyTalk_BE.domain.service.member.MemberService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
-//import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
-//@Tag(name = "사용자 API", description = "사용자 관련 API 입니다")
 public class MemberController {
 
     private final MemberService memberService;
@@ -84,15 +82,14 @@ public class MemberController {
         return APIResponse.onSuccess(true,  SuccessCode.LOGOUT_SUCCESS);
     }
 
-    ///TODO 구독 신청 비즈니스 로직 미구현 — 구독 기간 설정, 결제 연동, Info.isSubscribe / subsExprDate 갱신 필요!
-    @PostMapping("/subscribe")
+//    @PostMapping("/subscribe")
     public APIResponse<Boolean> subscribe (@AuthenticationPrincipal CustomUserDetails userDetails){
         // 구독 신청
         return APIResponse.onSuccess(memberService.subscribe(userDetails.getMember().getId()), SuccessCode.SUBSCRIBE_SUCCESS);
     }
 
     // 구독 승인 후 최초 홈 진입 시 팝업 여부 확인 — true면 팝업 노출, 1회 소비 후 false -> 1회성 팝업용 설계가 필요!
-    @GetMapping("/subscription-popup")
+//    @GetMapping("/subscription-popup")
     public APIResponse<Boolean> checkSubscriptionPopup(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return APIResponse.onSuccess(memberService.checkSubscriptionPopup(userDetails.getMember().getId()), SuccessCode.SUBSCRIPTION_POPUP_SUCCESS);
     }
@@ -163,10 +160,4 @@ public class MemberController {
         memberService.requestVerificationCode(email);
         return APIResponse.onSuccess(true, SuccessCode.EMAIL_SEND_SUCCESS);
     }
-
-    // mypage로 변경
-    /*@GetMapping("/get-all-data")
-    public List<UserResponseDTO.GetUserResponseDTO> getAllData () {
-        return userService.getAllData();
-    }*/
 }

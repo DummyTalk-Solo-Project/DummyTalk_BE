@@ -1,12 +1,8 @@
 package DummyTalk.DummyTalk_BE.domain.service.dummy;
 
 import DummyTalk.DummyTalk_BE.domain.converter.DummyConverter;
-import DummyTalk.DummyTalk_BE.domain.dto.ChatCompletionResponseDTO;
-import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRequestDTO;
 import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
 import DummyTalk.DummyTalk_BE.domain.entity.*;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
-import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.RarityType;
 import DummyTalk.DummyTalk_BE.domain.entity.document.DummyDocument;
@@ -18,43 +14,25 @@ import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
 import DummyTalk.DummyTalk_BE.global.event.DummyViewedEvent;
-import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
-import DummyTalk.DummyTalk_BE.global.scheduler.QuizScheduler;
 import co.elastic.clients.elasticsearch._types.FieldValue;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DummyService {
 
-
-    // 3. 동시성 관련 로직 or @Async 추가
-    // Security 잠시 빼기
 
     private final MemberRepository memberRepository;
     private final RarityRepository rarityRepository;
@@ -69,12 +47,41 @@ public class DummyService {
     private final ApplicationEventPublisher eventPublisher;
 
 
-
+    /**
+     * 1. 트랜잭션의 동기화가 이루어져있지 않음
+     * PostgreSQL -> 트랜잭션 수행 중 연산 오류로 인한 롤백 -> Redis는....?
+     * - Transactional Syncronization? 아직 안해본 영역이라 해봐야 함.
+     *
+     * 2. 은근 많은 쿼리 발생
+     * - PostgreSQL: 영속화를 위한 1차 캐시, selectedRarity용 쿼리, dummy 단일 조회, save(), count(), updateReqCount(), 필터 인증 조회 = 7번
+     *   - N+1은 이론상 조회 X. 실제 로직에서도 제대로 확인은 못했으나 확인은 안됨.
+     * - Redis: entires(), updatePityStack(), randomMember() = 총 3번
+     * = jpa.getReferenceById로 영속화 줄이기? 이거에 대한 EntityNotFoundException 처리는? 기본적으로 필터 단에서 findBy~()로 확인하니까 상관 없나?
+     * = Redis는 3번으로 충분.
+     *
+     * 3. 동시성 문제 - 한 명의 사용자가 동시다발적 요청에 대한 동시성 문제 발생
+     * - info 대조 후 다른 조치 사항이 없음.
+     * => info.getReqCount()++ 해도, 메소드가 끝나야 트랜잭션 발생 & 늦은 반영으로 동시성 해결 불가
+     * => RedisTemplate SETNX로 해결이 가능하나, 1번과도 밀접한 문제. 만약 트랜잭션 오류로 롤백해야 하는 경우, REDIS에 대한 조치는 없음
+     * => 이거에 대한 Redis 분산락이 해결 대책이 될 수 있나?
+     * => 기본 메서드에 대한 트랜잭션 분리? 여러 개의 메소드로 나누고, Transactional? 이럼 DB Connection Pool을 잡는 개수만 더 늘어나는 거 아냐?
+     *
+     *
+     * 4. 비동기 스레드 VS transaction
+     * - 비동시 스레드 실행 시점: 코드 실핼 부분 == 트랜잭션 실행 전 == 불일치 현상 발생.
+     *
+     *
+     * => Redis에 대한 분산 락과 트랜잭션 전이나 동기화가 필요?
+     *
+     * @return DummyRespDTO.GetDummyRespDTO
+     */
     @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
+        ///  READ - 따닥 급의 동일 사용자, n번의 요청
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
         Info info = member.getInfo();
 
+        ///  MODIFY - n개의 스레드 통과
         if ((info.getIsSubscribe() && info.getReqCount() >= 40) || (!info.getIsSubscribe() && info.getReqCount() >= 20)){
             throw new DummyHandler(ErrorCode.USED_ALL_CHANCES); // 구독자는 40번, 미구독자는 20번
         }
@@ -83,7 +90,6 @@ public class DummyService {
         String pityKey = "pity:" + memberId;
         Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
 
-        // 의미가 헷갈린다.
         int currentCommonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
         int currentRareStack = Integer.parseInt(pity.getOrDefault("RARE", "0").toString());
         int currentEpicStack = Integer.parseInt(pity.getOrDefault("EPIC", "0").toString());
@@ -129,12 +135,18 @@ public class DummyService {
         // 조회 기록으로 저장
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
-        
+
+        /// 기록이 많은 사용자의 경우 O(N) 이상의 시간이 걸릴 수 있음.
         long totalDummyCount = memberDummyRepository.countByMember_Id(memberId); // 뱃지 체크용 누적 횟수 (save 직후 동일 트랜잭션에서!)
 
+
+        ///  WRITE - Concurrency Problem!!!
         info.updateReqCount();
 
         // 비동기 뱃지 이벤트 발행 (트랜잭션 커밋 후 MailExecutor 풀에서 처리)
+        /*
+        * 실행시점: 트랜잭션 Commit 전 = MemmberDummy에 대한 기록이 존재하지 않음!!!!
+        * */
         eventPublisher.publishEvent(new DummyViewedEvent(memberId, dummy.getRarity().getName().toString(), isPityTriggered, totalDummyCount));
 
         DummyRespDTO.GetDummyRespDTO dto = DummyRespDTO.GetDummyRespDTO.builder()
@@ -193,6 +205,23 @@ public class DummyService {
     }
 
     @Transactional(readOnly = true)
+    public Rarity getRandomRarity (){
+        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
+        double pivot = Math.random() * 100;
+        double cumulative = 0;
+        for (int i = 0; i < rarityList.size(); i++) {
+            Rarity r = rarityList.get(i);
+            cumulative += r.getProbability();
+
+            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
+            if (pivot <= cumulative || i == rarityList.size() - 1) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    @Transactional(readOnly = true)
     public List<DummyRespDTO.GetMyDummyDTO> getMyDummyList (Long memberId, int page){
         Set<Object> members = redisTemplate.opsForSet().members("member:" + memberId.toString() + ":dummy");
         List<Long> dummyIdList = members.stream()
@@ -217,14 +246,37 @@ public class DummyService {
                 .map(id -> FieldValue.of(id.toString()))
                 .toList();
 
-        // NativeQuery
+
         NativeQuery nq = NativeQuery.builder()
                 .withQuery(q -> q
                         .bool(b -> b
                                 .must(m -> m
                                         .multiMatch(mm -> mm
-                                                .fields("title^2", "content") // 내용 보다는 제목에 가중치
+                                                .fields("title.nori^2", "content")
                                                 .query(keyword)
+                                                .fuzziness("AUTO")
+                                                .operator(co.elastic.clients.elasticsearch._types.query_dsl.Operator.And)
+                                        )
+                                )
+                                .should(s -> s
+                                        .match(mp -> mp
+                                                .field("title")
+                                                .query(keyword)
+                                                .boost(1.5f)
+                                        )
+                                )
+                                .should(s -> s
+                                        .matchPhrase(mp -> mp
+                                                .field("title")
+                                                .query(keyword)
+                                                .boost(3.0f)
+                                        )
+                                )
+                                .should(s -> s
+                                        .matchPhrase(mp -> mp
+                                                .field("content")
+                                                .query(keyword)
+                                                .boost(1.0f)
                                         )
                                 )
                                 .filter(f -> f
@@ -244,24 +296,6 @@ public class DummyService {
         return DummyConverter.toGetMyDummyDListTO(dummyDocumentList);
     }
 
-    @Transactional(readOnly = true)
-    public Rarity getRandomRarity (){
-        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
-        double pivot = Math.random() * 100;
-        double cumulative = 0;
-        for (int i = 0; i < rarityList.size(); i++) {
-            Rarity r = rarityList.get(i);
-            cumulative += r.getProbability();
-
-            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
-            if (pivot <= cumulative || i == rarityList.size() - 1) {
-                return r;
-            }
-        }
-        return null;
-    }
-
-
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -276,14 +310,6 @@ public class DummyService {
     }
 
 
-    /**
-     * 퀴즈 풀이 메서드 (비관적 락 적용)
-     *
-     * 동시성 전략: PESSIMISTIC_WRITE (SELECT FOR UPDATE)
-     * - 동일 quizId 요청을 DB 레벨에서 직렬화하여 ticket 감소의 Lost Update 방지
-     * - HikariCP 풀 고갈 등 문제 발생 시 Redisson 분산락(@DistributedLock)으로 전환 예정
-     * - PESSIMISTIC_WRITE 동안 하는 작업이 너무 많으므로 개선 필요.
-     */
     @Transactional
     public Boolean solveQuiz(Long memberId, Long quizId, Integer answer) {
 
@@ -291,11 +317,13 @@ public class DummyService {
         if (memberQuizRepository.existsByMemberIdAndQuizId(memberId, quizId)) {
             throw new QuizHandler(ErrorCode.ALREADY_SUBMIT);
         }
+        /// READ 성공 - 따닥 급의 동일 사용자, n번의 요청
 
         // 주의! 없을 경우 save() 부분에서 EntityNotFoundException 발생
         Member member = memberRepository.getReferenceById(memberId);
 
         // Quiz 조회 with PESSIMISTIC_WRITE - ticket 감소 전 배타적 잠금 획득
+        ///  MODIFY - n개의 스레드 모두 락 대기 후 획득
         Quiz quiz = quizRepository.findQuizByIdForDecrease(quizId)
                 .orElseThrow(() -> new QuizHandler(ErrorCode.WRONG_QUIZ));
 
@@ -316,6 +344,8 @@ public class DummyService {
         if (!quiz.decreaseTicket()) {
             throw new QuizHandler(ErrorCode.TICKET_IS_DONE);
         }
+
+        ///  WRITE - 락 획득 후 기록 = Concurrency Problem!!!
 
         // memberGrade은 deprecated. 실제 등수는 아래 Redis list 순서로 집계 예정
         memberQuizRepository.save(MemberQuiz.generateMemberQuiz(member, quiz, 1, answer));
