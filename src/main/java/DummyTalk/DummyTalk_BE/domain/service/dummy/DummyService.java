@@ -256,24 +256,6 @@ public class DummyService {
         return DummyConverter.toGetMyDummyDListTO(dummyDocumentList);
     }
 
-    @Transactional(readOnly = true)
-    public Rarity getRandomRarity (){
-        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
-        double pivot = Math.random() * 100;
-        double cumulative = 0;
-        for (int i = 0; i < rarityList.size(); i++) {
-            Rarity r = rarityList.get(i);
-            cumulative += r.getProbability();
-
-            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
-            if (pivot <= cumulative || i == rarityList.size() - 1) {
-                return r;
-            }
-        }
-        return null;
-    }
-
-
     public DummyRespDTO.GetQuizInfoResponseDTO getQuiz(Long memberId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
