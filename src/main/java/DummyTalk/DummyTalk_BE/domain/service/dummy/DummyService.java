@@ -36,7 +36,6 @@ public class DummyService {
 
 
     private final MemberRepository memberRepository;
-    private final RarityRepository rarityRepository;
     private final DummyRepository dummyRepository;
     private final MemberDummyRepository memberDummyRepository;
     private final QuizRepository quizRepository;
@@ -98,34 +97,35 @@ public class DummyService {
 
         Boolean isPityTriggered = false;
 
-        Rarity selectedRarity = Rarity.defaultRarity();
+        // DB 조회 없이 RarityType 직접 결정 - 확률은 Redis에서 관리 (DummyDataLoader가 적재)
+        RarityType selectedRarityType;
 
         if (currentCommonStack >= 10) { // COMMON -> RARE
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            selectedRarityType = RarityType.RARE;
+            isPityTriggered = true;
             log.info("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
-            isPityTriggered=true;
         }
         else if (currentRareStack >= 10) { // RARE -> EPIC
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            selectedRarityType = RarityType.EPIC;
+            isPityTriggered = true;
             log.info("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
-            isPityTriggered=true;
         }
         else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            selectedRarityType = RarityType.SPECIAL;
+            isPityTriggered = true;
             log.info("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
-            isPityTriggered=true;
         }
-        else{
-            // 2. 천장 없는 경우 확률에 의해 조회.
-            selectedRarity = getRandomRarity();
-            log.info("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarity.getName());
+        else {
+            // 2. 천장 없는 경우 Redis 확률 기반 추첨 (rarity:probabilities 해시)
+            selectedRarityType = getRandomRarityType();
+            log.info("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarityType);
         }
 
         // 스택 update, 다음 뽑기 천장 예정 여부 반환
-        Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarity.getName(), isPityTriggered);
+        Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarityType, isPityTriggered);
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
-        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
+        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarityType);
         if (result == null) {
             throw new DummyHandler(ErrorCode.WRONG_RARITY);
         }
@@ -172,7 +172,7 @@ public class DummyService {
                 .isNextPityTriggered(isNextPityTriggered)
                 .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
                 .build();
-        log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarity.getName());
+        log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarityType);
         return dto;
     }
 
@@ -235,21 +235,21 @@ public class DummyService {
         return false;
     }
 
-    @Transactional(readOnly = true)
-    public Rarity getRandomRarity (){
-        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
+    // DB -> Redis rarity:probabilities
+    private RarityType getRandomRarityType() {
+        Map<Object, Object> probs = redisTemplate.opsForHash().entries("rarity:probabilities"); // READ - 즉시 실행
         double pivot = Math.random() * 100;
         double cumulative = 0;
-        for (int i = 0; i < rarityList.size(); i++) {
-            Rarity r = rarityList.get(i);
-            cumulative += r.getProbability();
-
-            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
-            if (pivot <= cumulative || i == rarityList.size() - 1) {
-                return r;
+        RarityType[] order = {RarityType.COMMON, RarityType.RARE, RarityType.EPIC, RarityType.SPECIAL};
+        for (int i = 0; i < order.length; i++) {
+            Object prob = probs.get(order[i].name());
+            if (prob == null) continue;
+            cumulative += Double.parseDouble(prob.toString());
+            if (pivot <= cumulative || i == order.length - 1) {
+                return order[i];
             }
         }
-        return null;
+        return RarityType.COMMON; // fallback (확률 합 < 100일 때 부동소수점 처리)
     }
 
     @Transactional(readOnly = true)

@@ -99,6 +99,9 @@ public class DummyDataLoader implements ApplicationRunner {
             syncRedisWithDb(savedDummyList); // Redis 동기화
         }
 
+        // Rarity 확률을 Redis에 캐싱 - DummyService.getRandomRarityType()이 DB 없이 읽어감
+        syncRarityProbabilities(common, rare, epic, special);
+
         initBadges(); // 뱃지 초기화 작업
         syncRedisIfEmpty(); // 재배포 등으로 Redis가 초기화됐을 때 복구
     }
@@ -128,6 +131,15 @@ public class DummyDataLoader implements ApplicationRunner {
                 badgeRepository.save(badge);
             }
         }
+    }
+
+    // Rarity 확률을 rarity:probabilities 해시로 적재 - 재배포 시에도 항상 최신값으로 갱신
+    private void syncRarityProbabilities(Rarity common, Rarity rare, Rarity epic, Rarity special) {
+        List<Rarity> rarities = List.of(common, rare, epic, special);
+        rarities.forEach(r ->
+                redisTemplate.opsForHash().put("rarity:probabilities", r.getName().name(), r.getProbability().toString())
+        );
+        log.info("[DummyDataLoader - syncRarityProbabilities()] - Rarity 확률 Redis 캐시 완료");
     }
 
     private void syncRedisWithDb(List<Dummy> savedDummyList) {
