@@ -14,6 +14,7 @@ import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
 import DummyTalk.DummyTalk_BE.global.event.DummyViewedEvent;
+import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +77,7 @@ public class DummyService {
      * @return DummyRespDTO.GetDummyRespDTO
      */
     @Transactional
+    @DistributedLock(key = "'lock:getDummy:' + #memberId", waitTime = 0, leaseTime = 4)
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
         ///  READ - 따닥 급의 동일 사용자, n번의 요청
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
@@ -311,6 +313,7 @@ public class DummyService {
 
 
     @Transactional
+    @DistributedLock(key = "'lock:solveQuiz:' + #quizId", waitTime = 5, leaseTime = 5)
     public Boolean solveQuiz(Long memberId, Long quizId, Integer answer) {
 
         // 중복 제출 방지
