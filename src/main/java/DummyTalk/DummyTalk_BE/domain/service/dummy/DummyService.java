@@ -178,6 +178,9 @@ public class DummyService {
 
     // 스택 업데이트 후 다음 뽑기가 천장 확정인지 반환 (increment 반환값 >= 10)
     private Boolean updatePityStack(String key, RarityType wonRarity, Boolean isPityTriggered) {
+
+        // READ → calculate → WRITE(queued) → return expected
+
         if (isPityTriggered) {
             if (wonRarity == RarityType.SPECIAL) {
                 // SPECIAL은 최상위 등급, 다음 천장 없음
@@ -207,36 +210,32 @@ public class DummyService {
         }
         else {
             if (wonRarity == RarityType.COMMON) {
-                redisTemplate.opsForHash().increment(key, "COMMON", 1);
-                Object common = redisTemplate.opsForHash().get(key, "COMMON");
-
-                Long newCommon = (common == null ? 0L : Long.parseLong(common.toString())) + 1;
-                log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", newCommon);
-                return newCommon >= 10;
+                Object currentCommon = redisTemplate.opsForHash().get(key, "COMMON");
+                long nextCommon = (currentCommon == null ? 0L : Long.parseLong(currentCommon.toString())) + 1;
+                redisTemplate.opsForHash().increment(key, "COMMON", 1); // WRITE: 큐잉
+                log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", nextCommon);
+                return nextCommon >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
-                redisTemplate.opsForHash().increment(key, "RARE", 1);
-
-                Object rare = redisTemplate.opsForHash().get(key, "RARE");
-
-                Long newRare = (rare == null ? 0L : Long.parseLong(rare.toString())) + 1;
-                log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", newRare);
-                return newRare >= 10;
+                Object currentRare = redisTemplate.opsForHash().get(key, "RARE");
+                long nextRare = (currentRare == null ? 0L : Long.parseLong(currentRare.toString())) + 1;
+                redisTemplate.opsForHash().increment(key, "RARE", 1); // WRITE: 큐잉
+                log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", nextRare);
+                return nextRare >= 10;
             }
             else if (wonRarity == RarityType.EPIC) {
-                redisTemplate.opsForHash().increment(key, "EPIC", 1);
-
-                Object epic = redisTemplate.opsForHash().get(key, "EPIC");
-                Long newEpic = (epic == null ? 0L : Long.parseLong(epic.toString())) + 1;
-                log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", newEpic);
-                return newEpic >= 10;
+                Object currentEpic = redisTemplate.opsForHash().get(key, "EPIC");
+                long nextEpic = (currentEpic == null ? 0L : Long.parseLong(currentEpic.toString())) + 1;
+                redisTemplate.opsForHash().increment(key, "EPIC", 1); // WRITE: 큐잉
+                log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", nextEpic);
+                return nextEpic >= 10;
             }
         }
         return false;
     }
 
     // DB -> Redis rarity:probabilities
-    private RarityType getRandomRarityType() {
+    public RarityType getRandomRarityType() {
         Map<Object, Object> probs = redisTemplate.opsForHash().entries("rarity:probabilities"); // READ - 즉시 실행
         double pivot = Math.random() * 100;
         double cumulative = 0;

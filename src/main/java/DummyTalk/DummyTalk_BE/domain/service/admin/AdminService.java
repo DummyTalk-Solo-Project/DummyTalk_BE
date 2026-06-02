@@ -8,10 +8,7 @@ import DummyTalk.DummyTalk_BE.domain.entity.*;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.AIPrompt;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.MemberRole;
 import DummyTalk.DummyTalk_BE.domain.entity.constant.QuizStatus;
-import DummyTalk.DummyTalk_BE.domain.repository.jpa.DailySettlementRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.jpa.DummyRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
-import DummyTalk.DummyTalk_BE.domain.repository.jpa.QuizRepository;
+import DummyTalk.DummyTalk_BE.domain.repository.jpa.*;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.handler.AdminHandler;
@@ -34,6 +31,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.*;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -52,6 +50,7 @@ public class AdminService {
 
     private final ObjectMapper objectMapper;
     private final DummyService dummyService;
+    private final RarityRepository rarityRepository;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
