@@ -139,7 +139,7 @@ public class AdminService {
         }
 
         // 1. Special 제외 랜덤 문제 조회
-        Rarity selectedRarity = dummyService.getRandomRarity();
+        Rarity selectedRarity = rarityRepository.findByName(dummyService.getRandomRarityType()).orElseThrow(()-> new AdminHandler(ErrorCode.WRONG_RARITY));
 
         Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
         if (result == null) {
