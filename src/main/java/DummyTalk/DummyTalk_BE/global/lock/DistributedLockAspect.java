@@ -29,7 +29,7 @@ public class DistributedLockAspect {
     @Around("@annotation(distributedLock)")
     public Object around(ProceedingJoinPoint joinPoint, DistributedLock distributedLock) throws Throwable {
 
-        log.info ("distributedLock! -> key: {}, waitTime: {}, leaseTime: {} ", distributedLock.key(), distributedLock.waitTime(), distributedLock.leaseTime());
+        log.info ("[DistributedLockAspect] - 락 획득 요청 발생, key: {}, wait/leaseTime: {}s, {}s ", distributedLock.key(), distributedLock.waitTime(), distributedLock.leaseTime());
         String lockKey = parseKey(joinPoint, distributedLock.key());
         long waitTime = distributedLock.waitTime();
         long leaseTime = distributedLock.leaseTime();
@@ -40,10 +40,10 @@ public class DistributedLockAspect {
         try{
             isLocked = lock.tryLock(waitTime, leaseTime, TimeUnit.SECONDS);
             if (!isLocked){ // 여기서 false
-                log.warn("락 획득 실패 - {}", lockKey);
+                log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
                 throw new RuntimeException("락 획득 오류!");
             }
-            log.info("락 획득 성공 - {}", lockKey);
+            log.info("[DistributedLockAspect] - 락 획득 성공, {}", lockKey);
             return joinPoint.proceed();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -53,10 +53,10 @@ public class DistributedLockAspect {
             if (isLocked && lock.isHeldByCurrentThread()){ // 현 스레드가 락 보유 중인 지 확인하는 메소드.
                 try{
                     lock.unlock();
-                    log.info("락 반납 성공 - {}", lockKey);
+                    log.warn("[DistributedLockAspect] - 락 반납 완료, {}", lockKey);
                 }
                 catch (Exception e){
-                    log.warn ("락 반납 실패 -> 이미 해제된 락 or 불일치, {} / {}", lockKey, e);
+                    log.warn("[DistributedLockAspect] - 락 반납 실패 (이미 해제됨 or 불일치), {}, ", lockKey, e);
                 }
             }
         }
