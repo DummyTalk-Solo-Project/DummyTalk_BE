@@ -23,6 +23,7 @@ public enum ErrorCode implements BaseErrorCode {
     CANT_CONVERT_TO_DB_COLUMN (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5005", "서버 에러 입니다. 에러 코드: SERVER5005, 관리자에게 문의해주세요."),
     CANT_CONVERT_TO_ENTITY_ATTR (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5006", "서버 에러 입니다. 에러 코드: SERVER5006, 관리자에게 문의해주세요."),
     CANT_ENCODE_STRING (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5007", "서버 에러 입니다. 에러 코드: SERVER5007, 관리자에게 문의해주세요."),
+    CANT_GET_LOCK (HttpStatus.INTERNAL_SERVER_ERROR, "SERVER5008", "서버 에러 입니다. 에러 코드: SERVER5008, 관리자에게 문의해주세요."),
 
 
     // SECURITY

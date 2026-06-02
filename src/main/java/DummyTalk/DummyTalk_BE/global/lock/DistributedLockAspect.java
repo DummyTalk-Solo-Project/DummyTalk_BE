@@ -1,5 +1,7 @@
 package DummyTalk.DummyTalk_BE.global.lock;
 
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -41,19 +43,20 @@ public class DistributedLockAspect {
             isLocked = lock.tryLock(waitTime, leaseTime, TimeUnit.SECONDS);
             if (!isLocked){ // 여기서 false
                 log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
-                throw new RuntimeException("락 획득 오류!");
+                throw new GeneralException(ErrorCode.CANT_GET_LOCK);
             }
             log.info("[DistributedLockAspect] - 락 획득 성공, {}", lockKey);
             return joinPoint.proceed();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("lock 획득 실패: {} ", e);
+            log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
+            throw new GeneralException(ErrorCode.CANT_GET_LOCK);
         }
         finally {
             if (isLocked && lock.isHeldByCurrentThread()){ // 현 스레드가 락 보유 중인 지 확인하는 메소드.
                 try{
                     lock.unlock();
-                    log.warn("[DistributedLockAspect] - 락 반납 완료, {}", lockKey);
+                    log.info("[DistributedLockAspect] - 락 반납 완료, {}", lockKey);
                 }
                 catch (Exception e){
                     log.warn("[DistributedLockAspect] - 락 반납 실패 (이미 해제됨 or 불일치), {}, ", lockKey, e);
