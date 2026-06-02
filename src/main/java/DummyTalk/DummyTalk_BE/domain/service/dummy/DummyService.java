@@ -138,8 +138,20 @@ public class DummyService {
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
 
-        /// 기록이 많은 사용자의 경우 O(N) 이상의 시간이 걸릴 수 있음.
-        long totalDummyCount = memberDummyRepository.countByMember_Id(memberId); // 뱃지 체크용 누적 횟수 (save 직후 동일 트랜잭션에서!)
+        // 뱃지 체크용 누적 횟수
+        // PostgreSQL -> Redis O(1) 카운터 (enableTransactionSupport로 분리)
+        String countKey = "count:" + memberId;
+        Object existing = redisTemplate.opsForValue().get(countKey); // READ는 즉시 실행
+        long currentCount;
+        if (existing == null) {
+            // 최초 접근 or Redis 재시작 시에만 DB 조회 후 초기화
+            currentCount = memberDummyRepository.countByMember_Id(memberId);
+            redisTemplate.opsForValue().set(countKey, currentCount); // WRITE - 큐잉, 나중에
+        } else {
+            currentCount = Long.parseLong(existing.toString());
+        }
+        redisTemplate.opsForValue().increment(countKey); // WRITE - 큐잉 (커밋 시 반영)
+        long totalDummyCount = currentCount + 1; // 큐잉 전 값 + 1 = 커밋 후 실제 값
 
 
         ///  WRITE - Concurrency Problem!!!
@@ -174,31 +186,48 @@ public class DummyService {
                 return false;
             }
             else if (wonRarity == RarityType.EPIC) {
+                Object currentEpic = redisTemplate.opsForHash().get(key, "EPIC");
+                long nextEpic = (currentEpic == null ? 0L : Long.parseLong(currentEpic.toString())) + 1;
+
                 redisTemplate.opsForHash().put(key, "RARE", "0");
-                Long newEpic = redisTemplate.opsForHash().increment(key, "EPIC", 1);
-                log.info("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", newEpic);
-                return newEpic >= 10;
+                redisTemplate.opsForHash().increment(key, "EPIC", 1);
+
+                log.info("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", nextEpic);
+                return nextEpic >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
+                Object currentRare = redisTemplate.opsForHash().get(key, "RARE");
+                long nextRare = (currentRare == null ? 0L : Long.parseLong(currentRare.toString())) + 1;
+
                 redisTemplate.opsForHash().put(key, "COMMON", "0");
-                Long newRare = redisTemplate.opsForHash().increment(key, "RARE", 1);
-                log.info("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", newRare);
-                return newRare >= 10;
+                redisTemplate.opsForHash().increment(key, "RARE", 1); // 누락됐던 RARE 증가
+                log.info("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", nextRare);
+                return nextRare >= 10;
             }
         }
         else {
             if (wonRarity == RarityType.COMMON) {
-                Long newCommon = redisTemplate.opsForHash().increment(key, "COMMON", 1);
+                redisTemplate.opsForHash().increment(key, "COMMON", 1);
+                Object common = redisTemplate.opsForHash().get(key, "COMMON");
+
+                Long newCommon = (common == null ? 0L : Long.parseLong(common.toString())) + 1;
                 log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", newCommon);
                 return newCommon >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
-                Long newRare = redisTemplate.opsForHash().increment(key, "RARE", 1);
+                redisTemplate.opsForHash().increment(key, "RARE", 1);
+
+                Object rare = redisTemplate.opsForHash().get(key, "RARE");
+
+                Long newRare = (rare == null ? 0L : Long.parseLong(rare.toString())) + 1;
                 log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", newRare);
                 return newRare >= 10;
             }
             else if (wonRarity == RarityType.EPIC) {
-                Long newEpic = redisTemplate.opsForHash().increment(key, "EPIC", 1);
+                redisTemplate.opsForHash().increment(key, "EPIC", 1);
+
+                Object epic = redisTemplate.opsForHash().get(key, "EPIC");
+                Long newEpic = (epic == null ? 0L : Long.parseLong(epic.toString())) + 1;
                 log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", newEpic);
                 return newEpic >= 10;
             }
