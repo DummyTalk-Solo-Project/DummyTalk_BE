@@ -1,5 +1,7 @@
 package DummyTalk.DummyTalk_BE.global.lock;
 
+import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
+import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -8,6 +10,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.core.annotation.Order;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
@@ -20,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 @RequiredArgsConstructor
 @Aspect
+@Order(1)
 public class DistributedLockAspect {
 
     private final RedissonClient redissonClient;
@@ -29,7 +33,7 @@ public class DistributedLockAspect {
     @Around("@annotation(distributedLock)")
     public Object around(ProceedingJoinPoint joinPoint, DistributedLock distributedLock) throws Throwable {
 
-        log.info ("distributedLock! -> key: {}, waitTime: {}, leaseTime: {} ", distributedLock.key(), distributedLock.waitTime(), distributedLock.leaseTime());
+        log.info ("[DistributedLockAspect] - 락 획득 요청 발생, key: {}, wait/leaseTime: {}s, {}s ", distributedLock.key(), distributedLock.waitTime(), distributedLock.leaseTime());
         String lockKey = parseKey(joinPoint, distributedLock.key());
         long waitTime = distributedLock.waitTime();
         long leaseTime = distributedLock.leaseTime();
@@ -40,23 +44,24 @@ public class DistributedLockAspect {
         try{
             isLocked = lock.tryLock(waitTime, leaseTime, TimeUnit.SECONDS);
             if (!isLocked){ // 여기서 false
-                log.warn("락 획득 실패 - {}", lockKey);
-                throw new RuntimeException("락 획득 오류!");
+                log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
+                throw new GeneralException(ErrorCode.CANT_GET_LOCK);
             }
-            log.info("락 획득 성공 - {}", lockKey);
+            log.info("[DistributedLockAspect] - 락 획득 성공, {}", lockKey);
             return joinPoint.proceed();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("lock 획득 실패: {} ", e);
+            log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
+            throw new GeneralException(ErrorCode.CANT_GET_LOCK);
         }
         finally {
             if (isLocked && lock.isHeldByCurrentThread()){ // 현 스레드가 락 보유 중인 지 확인하는 메소드.
                 try{
                     lock.unlock();
-                    log.info("락 반납 성공 - {}", lockKey);
+                    log.info("[DistributedLockAspect] - 락 반납 완료, {}", lockKey);
                 }
                 catch (Exception e){
-                    log.warn ("락 반납 실패 -> 이미 해제된 락 or 불일치, {} / {}", lockKey, e);
+                    log.warn("[DistributedLockAspect] - 락 반납 실패 (이미 해제됨 or 불일치), {}, ", lockKey, e);
                 }
             }
         }

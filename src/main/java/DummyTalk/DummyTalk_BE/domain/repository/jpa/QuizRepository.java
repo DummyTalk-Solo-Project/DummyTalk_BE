@@ -16,7 +16,7 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
     @Query ("SELECT q FROM Quiz q ORDER BY q.createdAt DESC LIMIT 1")
     Quiz findLastestQuiz();
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE) // 쓰기 잠금, 배타적 잠금. 해당
+//    @Lock(LockModeType.PESSIMISTIC_WRITE) // 쓰기 잠금, 배타적 잠금. 해당
     @Query("select q From Quiz q where q.id = :id")
     Optional<Quiz> findQuizByIdForDecrease(Long id);
 

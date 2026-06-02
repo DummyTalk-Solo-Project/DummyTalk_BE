@@ -14,6 +14,7 @@ import DummyTalk.DummyTalk_BE.global.exception.handler.DummyHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.MemberHandler;
 import DummyTalk.DummyTalk_BE.global.exception.handler.QuizHandler;
 import DummyTalk.DummyTalk_BE.global.event.DummyViewedEvent;
+import DummyTalk.DummyTalk_BE.global.lock.DistributedLock;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,6 @@ public class DummyService {
 
 
     private final MemberRepository memberRepository;
-    private final RarityRepository rarityRepository;
     private final DummyRepository dummyRepository;
     private final MemberDummyRepository memberDummyRepository;
     private final QuizRepository quizRepository;
@@ -76,6 +76,7 @@ public class DummyService {
      * @return DummyRespDTO.GetDummyRespDTO
      */
     @Transactional
+    @DistributedLock(key = "'lock:getDummy:' + #memberId", waitTime = 0, leaseTime = 4)
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
         ///  READ - 따닥 급의 동일 사용자, n번의 요청
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
@@ -96,34 +97,35 @@ public class DummyService {
 
         Boolean isPityTriggered = false;
 
-        Rarity selectedRarity = Rarity.defaultRarity();
+        // DB 조회 없이 RarityType 직접 결정 - 확률은 Redis에서 관리 (DummyDataLoader가 적재)
+        RarityType selectedRarityType;
 
         if (currentCommonStack >= 10) { // COMMON -> RARE
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("RARE")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            selectedRarityType = RarityType.RARE;
+            isPityTriggered = true;
             log.info("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
-            isPityTriggered=true;
         }
         else if (currentRareStack >= 10) { // RARE -> EPIC
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("EPIC")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            selectedRarityType = RarityType.EPIC;
+            isPityTriggered = true;
             log.info("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
-            isPityTriggered=true;
         }
         else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
-            selectedRarity = rarityRepository.findByName(RarityType.valueOf("SPECIAL")).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            selectedRarityType = RarityType.SPECIAL;
+            isPityTriggered = true;
             log.info("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
-            isPityTriggered=true;
         }
-        else{
-            // 2. 천장 없는 경우 확률에 의해 조회.
-            selectedRarity = getRandomRarity();
-            log.info("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarity.getName());
+        else {
+            // 2. 천장 없는 경우 Redis 확률 기반 추첨 (rarity:probabilities 해시)
+            selectedRarityType = getRandomRarityType();
+            log.info("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarityType);
         }
 
         // 스택 update, 다음 뽑기 천장 예정 여부 반환
-        Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarity.getName(), isPityTriggered);
+        Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarityType, isPityTriggered);
 
         // {dummy:등급} set에 저장되어 있는 id 중 하나 랜덤으로 긁어옴
-        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
+        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarityType);
         if (result == null) {
             throw new DummyHandler(ErrorCode.WRONG_RARITY);
         }
@@ -136,8 +138,20 @@ public class DummyService {
         memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
         redisTemplate.opsForSet().add("member:"+memberId+":dummy", dummy.getId());
 
-        /// 기록이 많은 사용자의 경우 O(N) 이상의 시간이 걸릴 수 있음.
-        long totalDummyCount = memberDummyRepository.countByMember_Id(memberId); // 뱃지 체크용 누적 횟수 (save 직후 동일 트랜잭션에서!)
+        // 뱃지 체크용 누적 횟수
+        // PostgreSQL -> Redis O(1) 카운터 (enableTransactionSupport로 분리)
+        String countKey = "count:" + memberId;
+        Object existing = redisTemplate.opsForValue().get(countKey); // READ는 즉시 실행
+        long currentCount;
+        if (existing == null) {
+            // 최초 접근 or Redis 재시작 시에만 DB 조회 후 초기화
+            currentCount = memberDummyRepository.countByMember_Id(memberId);
+            redisTemplate.opsForValue().set(countKey, currentCount); // WRITE - 큐잉, 나중에
+        } else {
+            currentCount = Long.parseLong(existing.toString());
+        }
+        redisTemplate.opsForValue().increment(countKey); // WRITE - 큐잉 (커밋 시 반영)
+        long totalDummyCount = currentCount + 1; // 큐잉 전 값 + 1 = 커밋 후 실제 값
 
 
         ///  WRITE - Concurrency Problem!!!
@@ -158,12 +172,15 @@ public class DummyService {
                 .isNextPityTriggered(isNextPityTriggered)
                 .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
                 .build();
-        log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarity.getName());
+        log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarityType);
         return dto;
     }
 
     // 스택 업데이트 후 다음 뽑기가 천장 확정인지 반환 (increment 반환값 >= 10)
     private Boolean updatePityStack(String key, RarityType wonRarity, Boolean isPityTriggered) {
+
+        // READ → calculate → WRITE(queued) → return expected
+
         if (isPityTriggered) {
             if (wonRarity == RarityType.SPECIAL) {
                 // SPECIAL은 최상위 등급, 다음 천장 없음
@@ -172,53 +189,66 @@ public class DummyService {
                 return false;
             }
             else if (wonRarity == RarityType.EPIC) {
+                Object currentEpic = redisTemplate.opsForHash().get(key, "EPIC");
+                long nextEpic = (currentEpic == null ? 0L : Long.parseLong(currentEpic.toString())) + 1;
+
                 redisTemplate.opsForHash().put(key, "RARE", "0");
-                Long newEpic = redisTemplate.opsForHash().increment(key, "EPIC", 1);
-                log.info("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", newEpic);
-                return newEpic >= 10;
+                redisTemplate.opsForHash().increment(key, "EPIC", 1);
+
+                log.info("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", nextEpic);
+                return nextEpic >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
+                Object currentRare = redisTemplate.opsForHash().get(key, "RARE");
+                long nextRare = (currentRare == null ? 0L : Long.parseLong(currentRare.toString())) + 1;
+
                 redisTemplate.opsForHash().put(key, "COMMON", "0");
-                Long newRare = redisTemplate.opsForHash().increment(key, "RARE", 1);
-                log.info("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", newRare);
-                return newRare >= 10;
+                redisTemplate.opsForHash().increment(key, "RARE", 1); // 누락됐던 RARE 증가
+                log.info("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", nextRare);
+                return nextRare >= 10;
             }
         }
         else {
             if (wonRarity == RarityType.COMMON) {
-                Long newCommon = redisTemplate.opsForHash().increment(key, "COMMON", 1);
-                log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", newCommon);
-                return newCommon >= 10;
+                Object currentCommon = redisTemplate.opsForHash().get(key, "COMMON");
+                long nextCommon = (currentCommon == null ? 0L : Long.parseLong(currentCommon.toString())) + 1;
+                redisTemplate.opsForHash().increment(key, "COMMON", 1); // WRITE: 큐잉
+                log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", nextCommon);
+                return nextCommon >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
-                Long newRare = redisTemplate.opsForHash().increment(key, "RARE", 1);
-                log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", newRare);
-                return newRare >= 10;
+                Object currentRare = redisTemplate.opsForHash().get(key, "RARE");
+                long nextRare = (currentRare == null ? 0L : Long.parseLong(currentRare.toString())) + 1;
+                redisTemplate.opsForHash().increment(key, "RARE", 1); // WRITE: 큐잉
+                log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", nextRare);
+                return nextRare >= 10;
             }
             else if (wonRarity == RarityType.EPIC) {
-                Long newEpic = redisTemplate.opsForHash().increment(key, "EPIC", 1);
-                log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", newEpic);
-                return newEpic >= 10;
+                Object currentEpic = redisTemplate.opsForHash().get(key, "EPIC");
+                long nextEpic = (currentEpic == null ? 0L : Long.parseLong(currentEpic.toString())) + 1;
+                redisTemplate.opsForHash().increment(key, "EPIC", 1); // WRITE: 큐잉
+                log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", nextEpic);
+                return nextEpic >= 10;
             }
         }
         return false;
     }
 
-    @Transactional(readOnly = true)
-    public Rarity getRandomRarity (){
-        List<Rarity> rarityList = rarityRepository.findAll(); // 최대 4개.
+    // DB -> Redis rarity:probabilities
+    public RarityType getRandomRarityType() {
+        Map<Object, Object> probs = redisTemplate.opsForHash().entries("rarity:probabilities"); // READ - 즉시 실행
         double pivot = Math.random() * 100;
         double cumulative = 0;
-        for (int i = 0; i < rarityList.size(); i++) {
-            Rarity r = rarityList.get(i);
-            cumulative += r.getProbability();
-
-            // 당첨 조건 이거나, 마지막 요소인 경우 강제로
-            if (pivot <= cumulative || i == rarityList.size() - 1) {
-                return r;
+        RarityType[] order = {RarityType.COMMON, RarityType.RARE, RarityType.EPIC, RarityType.SPECIAL};
+        for (int i = 0; i < order.length; i++) {
+            Object prob = probs.get(order[i].name());
+            if (prob == null) continue;
+            cumulative += Double.parseDouble(prob.toString());
+            if (pivot <= cumulative || i == order.length - 1) {
+                return order[i];
             }
         }
-        return null;
+        return RarityType.COMMON; // fallback (확률 합 < 100일 때 부동소수점 처리)
     }
 
     @Transactional(readOnly = true)
@@ -311,6 +341,7 @@ public class DummyService {
 
 
     @Transactional
+    @DistributedLock(key = "'lock:solveQuiz:' + #quizId", waitTime = 5, leaseTime = 5)
     public Boolean solveQuiz(Long memberId, Long quizId, Integer answer) {
 
         // 중복 제출 방지
