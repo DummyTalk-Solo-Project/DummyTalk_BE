@@ -23,8 +23,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member>findByEmailFetchInfo(@Param("email") String email);
 
     // PESSIMISTIC_WRITE + 5s TimeOut
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+//    @Lock(LockModeType.PESSIMISTIC_WRITE)
+//    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
     @Query("SELECT m FROM Member m join FETCH Info i on i.member.id = m.id where m.id = :memberId")
     Optional<Member> findByIdFetchJoinInfo (Long memberId);
 
