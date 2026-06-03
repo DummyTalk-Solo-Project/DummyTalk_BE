@@ -126,8 +126,6 @@ public class AdminController {
                 SuccessCode.TOGGLE_NOTICE_PUBLISH_SUCCESS);
     }
 
-    // ===================== 기존 Admin 기능 이관 =====================
-
     // 퀴즈 오픈 — AdminService.openQuiz() 에서 ADMIN 체크 포함
     @PostMapping("/quiz/open")
     public APIResponse<Quiz> openQuiz(

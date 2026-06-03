@@ -47,7 +47,6 @@ public class MemberController {
 
         MemberRespDTO.MemberInfoDTO memberInfo = memberService.login(dto);
 
-        // SameSite=None: FE(Vercel)·BE(EC2)가 다른 도메인 → 크로스 사이트 쿠키 전송 필요, Secure 필수
         ResponseCookie cookie = ResponseCookie.from("refreshToken", memberInfo.getJwt().getRefreshToken())
                 .httpOnly(true)
                 .secure(true)
@@ -63,8 +62,6 @@ public class MemberController {
                 .accessToken(memberInfo.getJwt().getAccessToken())
                 .needPasswordChange(memberInfo.getNeedPasswordChange())
                 .build();
-
-        // RFC 6750 표준: "Bearer <token>" (콜론 없음)
         response.addHeader("Authorization", "Bearer " + respDTO.getAccessToken());
 
         return APIResponse.onSuccess(respDTO, SuccessCode.LOGIN_SUCCESS);
