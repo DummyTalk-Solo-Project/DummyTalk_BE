@@ -2,7 +2,6 @@ package DummyTalk.DummyTalk_BE.global.interceptor;
 
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.ErrorCode;
 import DummyTalk.DummyTalk_BE.global.exception.GeneralException;
-// import DummyTalk.DummyTalk_BE.global.interceptor.annotation.IdempotentRequest; // TODO: [2] 어노테이션 체크 활성화 시 import 해제
 import DummyTalk.DummyTalk_BE.global.interceptor.annotation.IdempotentRequest;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,8 +26,12 @@ import java.util.concurrent.TimeUnit;
  *   - Interceptor = HandlerMethod 접근 가능 + SecurityContextHolder 사용 가능
  *   - Tomcat Thread는 이미 할당된 상태 → Thread 절약 목적이 아닌, 빠른 거절로 비싼 DB I/O를 방지하는 게 나을 듯
  *
- * Redis 키 구조: idempotent:<memberId>:<httpMethod>:<requestURI>
+ * 대충의 흐름
+ * 1. HandlerMapping이 매핑 = URL, Method의 정보 획득 가능
+ * 2. 인터셉터 실행! = preHandle() -> handlerMethod로 위 정보 접근 가능
+ * 3. 실질적인 접근 허용/거부
  *
+ * Redis 키 구조: idempotent:<memberId>:<httpMethod>:<requestURI>
  * TTL = 5초: getDummy leaseTime 4초 보다 약간 길게 설정한 failsafe.
  * afterCompletion에서 즉시 삭제하므로 정상 흐름에서는 TTL 만료 전 제거
  */
@@ -50,12 +53,11 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 2.  TODO: 커스텀 어노테이션 @IdempotentRequest 체크
+        // 2. 커스텀 어노테이션 @IdempotentRequest 체크
          IdempotentRequest annotation = handlerMethod.getMethodAnnotation(IdempotentRequest.class);
          if (annotation == null) {
              return true; // 어노테이션 없는 메서드는 즉시 통과
          }
-
 
         // 3. SecurityContextHolder에서 인증 정보 추출
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -79,12 +81,6 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
         log.info("[IdempotentRequestInterceptor - preHandle()] - 요청 허용, memberId: {}, key: {}", memberId, redisKey);
         return true;
     }
-
-    /**
-     * [5] 요청 완료 후 Redis 키 즉시 삭제
-     *     - 정상 완료·예외 발생 무관하게 항상 실행되는 것이 afterCompletion의 보장
-     *     - TTL은 failsafe이므로 정상 흐름에서는 여기서 즉시 해제해 다음 요청을 허용
-     */
 
     // 5. 요청 완료 후 Redis 키
     @Override
