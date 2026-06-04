@@ -8,6 +8,7 @@ import DummyTalk.DummyTalk_BE.global.interceptor.annotation.IdempotentRequest;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,10 +22,25 @@ public class DummyController {
 
     private final DummyService dummyService;
 
+    /**
+     * K6 동시성 전략 비교 버전 전환 설정 (application.yml -> concurrency.getDummy-version)
+     * 각 번호 순서대로 테스트 하기
+     */
+    @Value("${concurrency.getDummy-version:3}")
+    private int getDummyVersion;
+
     @IdempotentRequest
     @GetMapping ("/dummy")
     public APIResponse<DummyRespDTO.GetDummyRespDTO> getDummy(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        return APIResponse.onSuccess(dummyService.getDummy(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
+        Long memberId = userDetails.getMember().getId();
+        return APIResponse.onSuccess(
+            switch (getDummyVersion) {
+                case 1  -> dummyService.getDummyV1(memberId); // 순수 트랜잭션
+                case 2  -> dummyService.getDummyV2(memberId); // 분산락
+                default -> dummyService.getDummy(memberId);   // 인터셉터 (최신 버전쓰)
+            },
+            SuccessCode.GET_DUMMY_SUCCESS
+        );
     }
 
     @GetMapping("/my-dummy")
