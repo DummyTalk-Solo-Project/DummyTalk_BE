@@ -28,10 +28,12 @@ import { sleep, check, group } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
 // ─── 커스텀 메트릭 ─────────────────────────────────────────────────────────────
-const dummyTotal     = new Counter('dummy_requests_total');     // 전체 뽑기 횟수
-const limitHitRate   = new Rate('dummy_limit_hit_rate');        // 20회 제한 도달 비율
-const raceSuspect    = new Counter('race_condition_suspect');   // remainingCount 이상 감지 횟수
-const dummyDuration  = new Trend('dummy_req_duration_ms');      // 뽑기 응답 시간
+const dummyTotal          = new Counter('dummy_requests_total');       // 전체 뽑기 횟수
+const limitHitRate        = new Rate('dummy_limit_hit_rate');          // 20회 제한 도달 비율
+const raceSuspect         = new Counter('race_condition_suspect');     // remainingCount 이상 감지 횟수
+const dummyDuration       = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간
+const interceptorBlock    = new Counter('interceptor_block_429_count');// 인터셉터 따닥 차단 횟수
+const interceptorBlockRate= new Rate('interceptor_block_rate');        // 전체 요청 중 429 차단 비율
 
 // ─── 파라미터 (환경변수로 override 가능) ────────────────────────────────────────
 const BASE_URL  = __ENV.BASE_URL          || 'http://localhost:8080';
@@ -53,9 +55,10 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration:    ['p(95)<2000'],  // 전체 응답 95%가 2초 이내
-    http_req_failed:      ['rate<0.05'],   // 에러율 5% 미만
-    dummy_req_duration_ms:['p(95)<1500'],  // 뽑기 응답 1.5초 이내
+    http_req_duration:       ['p(95)<2000'],  // 전체 응답 95%가 2초 이내
+    http_req_failed:         ['rate<0.05'],   // 에러율 5% 미만 (429는 expectedStatuses로 제외)
+    dummy_req_duration_ms:   ['p(95)<1500'],  // 뽑기 응답 1.5초 이내
+    interceptor_block_rate:  ['rate<0.2'],    // 인터셉터 차단 비율 20% 미만 (따닥 과다 시 경고)
   },
 };
 
@@ -100,11 +103,27 @@ export default function () {
   group('2_dummy_loop', () => {
     for (let i = 0; i < 20; i++) {
       const start = Date.now();
-      const res = http.get(`${BASE_URL}/api/dummies/dummy`, { headers });
+      const res = http.get(`${BASE_URL}/api/dummies/dummy`, {
+        headers,
+        // 429 = IdempotentRequestInterceptor 따닥 차단 (정상 동작) → http_req_failed 에서 제외
+        responseCallback: http.expectedStatuses(200, 400, 429),
+      });
       dummyDuration.add(Date.now() - start);
       dummyTotal.add(1);
 
       const body = res.json();
+
+      // [인터셉터] 따닥 요청 차단 (429 정상 동작)
+      // 이전 요청이 아직 처리 중일 때 발생 — afterCompletion에서 Redis 키 삭제 후 다음 요청 허용
+      if (res.status === 429) {
+        interceptorBlock.add(1);
+        interceptorBlockRate.add(1);
+        check(res, { '[인터셉터] 따닥 차단 (429 정상)': () => res.status === 429 });
+        console.log(`[INTERCEPTOR BLOCK] VU=${__VU}, iter=${i} — 인터셉터 차단, 재시도 대기`);
+        if (SLEEP_S > 0) sleep(SLEEP_S);
+        continue; // 루프 재시도
+      }
+      interceptorBlockRate.add(0); // 정상 요청은 차단율에 0 기여
 
       // 20회 소진 에러 (정상 케이스)
       if (res.status === 400) {

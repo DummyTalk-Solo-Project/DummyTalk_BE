@@ -34,10 +34,11 @@ import { check, group } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 
 // ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
-const dummyDuration = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
-const raceSuspect   = new Counter('race_condition_suspect');     // remainingCount 음수/이상 감지 → Stage 1에서 발생 예상
-const fastFailCount = new Counter('fast_fail_429_count');        // Redisson tryLock(0) 즉시 거절 횟수 → Stage 3 전용 지표
-const limitHitCount = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
+const dummyDuration      = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
+const raceSuspect        = new Counter('race_condition_suspect');     // remainingCount 음수/이상 감지 → Stage 1에서 발생 예상
+const fastFailCount      = new Counter('fast_fail_429_count');        // 인터셉터/분산락 즉시 거절 횟수 → Stage 3 전용 지표
+const fastFailRate       = new Rate('fast_fail_429_rate');            // 전체 중 429 차단 비율 (인터셉터 효과 측정)
+const limitHitCount      = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
 
 // ─── 파라미터 ─────────────────────────────────────────────────────────────────
 const BASE_URL   = __ENV.BASE_URL              || 'http://localhost:8080';
@@ -61,11 +62,13 @@ export const options = {
   },
 
   thresholds: {
-    // Stage 3에서 따닥 거절(429)이 대량 발생하므로 실패율 기준 완화
-    http_req_failed:        ['rate<0.6'],
+    // 429는 responseCallback으로 expectedStatuses 처리 → http_req_failed 에서 제외됨
+    http_req_failed:        ['rate<0.1'],
     dummy_req_duration_ms:  ['p(95)<3000'],
-    // 핵심 임계값: 레이스 컨디션 0건 목표 → Stage 1에서 이 threshold 실패 예상
+    // [핵심] Stage 1에서 이 threshold 실패 예상, Stage 3에서 0이어야 개선 증거
     race_condition_suspect: ['count<1'],
+    // Stage 3에서 fast_fail이 전체의 (CONCURRENT-1)/CONCURRENT 비율로 발생하는 것이 정상
+    // ex) CONCURRENT=5 → 같은 유저 5개 VU 중 1개만 통과, 4개는 차단 → rate ≈ 0.8
   },
 };
 
@@ -112,15 +115,24 @@ export default function (tokenMap) {
 
   group('getDummy_ddotg', () => {
     const start = Date.now();
-    const res   = http.get(`${BASE_URL}/api/dummies/dummy`, { headers });
+    const res   = http.get(`${BASE_URL}/api/dummies/dummy`, {
+      headers,
+      // 429 = 인터셉터(Stage3) 또는 분산락(Stage2) 따닥 차단 → 정상 동작, http_req_failed 제외
+      responseCallback: http.expectedStatuses(200, 400, 429),
+    });
     dummyDuration.add(Date.now() - start);
 
-    // Stage 3: Redisson tryLock(0) → 즉시 거절 (따닥 방어 성공)
+    // [Stage 2/3] 따닥 즉시 차단
+    // Stage 2: @DistributedLock(waitTime=0) → CANT_GET_LOCK → GeneralException → 429 또는 500
+    // Stage 3: IdempotentRequestInterceptor → DUPLICATE_REQUEST → 429
     if (res.status === 429) {
       fastFailCount.add(1);
-      check(res, { '[Stage3] 따닥 즉시 거절 (429)': () => true });
+      fastFailRate.add(1);
+      check(res, { '[Stage2/3] 따닥 즉시 차단 (429 정상)': () => true });
+      console.log(`[FAST FAIL] VU=${__VU}, user=test${userNum}@test.com → 인터셉터/분산락 차단`);
       return;
     }
+    fastFailRate.add(0); // 정상 통과는 rate에 0 기여
 
     // 20회 정상 소진
     if (res.status === 400) {
