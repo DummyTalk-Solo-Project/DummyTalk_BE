@@ -4,6 +4,7 @@ import DummyTalk.DummyTalk_BE.domain.dto.dummy.DummyRespDTO;
 import DummyTalk.DummyTalk_BE.domain.service.dummy.DummyService;
 import DummyTalk.DummyTalk_BE.global.apiResponse.APIResponse;
 import DummyTalk.DummyTalk_BE.global.apiResponse.status.SuccessCode;
+import DummyTalk.DummyTalk_BE.global.interceptor.annotation.IdempotentRequest;
 import DummyTalk.DummyTalk_BE.global.security.userDetails.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ public class DummyController {
 
     private final DummyService dummyService;
 
+    @IdempotentRequest
     @GetMapping ("/dummy")
     public APIResponse<DummyRespDTO.GetDummyRespDTO> getDummy(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return APIResponse.onSuccess(dummyService.getDummy(userDetails.getMember().getId()), SuccessCode.GET_DUMMY_SUCCESS);
@@ -45,6 +47,7 @@ public class DummyController {
         return APIResponse.onSuccess(dummyService.getQuiz(userDetails.getMember().getId()), SuccessCode.GET_QUIZ_SUCCESS);
     }
 
+    @IdempotentRequest
     @PostMapping("/quiz")
     public APIResponse<Boolean> solveQuiz (@AuthenticationPrincipal CustomUserDetails userDetails, @RequestParam("id") Long quizId, @RequestParam("answer") Integer answer){
         return APIResponse.onSuccess(   dummyService.solveQuiz(userDetails.getMember().getId(), quizId, answer), SuccessCode.SOLVE_QUIZ_SUCCESS);
