@@ -3,6 +3,10 @@ logging:
     org.hibernate.SQL: DEBUG
 
 spring:
+  threads:
+    virtual:
+      enabled: false
+
   application:
     name: DummyTalk_BE
 
