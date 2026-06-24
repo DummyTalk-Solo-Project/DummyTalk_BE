@@ -75,24 +75,31 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const QUIZ_ID  = __ENV.QUIZ_ID || '1'; // -e QUIZ_ID=<id> 로 지정
 const TICKET_LIMIT = 10; // Quiz 생성 시 ticket=10
 
+// T3.Small VU 가이드:
+//   Phase 1 (ticket 경쟁): 20 VU → ticket 10개 중 누가 먼저 차지하는지 관찰 충분
+//   Phase 2 (따닥 버그):   10 VU → 동일 유저 batch() 2회 발사 × 10명, 버그 재현 충분
+//   50 VU / 20 VU (기존) → T3.Small에서 login 오버헤드 + EC2 CPU burst credit 소진 위험
+
 // ─── 시나리오 설정 ──────────────────────────────────────────────────────────────
 export const options = {
   scenarios: {
 
-    // Phase 1: 다른 사용자 50명이 동일 퀴즈에 동시 제출 (ticket 소진 경쟁)
+    // Phase 1: 다른 사용자 20명이 동일 퀴즈에 동시 제출 (ticket 소진 경쟁)
+    // T3.Small: 50→20 VU. ticket=10이면 20명으로 경쟁 재현 충분
     phase1_ticket_race: {
       executor: 'shared-iterations',
-      vus: 50,
-      iterations: 50,
+      vus: 20,
+      iterations: 20,
       maxDuration: '30s',
       exec: 'phase1',
       tags: { phase: 'ticket_race' },
     },
 
     // Phase 2: 동일 사용자 동시 2회 제출 (핵심 버그 재현)
+    // T3.Small: 20→10 VU. 버그 재현에 10명으로 충분, login 오버헤드 절반 절감
     phase2_duplicate_submit: {
       executor: 'per-vu-iterations',
-      vus: 20,
+      vus: 10,
       iterations: 1,
       maxDuration: '30s',
       startTime: '35s',  // Phase 1 완료 후 시작 (퀴즈 재오픈 필요할 수 있음)
@@ -111,7 +118,7 @@ export const options = {
 
 // ─── Phase 1: ticket 소진 경쟁 ─────────────────────────────────────────────────
 export function phase1() {
-  const userNum = (__VU % 50) + 1;
+  const userNum = (__VU % 20) + 1;  // T3.Small: 20 VU 기준 순환
   const email   = `test${userNum}@test.com`;
 
   // 로그인
@@ -171,7 +178,7 @@ export function phase1() {
 
 // ─── Phase 2: 동일 사용자 동시 2회 제출 (핵심 버그 재현) ──────────────────────
 export function phase2() {
-  const userNum = (__VU % 50) + 1;
+  const userNum = (__VU % 10) + 1;  // T3.Small: 10 VU 기준 순환
   const email   = `test${userNum}@test.com`;
 
   // 로그인

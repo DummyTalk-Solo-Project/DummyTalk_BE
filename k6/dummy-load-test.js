@@ -8,9 +8,15 @@
  *
  * ── 환경변수 옵션 ─────────────────────────────────────────────────────────────
  *   BASE_URL : 대상 서버 (기본: http://localhost:8080)
- *   VUS      : 최대 동시 VU 수 (기본: 50)
+ *   VUS      : 최대 동시 VU 수 (기본: 30 — T3.Small 2vCPU/2GB 기준, 스트레스는 50~80 권장)
  *   SLEEP    : 뽑기 사이 대기 시간(초) (기본: 3  /  0 = 동시성 집중 테스트)
  *   POOL     : 유저 풀 크기, test1~N@test.com (기본: 200)
+ *
+ * ── T3.Small VU 가이드 ────────────────────────────────────────────────────────
+ *   일반 부하:  VUS=20~30  (CPU 여유, 정상 흐름 확인)
+ *   스트레스:  VUS=50~80  (HikariCP 병목 시작 구간)
+ *   스파이크:  VUS=100~150 (Thread Pool 압박 + 인터셉터 동작 관찰)
+ *   200+ VU:  T3.Small CPU 자체 포화 → p99 수치 신뢰 불가
  *
  * ── 실행 예시 ─────────────────────────────────────────────────────────────────
  *   [기본 - 현실 시나리오]
@@ -37,7 +43,7 @@ const interceptorBlockRate= new Rate('interceptor_block_rate');        // 전체
 
 // ─── 파라미터 (환경변수로 override 가능) ────────────────────────────────────────
 const BASE_URL  = __ENV.BASE_URL          || 'http://localhost:8080';
-const VU_COUNT  = parseInt(__ENV.VUS)     || 50;   // 최대 동시 VU (기본 50)
+const VU_COUNT  = parseInt(__ENV.VUS)     || 30;   // 최대 동시 VU (기본 30 — T3.Small 적정값)
 const SLEEP_S   = parseFloat(__ENV.SLEEP) || 3;    // 뽑기 사이 sleep 초 (0 = 동시성 집중)
 const USER_POOL = parseInt(__ENV.POOL)    || 200;  // 유저 풀 크기 (test1~N@test.com)
 
@@ -55,9 +61,10 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration:       ['p(95)<2000'],  // 전체 응답 95%가 2초 이내
+    // T3.Small 2vCPU 기준 — 로컬 환경 대비 응답 시간 여유 있게 설정
+    http_req_duration:       ['p(95)<3000'],  // 전체 응답 95%가 3초 이내
     http_req_failed:         ['rate<0.05'],   // 에러율 5% 미만 (429는 expectedStatuses로 제외)
-    dummy_req_duration_ms:   ['p(95)<1500'],  // 뽑기 응답 1.5초 이내
+    dummy_req_duration_ms:   ['p(95)<2500'],  // 뽑기 응답 2.5초 이내
     interceptor_block_rate:  ['rate<0.2'],    // 인터셉터 차단 비율 20% 미만 (따닥 과다 시 경고)
   },
 };

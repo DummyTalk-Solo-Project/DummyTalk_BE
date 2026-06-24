@@ -41,6 +41,12 @@
  *   k6 run -e BASE_URL=http://<EC2_IP>:8080 k6/full-journey-test.js
  *   k6 run -e BASE_URL=http://<EC2_IP>:8080 --out json=k6/results/journey-result.json k6/full-journey-test.js
  *
+ * ── T3.Small VU 가이드 ────────────────────────────────────────────────────────
+ *   기본 (버그 재현): VU_COUNT=20  (기본값, login 40초 소요 → 충분한 동시성)
+ *   버그 재현 강화:   VU_COUNT=30  (sleep 1.5s 포함으로 실제 부하는 낮음)
+ *   ※ 이 테스트는 sleep(1.5s) + sleep(2s) 포함 → CPU 점유율 낮음
+ *   ※ 버그 재현(뱃지 중복, race condition)이 목적이므로 VU 보다 '동시 요청 타이밍'이 중요
+ *
  * [결과 확인 포인트]
  *   1. 콘솔에서 [BADGE BUG], [RACE SUSPECT] 로그 개수 확인
  *   2. 커스텀 메트릭 badge_duplicate_suspect, race_condition_suspect 값
@@ -71,7 +77,7 @@ const quizDuration  = new Trend('quiz_req_duration_ms');
 
 // EC2 대상 실행: k6 run -e BASE_URL=http://<EC2_IP>:8080 k6/full-journey-test.js
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const VU_COUNT = parseInt(__ENV.VU_COUNT) || 50;
+const VU_COUNT = parseInt(__ENV.VU_COUNT) || 20;  // T3.Small 기본값 (기존 50 → 20)
 
 // ─── 시나리오 설정 ──────────────────────────────────────────────────────────────
 export const options = {
@@ -84,9 +90,10 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration:          ['p(95)<3000'],
+    // T3.Small 2vCPU + sleep 포함 여정 테스트 — 지연 여유 있게 설정
+    http_req_duration:          ['p(95)<4000'],
     http_req_failed:            ['rate<0.1'],
-    dummy_req_duration_ms:      ['p(95)<2000'],
+    dummy_req_duration_ms:      ['p(95)<3000'],
     // [핵심 검증] 0이어야 정상. 0보다 크면 버그 발현 의심
     'badge_duplicate_suspect':  ['count<1'],
     'race_condition_suspect':   ['count<1'],
