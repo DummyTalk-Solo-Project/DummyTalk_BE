@@ -37,7 +37,7 @@
 
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { Counter, Trend } from 'k6/metrics';
+import { Counter, Trend, Rate } from 'k6/metrics';
 
 // ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
 const dummyDuration      = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
