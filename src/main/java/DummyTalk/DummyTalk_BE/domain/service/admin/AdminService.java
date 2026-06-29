@@ -31,7 +31,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.*;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -44,6 +43,7 @@ public class AdminService {
     private final MemberRepository memberRepository;
     private final DummyRepository dummyRepository;
     private final QuizRepository  quizRepository;
+    // Stage 4 VT 적용 시: TaskScheduler 인터페이스로 교체 + SchedulerConfig @Primary 활성화
     private final ThreadPoolTaskScheduler taskScheduler;
     private final QuizScheduler quizScheduler;
     private final RedisTemplate redisTemplate;
@@ -116,6 +116,8 @@ public class AdminService {
             throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
         }
 
+        // Stage 1~3: ThreadPoolTaskScheduler Pool 상태 조회
+        // Stage 4 VT 전환 시: Pool 개념 없음 → -1 고정값으로 교체
         return DummyRespDTO.CheckQuizDTO.builder()
                 .activeCount(taskScheduler.getActiveCount())
                 .poolSize(taskScheduler.getPoolSize())

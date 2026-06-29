@@ -53,14 +53,4 @@ public class RedisConfig {
         return Redisson.create(config);
     }
 
-
-    public int executeOperation(Runnable operation) {
-        try {
-            operation.run();
-            return 1;
-        } catch (Exception e) {
-            System.out.println("Redis 작업 오류 발생 :: " + e.getMessage());
-            return 0;
-        }
-    }
 }

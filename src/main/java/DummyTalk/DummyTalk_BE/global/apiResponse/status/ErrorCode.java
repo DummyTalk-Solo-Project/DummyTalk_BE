@@ -12,6 +12,8 @@ public enum ErrorCode implements BaseErrorCode {
 
     // CLIENT
     INVALID_TOKEN(HttpStatus.BAD_REQUEST, "CLIENT4000", "로그인이 필요해요"),
+    // 동일 사용자의 중복(따닥) 요청 — IdempotentRequestInterceptor에서 발생
+    DUPLICATE_REQUEST(HttpStatus.TOO_MANY_REQUESTS, "CLIENT4291", "이미 처리 중인 요청이 있어요. 잠시 후 다시 시도해주세요."),
 
 
     // SERVER

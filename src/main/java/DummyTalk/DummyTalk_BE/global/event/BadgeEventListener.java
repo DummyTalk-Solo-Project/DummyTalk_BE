@@ -1,6 +1,6 @@
-package DummyTalk.DummyTalk_BE.domain.service.badge;
+package DummyTalk.DummyTalk_BE.global.event;
 
-import DummyTalk.DummyTalk_BE.global.event.DummyViewedEvent;
+import DummyTalk.DummyTalk_BE.domain.service.badge.BadgeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;

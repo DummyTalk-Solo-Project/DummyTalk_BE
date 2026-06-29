@@ -25,24 +25,31 @@
  *
  * 환경변수:
  *   BASE_URL    : 대상 서버 (기본: http://localhost:8080)
- *   USERS       : 유저 수 (기본: 20, test1~N@test.com)
+ *   USERS       : 유저 수 (기본: 10 — T3.Small 기준, 총 VU = 10×5 = 50)
  *   CONCURRENT  : 유저당 동시 따닥 요청 수 (기본: 5) → 총 VU = USERS × CONCURRENT
+ *
+ * ── T3.Small VU 가이드 ────────────────────────────────────────────────────────
+ *   기본 (따닥 재현):  USERS=10, CONCURRENT=5  → 총 50 VU (T3.Small 안정 범위)
+ *   강한 스파이크:    USERS=20, CONCURRENT=5  → 총 100 VU (Thread Pool 압박)
+ *   극단 스파이크:    USERS=30, CONCURRENT=5  → 총 150 VU (RejectedExecution 재현용)
+ *   ※ CONCURRENT 값은 1명당 따닥 VU 수 — 동시성 테스트 핵심이므로 5 유지 권장
  */
 
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { Counter, Trend } from 'k6/metrics';
+import { Counter, Trend, Rate } from 'k6/metrics';
 
 // ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
-const dummyDuration = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
-const raceSuspect   = new Counter('race_condition_suspect');     // remainingCount 음수/이상 감지 → Stage 1에서 발생 예상
-const fastFailCount = new Counter('fast_fail_429_count');        // Redisson tryLock(0) 즉시 거절 횟수 → Stage 3 전용 지표
-const limitHitCount = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
+const dummyDuration      = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
+const raceSuspect        = new Counter('race_condition_suspect');     // remainingCount 음수/이상 감지 → Stage 1에서 발생 예상
+const fastFailCount      = new Counter('fast_fail_429_count');        // 인터셉터/분산락 즉시 거절 횟수 → Stage 3 전용 지표
+const fastFailRate       = new Rate('fast_fail_429_rate');            // 전체 중 429 차단 비율 (인터셉터 효과 측정)
+const limitHitCount      = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
 
 // ─── 파라미터 ─────────────────────────────────────────────────────────────────
 const BASE_URL   = __ENV.BASE_URL              || 'http://localhost:8080';
-const USERS      = parseInt(__ENV.USERS)       || 20;
-const CONCURRENT = parseInt(__ENV.CONCURRENT)  || 5;  // 유저당 따닥 VU 수
+const USERS      = parseInt(__ENV.USERS)       || 10;  // T3.Small 기본값 (총 VU = 10×5 = 50)
+const CONCURRENT = parseInt(__ENV.CONCURRENT)  || 5;   // 유저당 따닥 VU 수 (따닥 재현 핵심, 변경 비권장)
 
 // ─── 시나리오 설정 ────────────────────────────────────────────────────────────
 export const options = {
@@ -61,17 +68,20 @@ export const options = {
   },
 
   thresholds: {
-    // Stage 3에서 따닥 거절(429)이 대량 발생하므로 실패율 기준 완화
-    http_req_failed:        ['rate<0.6'],
-    dummy_req_duration_ms:  ['p(95)<3000'],
-    // 핵심 임계값: 레이스 컨디션 0건 목표 → Stage 1에서 이 threshold 실패 예상
+    // 429는 responseCallback으로 expectedStatuses 처리 → http_req_failed 에서 제외됨
+    http_req_failed:        ['rate<0.1'],
+    // T3.Small 스파이크 기준 — 순간 폭증이므로 일반 부하보다 여유 설정
+    dummy_req_duration_ms:  ['p(95)<5000'],
+    // [핵심] Stage 1에서 이 threshold 실패 예상, Stage 3에서 0이어야 개선 증거
     race_condition_suspect: ['count<1'],
+    // Stage 3에서 fast_fail이 전체의 (CONCURRENT-1)/CONCURRENT 비율로 발생하는 것이 정상
+    // ex) CONCURRENT=5 → 같은 유저 5개 VU 중 1개만 통과, 4개는 차단 → rate ≈ 0.8
   },
 };
 
 // ─── 선행 로그인 (setup은 단일 스레드, VU 시작 전 1회만 실행) ─────────────────
 export function setup() {
-  console.log(`[setup] ${USERS}명 로그인 시작, 총 VU=${USERS * CONCURRENT}`);
+  console.log(`[setup] ${USERS}명 로그인 시작, 총 VU=${USERS * CONCURRENT} (USERS=${USERS}, CONCURRENT=${CONCURRENT})`);
   const tokenMap = {};
 
   // memberId 1은 관리자 계정 → test2@test.com 부터 시작 (i=2 ~ USERS+1)
@@ -112,15 +122,24 @@ export default function (tokenMap) {
 
   group('getDummy_ddotg', () => {
     const start = Date.now();
-    const res   = http.get(`${BASE_URL}/api/dummies/dummy`, { headers });
+    const res   = http.get(`${BASE_URL}/api/dummies/dummy`, {
+      headers,
+      // 429 = 인터셉터(Stage3) 또는 분산락(Stage2) 따닥 차단 → 정상 동작, http_req_failed 제외
+      responseCallback: http.expectedStatuses(200, 400, 429),
+    });
     dummyDuration.add(Date.now() - start);
 
-    // Stage 3: Redisson tryLock(0) → 즉시 거절 (따닥 방어 성공)
+    // [Stage 2/3] 따닥 즉시 차단
+    // Stage 2: @DistributedLock(waitTime=0) → CANT_GET_LOCK → GeneralException → 429 또는 500
+    // Stage 3: IdempotentRequestInterceptor → DUPLICATE_REQUEST → 429
     if (res.status === 429) {
       fastFailCount.add(1);
-      check(res, { '[Stage3] 따닥 즉시 거절 (429)': () => true });
+      fastFailRate.add(1);
+      check(res, { '[Stage2/3] 따닥 즉시 차단 (429 정상)': () => true });
+      console.log(`[FAST FAIL] VU=${__VU}, user=test${userNum}@test.com → 인터셉터/분산락 차단`);
       return;
     }
+    fastFailRate.add(0); // 정상 통과는 rate에 0 기여
 
     // 20회 정상 소진
     if (res.status === 400) {

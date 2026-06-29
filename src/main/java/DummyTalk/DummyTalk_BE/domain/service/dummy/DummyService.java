@@ -36,6 +36,7 @@ public class DummyService {
 
 
     private final MemberRepository memberRepository;
+    private final RarityRepository rarityRepository;      // V1에서 DB 기반 확률 조회에 사용
     private final DummyRepository dummyRepository;
     private final MemberDummyRepository memberDummyRepository;
     private final QuizRepository quizRepository;
@@ -48,35 +49,186 @@ public class DummyService {
 
 
     /**
-     * 1. 트랜잭션의 동기화가 이루어져있지 않음
-     * PostgreSQL -> 트랜잭션 수행 중 연산 오류로 인한 롤백 -> Redis는....?
-     * - Transactional Syncronization? 아직 안해본 영역이라 해봐야 함.
+     * 순수 @Transactional — 동시성 전략 비교 기준선 (베이스라인)
      *
-     * 2. 은근 많은 쿼리 발생
-     * - PostgreSQL: 영속화를 위한 1차 캐시, selectedRarity용 쿼리, dummy 단일 조회, save(), count(), updateReqCount(), 필터 인증 조회 = 7번
-     *   - N+1은 이론상 조회 X. 실제 로직에서도 제대로 확인은 못했으나 확인은 안됨.
-     * - Redis: entires(), updatePityStack(), randomMember() = 총 3번
-     * = jpa.getReferenceById로 영속화 줄이기? 이거에 대한 EntityNotFoundException 처리는? 기본적으로 필터 단에서 findBy~()로 확인하니까 상관 없나?
-     * = Redis는 3번으로 충분.
+     * 기존 특징
+     *  - Rarity를 DB에서 직접 조회 (rarityRepository.findAll → 확률 계산)
+     *  - 뱃지용 totalDummyCount를 DB COUNT 쿼리로 조회 (O(N))
+     *  - 동시성 보호 없음 → 따닥 요청 시 reqCount 중복 증가 발생
+     *  - 총 쿼리 약 7번 발생
      *
-     * 3. 동시성 문제 - 한 명의 사용자가 동시다발적 요청에 대한 동시성 문제 발생
-     * - info 대조 후 다른 조치 사항이 없음.
-     * => info.getReqCount()++ 해도, 메소드가 끝나야 트랜잭션 발생 & 늦은 반영으로 동시성 해결 불가
-     * => RedisTemplate SETNX로 해결이 가능하나, 1번과도 밀접한 문제. 만약 트랜잭션 오류로 롤백해야 하는 경우, REDIS에 대한 조치는 없음
-     * => 이거에 대한 Redis 분산락이 해결 대책이 될 수 있나?
-     * => 기본 메서드에 대한 트랜잭션 분리? 여러 개의 메소드로 나누고, Transactional? 이럼 DB Connection Pool을 잡는 개수만 더 늘어나는 거 아냐?
+     * 비교 목적: K6 stage1 — race_condition_suspect 발생 여부 확인
+     */
+    @Transactional
+    public DummyRespDTO.GetDummyRespDTO getDummyV1(Long memberId) {
+        // READ
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        Info info = member.getInfo();
+
+        if ((info.getIsSubscribe() && info.getReqCount() >= 40) || (!info.getIsSubscribe() && info.getReqCount() >= 20)) {
+            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
+        }
+
+        String pityKey = "pity:" + memberId;
+        Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
+
+        int currentCommonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
+        int currentRareStack   = Integer.parseInt(pity.getOrDefault("RARE",   "0").toString());
+        int currentEpicStack   = Integer.parseInt(pity.getOrDefault("EPIC",   "0").toString());
+
+        Boolean isPityTriggered = false;
+        // DB에서 Rarity 엔티티 직접 로드 (V1 특징 — Redis 없이 DB 조회)
+        Rarity selectedRarity = Rarity.defaultRarity();
+
+        if (currentCommonStack >= 10) {
+            selectedRarity = rarityRepository.findByName(RarityType.RARE).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            isPityTriggered = true;
+            log.info("[DummyService - getDummyV1()] - COMMON 천장 사용 -> RARE!");
+        } else if (currentRareStack >= 10) {
+            selectedRarity = rarityRepository.findByName(RarityType.EPIC).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            isPityTriggered = true;
+            log.info("[DummyService - getDummyV1()] - RARE 천장 사용 -> EPIC!");
+        } else if (currentEpicStack >= 10) {
+            selectedRarity = rarityRepository.findByName(RarityType.SPECIAL).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
+            isPityTriggered = true;
+            log.info("[DummyService - getDummyV1()] - EPIC 천장 사용 -> SPECIAL!");
+        } else {
+            // DB에서 확률 조회 후 랜덤 선택 (Redis 미사용 — V1 특징)
+            selectedRarity = getRandomRarityFromDB();
+            log.info("[DummyService - getDummyV1()] - 랜덤 뽑기: {}", selectedRarity.getName());
+        }
+
+        Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarity.getName(), isPityTriggered);
+
+        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarity.getName());
+        if (result == null) throw new DummyHandler(ErrorCode.WRONG_RARITY);
+        Long randomDummyId = Long.valueOf(result.toString());
+
+        Dummy dummy = dummyRepository.findByIdWithRarity(randomDummyId).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_DUMMY));
+
+        memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
+        redisTemplate.opsForSet().add("member:" + memberId + ":dummy", dummy.getId());
+
+        // V1 특징: DB COUNT 쿼리로 누적 횟수 조회 (데이터 많을수록 O(N))
+        long totalDummyCount = memberDummyRepository.countByMember_Id(memberId);
+
+        // WRITE — 동시성 보호 없음 (V1 의도적 미적용)
+        info.updateReqCount();
+
+        eventPublisher.publishEvent(new DummyViewedEvent(memberId, dummy.getRarity().getName().toString(), isPityTriggered, totalDummyCount));
+
+        return DummyRespDTO.GetDummyRespDTO.builder()
+                .dummyId(dummy.getId())
+                .title(dummy.getTitle())
+                .content(dummy.getContent())
+                .rarityName(dummy.getRarity().getName().toString())
+                .isPityTriggered(isPityTriggered)
+                .isNextPityTriggered(isNextPityTriggered)
+                .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
+                .build();
+    }
+
+    /**
+     * @Transactional + @DistributedLock — 분산락 도입 버전
      *
+     * 총정리
+     *  - waitTime=0: 락 획득 실패 시 즉시 CANT_GET_LOCK 반환 (따닥 방지)
+     *  - Redis 기반 확률 조회 (DB 쿼리 4번으로 감소)
+     *  - 뱃지용 totalDummyCount를 Redis O(1) 카운터로 조회
+     *  - @DistributedLock AOP가 @Transactional 바깥쪽에서 실행 (@Order(1))
+     *    → 락 획득 → 트랜잭션 시작 → 로직 → 트랜잭션 커밋 → 락 해제 순서 보장
      *
-     * 4. 비동기 스레드 VS transaction
-     * - 비동시 스레드 실행 시점: 코드 실핼 부분 == 트랜잭션 실행 전 == 불일치 현상 발생.
-     *
-     *
-     * => Redis에 대한 분산 락과 트랜잭션 전이나 동기화가 필요?
-     *
-     * @return DummyRespDTO.GetDummyRespDTO
+     * K6 stage2 — 분산락만으로 DB 커넥션 안정화 측정 및 동시성 해결 테스트
      */
     @Transactional
     @DistributedLock(key = "'lock:getDummy:' + #memberId", waitTime = 0, leaseTime = 4)
+    public DummyRespDTO.GetDummyRespDTO getDummyV2(Long memberId) {
+        Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        Info info = member.getInfo();
+
+        if ((info.getIsSubscribe() && info.getReqCount() >= 40) || (!info.getIsSubscribe() && info.getReqCount() >= 20)) {
+            throw new DummyHandler(ErrorCode.USED_ALL_CHANCES);
+        }
+
+        String pityKey = "pity:" + memberId;
+        Map<Object, Object> pity = redisTemplate.opsForHash().entries(pityKey);
+
+        int currentCommonStack = Integer.parseInt(pity.getOrDefault("COMMON", "0").toString());
+        int currentRareStack   = Integer.parseInt(pity.getOrDefault("RARE",   "0").toString());
+        int currentEpicStack   = Integer.parseInt(pity.getOrDefault("EPIC",   "0").toString());
+
+        Boolean isPityTriggered = false;
+        RarityType selectedRarityType;
+
+        if (currentCommonStack >= 10) {
+            selectedRarityType = RarityType.RARE;
+            isPityTriggered = true;
+            log.info("[DummyService - getDummyV2()] - COMMON 천장 사용 -> RARE!");
+        } else if (currentRareStack >= 10) {
+            selectedRarityType = RarityType.EPIC;
+            isPityTriggered = true;
+            log.info("[DummyService - getDummyV2()] - RARE 천장 사용 -> EPIC!");
+        } else if (currentEpicStack >= 10) {
+            selectedRarityType = RarityType.SPECIAL;
+            isPityTriggered = true;
+            log.info("[DummyService - getDummyV2()] - EPIC 천장 사용 -> SPECIAL!");
+        } else {
+            selectedRarityType = getRandomRarityType();
+            log.info("[DummyService - getDummyV2()] - 랜덤 뽑기: {}", selectedRarityType);
+        }
+
+        Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarityType, isPityTriggered);
+
+        Object result = redisTemplate.opsForSet().randomMember("dummy:" + selectedRarityType);
+        if (result == null) throw new DummyHandler(ErrorCode.WRONG_RARITY);
+        Long randomDummyId = Long.valueOf(result.toString());
+
+        Dummy dummy = dummyRepository.findByIdWithRarity(randomDummyId).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_DUMMY));
+
+        memberDummyRepository.save(MemberDummy.generateMemberDummy(member, dummy));
+        redisTemplate.opsForSet().add("member:" + memberId + ":dummy", dummy.getId());
+
+        String countKey = "count:" + memberId;
+        Object existing = redisTemplate.opsForValue().get(countKey);
+        long currentCount;
+        if (existing == null) {
+            currentCount = memberDummyRepository.countByMember_Id(memberId);
+            redisTemplate.opsForValue().set(countKey, currentCount);
+        } else {
+            currentCount = Long.parseLong(existing.toString());
+        }
+        redisTemplate.opsForValue().increment(countKey);
+        long totalDummyCount = currentCount + 1;
+
+        info.updateReqCount();
+
+        eventPublisher.publishEvent(new DummyViewedEvent(memberId, dummy.getRarity().getName().toString(), isPityTriggered, totalDummyCount));
+
+        return DummyRespDTO.GetDummyRespDTO.builder()
+                .dummyId(dummy.getId())
+                .title(dummy.getTitle())
+                .content(dummy.getContent())
+                .rarityName(dummy.getRarity().getName().toString())
+                .isPityTriggered(isPityTriggered)
+                .isNextPityTriggered(isNextPityTriggered)
+                .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
+                .build();
+    }
+
+    /**
+     * @Transactional + IdempotentRequestInterceptor
+     *
+     * 총정리
+     * - @DistributedLock 제거 — 인터셉터가 따닥 방지 담당
+     * - 인터셉터에서 막히지 않은 요청만 이 메서드에 도달
+     * - BadgeEventListener: @TransactionalEventListener(AFTER_COMMIT) + @Async 로 커밋 후 처리
+     *   → 뱃지 체크 시 MemberDummy 영속 완료 보장
+     *
+     * 이후 Virtual Thread 도입 및 관련 Redission 충돌 사항이 있어서
+     * - 이건 천천히
+     *
+     */
+    @Transactional
     public DummyRespDTO.GetDummyRespDTO getDummy(Long memberId) {
         ///  READ - 따닥 급의 동일 사용자, n번의 요청
         Member member = memberRepository.findByIdFetchJoinInfo(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
@@ -157,10 +309,10 @@ public class DummyService {
         ///  WRITE - Concurrency Problem!!!
         info.updateReqCount();
 
-        // 비동기 뱃지 이벤트 발행 (트랜잭션 커밋 후 MailExecutor 풀에서 처리)
-        /*
-        * 실행시점: 트랜잭션 Commit 전 = MemmberDummy에 대한 기록이 존재하지 않음!!!!
-        * */
+        // 뱃지 이벤트 발행
+        // BadgeEventListener: @TransactionalEventListener(AFTER_COMMIT) + @Async("BadgeExecutor")
+        // → 이 publishEvent() 호출은 트랜잭션 커밋 전이지만,
+        //   실제 리스너 실행은 AFTER_COMMIT 이후 비동기 처리 → MemberDummy 영속 완료 보장
         eventPublisher.publishEvent(new DummyViewedEvent(memberId, dummy.getRarity().getName().toString(), isPityTriggered, totalDummyCount));
 
         DummyRespDTO.GetDummyRespDTO dto = DummyRespDTO.GetDummyRespDTO.builder()
@@ -234,7 +386,26 @@ public class DummyService {
         return false;
     }
 
-    // DB -> Redis rarity:probabilities
+    /**
+     * [V1 전용] DB에서 Rarity 목록을 조회해 확률 기반 랜덤 선택.
+     * V2/V3는 Redis 캐시를 사용하는 getRandomRarityType()으로 대체됨.
+     * rarityRepository.findAll() → 최대 4개 레코드 (COMMON/RARE/EPIC/SPECIAL)
+     */
+    private Rarity getRandomRarityFromDB() {
+        List<Rarity> rarityList = rarityRepository.findAll();
+        double pivot = Math.random() * 100;
+        double cumulative = 0;
+        for (int i = 0; i < rarityList.size(); i++) {
+            Rarity r = rarityList.get(i);
+            cumulative += r.getProbability();
+            if (pivot <= cumulative || i == rarityList.size() - 1) {
+                return r;
+            }
+        }
+        return rarityList.get(0); // fallback
+    }
+
+    // Redis rarity:probabilities 해시 기반 확률 선택 (V2/V3)
     public RarityType getRandomRarityType() {
         Map<Object, Object> probs = redisTemplate.opsForHash().entries("rarity:probabilities"); // READ - 즉시 실행
         double pivot = Math.random() * 100;

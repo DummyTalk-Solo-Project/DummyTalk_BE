@@ -3,6 +3,7 @@ package DummyTalk.DummyTalk_BE.global.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
@@ -10,6 +11,10 @@ import java.util.concurrent.Executor;
 @Configuration
 @EnableAsync
 public class AsyncConfig {
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Stage 1~3: ThreadPoolTaskExecutor (Platform Thread 기반)
+    // ──────────────────────────────────────────────────────────────────────────
 
     // 메일 발송 전용 — 외부 SMTP I/O가 느리므로 pool 크게 설정
     @Bean(name = "mailExecutor")
@@ -38,4 +43,15 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    // Stage 4 전용
+     /*@Bean(name = "mailExecutor")
+     public Executor mailExecutor() {
+         return new VirtualThreadTaskExecutor("MailVT-");
+     }
+
+     @Bean(name = "BadgeExecutor")
+     public Executor badgeExecutor() {
+         return new VirtualThreadTaskExecutor("BadgeVT-");
+     }*/
 }

@@ -3,16 +3,19 @@
  *
  * 시나리오: 로그인 → 가챠 20번(일일 한도) → 21번째 한도 초과 확인
  *
- * [단일 실행 - 1명 1회]
- *   k6 run -e BASE_URL=http://<EC2_IP>  EMAIL=test@example.com PASSWORD=Test1234! load-test.js
+ * [단일 실행 - 1명 1회] 기능 검증 / 스모크 테스트
+ *   k6 run -e BASE_URL=http://<EC2_IP> -e EMAIL=test@example.com -e PASSWORD=Test1234! load-test.js
  *
- * [N명으로 확장 - 미리 생성된 계정 N개 필요]
+ * [N명으로 확장 - T3.Small 권장: VUS=5~10]
  *   k6 run \
  *     -e BASE_URL=http://<EC2_IP> \
  *     -e EMAIL=test@example.com \
  *     -e PASSWORD=Test1234! \
  *     -e VUS=5 -e ITERATIONS=5 \
  *     k6/load-test.js
+ *
+ * ※ 이 스크립트는 기능 정합성 검증용 (가챠 20회 + 21번째 거부 확인)
+ *    부하 테스트는 dummy-load-test.js / dummy-spike-test.js 사용
  *
  * ※ N명 확장 시 이메일 형식: test+1@example.com, test+2@example.com ...
  *    Gmail은 +suffix 수신을 지원하므로 한 계정으로 여러 테스트 계정 생성 가능

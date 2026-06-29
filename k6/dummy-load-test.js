@@ -8,9 +8,15 @@
  *
  * ── 환경변수 옵션 ─────────────────────────────────────────────────────────────
  *   BASE_URL : 대상 서버 (기본: http://localhost:8080)
- *   VUS      : 최대 동시 VU 수 (기본: 50)
+ *   VUS      : 최대 동시 VU 수 (기본: 30 — T3.Small 2vCPU/2GB 기준, 스트레스는 50~80 권장)
  *   SLEEP    : 뽑기 사이 대기 시간(초) (기본: 3  /  0 = 동시성 집중 테스트)
  *   POOL     : 유저 풀 크기, test1~N@test.com (기본: 200)
+ *
+ * ── T3.Small VU 가이드 ────────────────────────────────────────────────────────
+ *   일반 부하:  VUS=20~30  (CPU 여유, 정상 흐름 확인)
+ *   스트레스:  VUS=50~80  (HikariCP 병목 시작 구간)
+ *   스파이크:  VUS=100~150 (Thread Pool 압박 + 인터셉터 동작 관찰)
+ *   200+ VU:  T3.Small CPU 자체 포화 → p99 수치 신뢰 불가
  *
  * ── 실행 예시 ─────────────────────────────────────────────────────────────────
  *   [기본 - 현실 시나리오]
@@ -28,14 +34,16 @@ import { sleep, check, group } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
 // ─── 커스텀 메트릭 ─────────────────────────────────────────────────────────────
-const dummyTotal     = new Counter('dummy_requests_total');     // 전체 뽑기 횟수
-const limitHitRate   = new Rate('dummy_limit_hit_rate');        // 20회 제한 도달 비율
-const raceSuspect    = new Counter('race_condition_suspect');   // remainingCount 이상 감지 횟수
-const dummyDuration  = new Trend('dummy_req_duration_ms');      // 뽑기 응답 시간
+const dummyTotal          = new Counter('dummy_requests_total');       // 전체 뽑기 횟수
+const limitHitRate        = new Rate('dummy_limit_hit_rate');          // 20회 제한 도달 비율
+const raceSuspect         = new Counter('race_condition_suspect');     // remainingCount 이상 감지 횟수
+const dummyDuration       = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간
+const interceptorBlock    = new Counter('interceptor_block_429_count');// 인터셉터 따닥 차단 횟수
+const interceptorBlockRate= new Rate('interceptor_block_rate');        // 전체 요청 중 429 차단 비율
 
 // ─── 파라미터 (환경변수로 override 가능) ────────────────────────────────────────
 const BASE_URL  = __ENV.BASE_URL          || 'http://localhost:8080';
-const VU_COUNT  = parseInt(__ENV.VUS)     || 50;   // 최대 동시 VU (기본 50)
+const VU_COUNT  = parseInt(__ENV.VUS)     || 30;   // 최대 동시 VU (기본 30 — T3.Small 적정값)
 const SLEEP_S   = parseFloat(__ENV.SLEEP) || 3;    // 뽑기 사이 sleep 초 (0 = 동시성 집중)
 const USER_POOL = parseInt(__ENV.POOL)    || 200;  // 유저 풀 크기 (test1~N@test.com)
 
@@ -53,9 +61,11 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_duration:    ['p(95)<2000'],  // 전체 응답 95%가 2초 이내
-    http_req_failed:      ['rate<0.05'],   // 에러율 5% 미만
-    dummy_req_duration_ms:['p(95)<1500'],  // 뽑기 응답 1.5초 이내
+    // T3.Small 2vCPU 기준 — 로컬 환경 대비 응답 시간 여유 있게 설정
+    http_req_duration:       ['p(95)<3000'],  // 전체 응답 95%가 3초 이내
+    http_req_failed:         ['rate<0.05'],   // 에러율 5% 미만 (429는 expectedStatuses로 제외)
+    dummy_req_duration_ms:   ['p(95)<2500'],  // 뽑기 응답 2.5초 이내
+    interceptor_block_rate:  ['rate<0.2'],    // 인터셉터 차단 비율 20% 미만 (따닥 과다 시 경고)
   },
 };
 
@@ -100,11 +110,27 @@ export default function () {
   group('2_dummy_loop', () => {
     for (let i = 0; i < 20; i++) {
       const start = Date.now();
-      const res = http.get(`${BASE_URL}/api/dummies/dummy`, { headers });
+      const res = http.get(`${BASE_URL}/api/dummies/dummy`, {
+        headers,
+        // 429 = IdempotentRequestInterceptor 따닥 차단 (정상 동작) → http_req_failed 에서 제외
+        responseCallback: http.expectedStatuses(200, 400, 429),
+      });
       dummyDuration.add(Date.now() - start);
       dummyTotal.add(1);
 
       const body = res.json();
+
+      // [인터셉터] 따닥 요청 차단 (429 정상 동작)
+      // 이전 요청이 아직 처리 중일 때 발생 — afterCompletion에서 Redis 키 삭제 후 다음 요청 허용
+      if (res.status === 429) {
+        interceptorBlock.add(1);
+        interceptorBlockRate.add(1);
+        check(res, { '[인터셉터] 따닥 차단 (429 정상)': () => res.status === 429 });
+        console.log(`[INTERCEPTOR BLOCK] VU=${__VU}, iter=${i} — 인터셉터 차단, 재시도 대기`);
+        if (SLEEP_S > 0) sleep(SLEEP_S);
+        continue; // 루프 재시도
+      }
+      interceptorBlockRate.add(0); // 정상 요청은 차단율에 0 기여
 
       // 20회 소진 에러 (정상 케이스)
       if (res.status === 400) {

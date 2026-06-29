@@ -55,7 +55,7 @@ import java.util.stream.IntStream;
 @ConditionalOnProperty(name = "test.load-users", havingValue = "true", matchIfMissing = false)
 public class TestMemberDataLoader implements ApplicationRunner {
 
-    private static final int TEST_USER_COUNT = 200;
+    private static final int TEST_USER_COUNT = 300;
     private static final String TEST_PASSWORD = "Test1234!";
     private static final String EMAIL_FORMAT = "test%d@test.com";
     private static final String USERNAME_FORMAT = "TestUser%d";

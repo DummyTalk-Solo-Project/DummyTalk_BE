@@ -20,6 +20,15 @@ services:
     expose: # nginx가 프록시하므로 외부 직접 접근 차단 (같은 container 끼리는 가능)
       - "8080"
     environment:
+      # ZGC + ZGenerational: VT Continuation(단명 객체) 수거 최적화
+      # G1GC(기본) → Young GC STW 10~200ms → VT 부하 시 p99 스파이크 원인
+      # ZGenerational: Concurrent 수거, STW < 1ms, Young/Old 분리로 단명 객체 빠르게 수거
+      - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational
+      # Pinning 진단 시 위 줄을 아래로 교체 (JAVA_TOOL_OPTIONS는 하나만 유효)
+      # - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational -Djdk.tracePinnedThreads=full
+      # Virtual Thread Pinning 진단 — K6 부하 테스트 시에만 위 조합 줄로 교체
+      # Pinning: synchronized 블록 내부 블로킹 I/O → Carrier Thread도 함께 블로킹
+      # 의심 지점: Redisson 3.18.0 (RLock 내부), Hibernate (L1 Cache 동기화)
       - DB_HOST=postgresql
       - DB_NAME=${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
