@@ -40,7 +40,7 @@ public class RedisConfig {
 
         redisTemplate.setDefaultSerializer(new StringRedisSerializer());
 
-        redisTemplate.setEnableTransactionSupport(true);
+//        redisTemplate.setEnableTransactionSupport(true);
 
         return redisTemplate;
     }
