@@ -23,7 +23,7 @@ services:
       # ZGC + ZGenerational: VT Continuation(단명 객체) 수거 최적화
       # G1GC(기본) → Young GC STW 10~200ms → VT 부하 시 p99 스파이크 원인
       # ZGenerational: Concurrent 수거, STW < 1ms, Young/Old 분리로 단명 객체 빠르게 수거
-      - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational
+#      - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational
       # Pinning 진단 시 위 줄을 아래로 교체 (JAVA_TOOL_OPTIONS는 하나만 유효)
       # - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational -Djdk.tracePinnedThreads=full
       # Virtual Thread Pinning 진단 — K6 부하 테스트 시에만 위 조합 줄로 교체
