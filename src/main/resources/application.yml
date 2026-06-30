@@ -117,7 +117,7 @@ test:
 # Stage 3: getDummy-version: 3, interceptor-enabled: true  (현재 운영 설정)
 #   → @Transactional + IdempotentRequestInterceptor (interceptor_block_429_count 측정)
 concurrency:
-  getDummy-version: 1      # 1 = V1(순수트랜잭션) / 2 = V2(분산락) / 3 = V3(인터셉터, default)
+  getDummy-version: 2      # 1 = V1(순수트랜잭션) / 2 = V2(분산락) / 3 = V3(인터셉터, default)
   interceptor-enabled: false # false = V1/V2 테스트 시 인터셉터 비활성화
 
 # prod 프로파일 없이 배포 환경에서 Swagger 비활성화
