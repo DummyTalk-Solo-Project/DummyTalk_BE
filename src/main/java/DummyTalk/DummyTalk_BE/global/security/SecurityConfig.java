@@ -1,7 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.security;
 
 import DummyTalk.DummyTalk_BE.global.security.filter.JWTAuthenticationFilter;
-import DummyTalk.DummyTalk_BE.global.security.jwt.JWTProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -69,7 +69,6 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
 
         // 4. Redis SETNX — 원자적 연산으로 Race Condition 없이 중복 요청 감지
         // - setIfAbsent = SET key value NX EX ttl
-        ///  이거 근데 RedisTransaction 걸려있을 텐데 인터셉터에서도 동일하게 적용되나?
         String redisKey = buildRedisKey(memberId, request);
         Boolean isFirstRequest = redisTemplate.opsForValue().setIfAbsent(redisKey, "1", IDEMPOTENT_TTL_SECONDS, TimeUnit.SECONDS);
 
