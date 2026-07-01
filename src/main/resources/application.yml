@@ -103,7 +103,7 @@ discord:
 # false(기본값) = 비활성, true = 앱 기동 시 test1~200@test.com 자동 생성
 # EC2 시딩 방법은 TestMemberDataLoader.java 주석 참고
 test:
-  load-users: false
+  load-users: true
 
 # ─── getDummy() 동시성 전략 K6 비교 설정 ──────────────────────────────────────
 # K6 stage 테스트 시 아래 두 값만 바꾸고 EC2 재배포 후 측정
@@ -117,8 +117,8 @@ test:
 # Stage 3: getDummy-version: 3, interceptor-enabled: true  (현재 운영 설정)
 #   → @Transactional + IdempotentRequestInterceptor (interceptor_block_429_count 측정)
 concurrency:
-  getDummy-version: 2      # 1 = V1(순수트랜잭션) / 2 = V2(분산락) / 3 = V3(인터셉터, default)
-  interceptor-enabled: false # false = V1/V2 테스트 시 인터셉터 비활성화
+  getDummy-version: 3      # 1 = V1(순수트랜잭션) / 2 = V2(분산락) / 3 = V3(인터셉터, default)
+  interceptor-enabled: true # false = V1/V2 테스트 시 인터셉터 비활성화
 
 # prod 프로파일 없이 배포 환경에서 Swagger 비활성화
 springdoc:
