@@ -2,10 +2,11 @@
  * getDummy() 동시성 제어 단계별 스파이크 테스트
  *
  * 목적:
- *   동시성 개선 3단계를 같은 시나리오로 비교 → 결과 그래프 나란히 비교
- *   Stage 1 (현재 코드)  → race_condition_suspect 발생, remainingCount 음수 감지
- *   Stage 2 (비관적 락)  → 정합성 보장, but hikaricp_connections_pending 급증 예상
- *   Stage 3 (Redisson)  → fast_fail_429_count 발생, DB 커넥션 풀 안정 확인
+ *   동시성 개선 4단계를 같은 시나리오로 비교 → 결과 그래프 나란히 비교
+ *   Stage 1 (순수 트랜잭션, No Lock)    → race_condition_suspect 발생, remainingCount 음수 감지
+ *   Stage 2 (Redisson 분산락)          → 정합성 보장, but leaseTime(4s) 만료 시 락 바이패스 재발 가능
+ *   Stage 3 (Interceptor, 따닥 차단)    → fast_fail_429_count 발생, 락/DB 도달 전 차단 → 처리량·지연 개선
+ *   Stage 4 (Virtual Thread + CP + GC) → Stage 3과 동일 조건에서 처리량/지연시간 동시 개선 (예정)
  *
  * 시나리오 설계:
  *   - USERS명의 유저가 각각 CONCURRENT개의 따닥 요청을 동시에 발사 후 종료 (1회)
@@ -14,14 +15,14 @@
  *   - sleep 없음 → 같은 유저에 배정된 CONCURRENT개의 VU가 거의 동시에 요청 발사
  *
  * 실행 예시:
- *   [Stage 1 - 현재 코드 (레이스 컨디션 확인)]
+ *   [Stage 1 - 순수 트랜잭션 (레이스 컨디션 확인)]
  *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage1-raw.json
  *
- *   [Stage 2 - 비관적 락 (커넥션 풀 압박 확인)]
- *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage2-pessimistic.json
+ *   [Stage 2 - Redisson 분산락 (커넥션 풀 압박 + leaseTime 만료 확인)]
+ *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage2-redisson.json
  *
- *   [Stage 3 - Redisson tryLock(0) (빠른 거절 + 풀 안정 확인)]
- *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage3-redisson.json
+ *   [Stage 3 - Interceptor 따닥 차단 (빠른 거절 + 풀 안정 확인)]
+ *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage3-interceptor.json
  *
  * 환경변수:
  *   BASE_URL    : 대상 서버 (기본: http://localhost:8080)
@@ -31,7 +32,9 @@
  * ── T3.Small VU 가이드 ────────────────────────────────────────────────────────
  *   기본 (따닥 재현):  USERS=10, CONCURRENT=5  → 총 50 VU (T3.Small 안정 범위)
  *   강한 스파이크:    USERS=20, CONCURRENT=5  → 총 100 VU (Thread Pool 압박)
- *   극단 스파이크:    USERS=30, CONCURRENT=5  → 총 150 VU (RejectedExecution 재현용)
+ *   극단 스파이크:    USERS=30, CONCURRENT=5  → 총 150 VU (HikariCP 풀 고갈/커넥션 타임아웃 관찰용)
+ *   ※ Tomcat 내장 Executor는 maxQueueSize가 기본 무제한이라 RejectedExecutionException은
+ *     이 VU 범위에서 재현되지 않음 — 먼저 터지는 건 HikariCP connection-timeout(기본 30s) 쪽.
  *   ※ CONCURRENT 값은 1명당 따닥 VU 수 — 동시성 테스트 핵심이므로 5 유지 권장
  */
 
@@ -43,7 +46,7 @@ import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 // ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
 const dummyDuration      = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
 const raceSuspect        = new Counter('race_condition_suspect');     // remainingCount 음수/이상 감지 → Stage 1에서 발생 예상
-const fastFailCount      = new Counter('fast_fail_429_count');        // 인터셉터/분산락 즉시 거절 횟수 → Stage 3 전용 지표
+const fastFailCount      = new Counter('fast_fail_429_count');        // 인터셉터/분산락 즉시 거절 횟수 → Stage 2/3 공통 지표
 const fastFailRate       = new Rate('fast_fail_429_rate');            // 전체 중 429 차단 비율 (인터셉터 효과 측정)
 const limitHitCount      = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
 const successCount       = new Counter('success_200_count');          // 200 성공 수 → 검증식 VU = success + fast_fail + limit_hit
@@ -79,9 +82,10 @@ export const options = {
     http_req_failed:        ['rate<0.1'],
     // T3.Small 스파이크 기준 — 순간 폭증이므로 일반 부하보다 여유 설정
     dummy_req_duration_ms:  ['p(95)<5000'],
-    // [핵심] Stage 1에서 이 threshold 실패 예상, Stage 3에서 0이어야 개선 증거
+    // [핵심] Stage 1에서 이 threshold 실패 예상, Stage 2/3에서 0이어야 개선 증거
+    // (단, Stage 3는 TTL < 실제 처리시간이면 락 바이패스로 재발 가능 — dummy-spike-test.js 상단 참고)
     race_condition_suspect: ['count<1'],
-    // Stage 3에서 fast_fail이 전체의 (CONCURRENT-1)/CONCURRENT 비율로 발생하는 것이 정상
+    // Stage 2/3에서 fast_fail이 전체의 (CONCURRENT-1)/CONCURRENT 비율로 발생하는 것이 정상
     // ex) CONCURRENT=5 → 같은 유저 5개 VU 중 1개만 통과, 4개는 차단 → rate ≈ 0.8
   },
 };
