@@ -41,6 +41,7 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
 import { Counter, Trend, Rate } from 'k6/metrics';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 
 // ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
 const dummyDuration      = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
@@ -48,6 +49,8 @@ const raceSuspect        = new Counter('race_condition_suspect');     // remaini
 const fastFailCount      = new Counter('fast_fail_429_count');        // 인터셉터/분산락 즉시 거절 횟수 → Stage 2/3 공통 지표
 const fastFailRate       = new Rate('fast_fail_429_rate');            // 전체 중 429 차단 비율 (인터셉터 효과 측정)
 const limitHitCount      = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
+const successCount       = new Counter('success_200_count');          // 200 성공 수 → 검증식 VU = success + fast_fail + limit_hit
+const rejectDuration     = new Trend('reject_429_duration_ms');       // 429 거절 경로만의 응답 시간 = "거절 비용" (Stage2 락 vs Stage3 인터셉터 비교 지표)
 
 // ─── 파라미터 ─────────────────────────────────────────────────────────────────
 const BASE_URL   = __ENV.BASE_URL              || 'http://localhost:8080';
@@ -59,6 +62,9 @@ export const options = {
   // p99까지 K6 터미널 요약에 표시 (Grafana 없이도 레이턴시 분포 확인 가능)
   summaryTrendStats: ['avg', 'p(50)', 'p(90)', 'p(95)', 'p(99)', 'max'],
 
+  // setup() 로그인 루프는 순차 실행 — USERS=400(VU 2000)이면 원격 기준 수 분 소요 (기본 60s로는 부족)
+  setupTimeout: '10m',
+
   scenarios: {
     ddotg_spike: {
       // per-vu-iterations: 각 VU가 정확히 N번 실행 후 종료 (ramping-vus와 달리 반복 없음)
@@ -66,7 +72,8 @@ export const options = {
       executor: 'per-vu-iterations',
       vus: USERS * CONCURRENT,
       iterations: 1,
-      maxDuration: '2m',
+      // VU 2000 스파이크 시 Tomcat 200 스레드 큐 대기가 길어짐 → 여유 확보
+      maxDuration: '5m',
     },
   },
 
@@ -130,8 +137,11 @@ export default function (tokenMap) {
       headers,
       // 429 = 인터셉터(Stage3) 또는 분산락(Stage2) 따닥 차단 → 정상 동작, http_req_failed 제외
       responseCallback: http.expectedStatuses(200, 400, 429),
+      // 고VU 시 Tomcat 큐 대기가 K6 기본 60s를 초과하면 측정 데이터가 통째로 유실됨 → 상향
+      timeout: '120s',
     });
-    dummyDuration.add(Date.now() - start);
+    const elapsed = Date.now() - start;
+    dummyDuration.add(elapsed);
 
     // [Stage 2/3] 따닥 즉시 차단
     // Stage 2: @DistributedLock(waitTime=0) → CANT_GET_LOCK → GeneralException → 429 또는 500
@@ -139,6 +149,7 @@ export default function (tokenMap) {
     if (res.status === 429) {
       fastFailCount.add(1);
       fastFailRate.add(1);
+      rejectDuration.add(elapsed); // 거절 비용: 인터셉터(DB 진입 전) vs 분산락(AOP 진입 후) 차이 측정
       check(res, { '[Stage2/3] 따닥 즉시 차단 (429 정상)': () => true });
       console.log(`[FAST FAIL] VU=${__VU}, user=test${userNum}@test.com → 인터셉터/분산락 차단`);
       return;
@@ -156,6 +167,9 @@ export default function (tokenMap) {
     }
 
     check(res, { 'getDummy 200': (r) => r.status === 200 });
+    if (res.status === 200) {
+      successCount.add(1);
+    }
 
     // 레이스 컨디션 감지: remainingCount가 음수 or 20 초과 → Stage 1에서 발생 예상
     const remaining = res.json('result.remainingCount');
@@ -164,4 +178,54 @@ export default function (tokenMap) {
       console.warn(`[RACE SUSPECT] VU=${__VU}, user=test${userNum}@test.com, remaining=${remaining}`);
     }
   });
+}
+
+// ─── 결과 자동 수집: 회차별 압축 JSON 저장 ───────────────────────────────────
+// run-stage-matrix.ps1이 이 JSON들을 모아 마크다운 표를 자동 생성
+// 파일명: k6/results/<STAGE>-vu<총VU>-<USERS>x<CONCURRENT>.json (재실행 시 같은 조합은 덮어씀)
+export function handleSummary(data) {
+  const m = data.metrics;
+  const v = (name, stat) => {
+    if (!m[name] || m[name].values[stat] === undefined) return 0;
+    return Math.round(m[name].values[stat] * 100) / 100;
+  };
+
+  const stage   = __ENV.STAGE || 'stageX';
+  const totalVu = USERS * CONCURRENT;
+  const success = v('success_200_count', 'count');
+  const ff      = v('fast_fail_429_count', 'count');
+  const limit   = v('limit_hit_count', 'count');
+
+  const summary = {
+    stage:        stage,
+    users:        USERS,
+    concurrent:   CONCURRENT,
+    total_vu:     totalVu,
+    avg:          v('dummy_req_duration_ms', 'avg'),
+    p50:          v('dummy_req_duration_ms', 'p(50)'),
+    p90:          v('dummy_req_duration_ms', 'p(90)'),
+    p95:          v('dummy_req_duration_ms', 'p(95)'),
+    p99:          v('dummy_req_duration_ms', 'p(99)'),
+    max:          v('dummy_req_duration_ms', 'max'),
+    // 거절 비용: 429 응답만의 레이턴시 — Stage3 인터셉터가 Stage2 락보다 싸다는 주장의 근거
+    reject_p95:   v('reject_429_duration_ms', 'p(95)'),
+    reject_p99:   v('reject_429_duration_ms', 'p(99)'),
+    success_200:  success,
+    fast_fail_429: ff,
+    fast_fail_rate: v('fast_fail_429_rate', 'rate'),
+    limit_hit:    limit,
+    race_suspect: v('race_condition_suspect', 'count'),
+    http_req_failed_rate: v('http_req_failed', 'rate'),
+    http_reqs_per_sec:    v('http_reqs', 'rate'),
+    // 검증식: 모든 VU가 성공/거절/한도소진 중 하나로 분류되어야 함 (불일치 = 유실 or 예외 응답)
+    vu_equation_ok: (success + ff + limit) === totalVu,
+    vu_equation_sum: success + ff + limit,
+    ran_at: new Date().toISOString(),
+  };
+
+  const file = `k6/results/${stage}-vu${totalVu}-${USERS}x${CONCURRENT}.json`;
+  return {
+    [file]:   JSON.stringify(summary, null, 2),
+    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+  };
 }
