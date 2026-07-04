@@ -159,3 +159,4 @@ CLAUDE.md
 ### K6 부하 테스트 결과 (로컬 산출물) ###
 k6/results/*
 !k6/results/.gitkeep
+!k6/results/README.md

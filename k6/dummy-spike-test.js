@@ -223,9 +223,13 @@ export function handleSummary(data) {
     ran_at: new Date().toISOString(),
   };
 
-  const file = `k6/results/${stage}-vu${totalVu}-${USERS}x${CONCURRENT}.json`;
+  // JSON = 표/그래프용 압축 요약, TXT = K6 터미널 요약 원본 (http_req_* 세부 분해 보존용)
+  // TXT를 남기는 이유: JSON엔 없는 http_req_blocked/tls_handshaking/waiting 분해가
+  //   레이턴시 원인 진단(TLS vs 큐 대기 vs 서버 처리)에 필요할 때가 있음
+  const base = `k6/results/${stage}-vu${totalVu}-${USERS}x${CONCURRENT}`;
   return {
-    [file]:   JSON.stringify(summary, null, 2),
-    'stdout': textSummary(data, { indent: ' ', enableColors: true }),
+    [`${base}.json`]: JSON.stringify(summary, null, 2),
+    [`${base}.txt`]:  textSummary(data, { indent: ' ', enableColors: false }),
+    'stdout':         textSummary(data, { indent: ' ', enableColors: true }),
   };
 }
