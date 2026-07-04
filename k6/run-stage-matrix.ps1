@@ -1,26 +1,23 @@
 <#
 .SYNOPSIS
-  K6 stage matrix runner - runs the full VU matrix for a stage, then builds a markdown summary table.
+  K6 single-run wrapper - runs ONE VU config, saves compact JSON, rebuilds the stage summary table.
 
 .DESCRIPTION
-  Runs k6/dummy-spike-test.js once per (USERS x CONCURRENT) combo with a cooldown between runs.
-  Each run writes a compact JSON via handleSummary() to k6/results/.
-  After all runs, aggregates JSONs into k6/results/stageN-summary.md.
+  One invocation = one k6 run (so you can reset DB fields between runs).
+  Each run writes k6/results/stageN-vu<VU>-<USERS>x<CONCURRENT>.json via handleSummary(),
+  then the markdown table k6/results/stageN-summary.md is rebuilt from all JSONs of that stage.
 
   NOTE (ASCII only): this file intentionally avoids Korean text because
   Windows PowerShell 5.1 misreads BOM-less UTF-8 script files.
 
 .EXAMPLE
-  # Stage 3 full matrix against EC2
-  .\k6\run-stage-matrix.ps1 -Stage 3 -BaseUrl "http://<EC2_IP>"
+  # One run: total VU=1000 (USERS=200 x CONCURRENT=5)
+  .\k6\run-stage-matrix.ps1 -Stage 3 -BaseUrl "https://ddotg.dev" -Vu 1000
 
-  # Stage 4 matrix (VU 100/200/500/2000) against local
-  .\k6\run-stage-matrix.ps1 -Stage 4 -BaseUrl "http://localhost:8080" -CooldownSec 30
+  # Different concurrency per user
+  .\k6\run-stage-matrix.ps1 -Stage 3 -BaseUrl "https://ddotg.dev" -Vu 800 -Concurrent 8
 
-  # Re-run only specific total-VU combos
-  .\k6\run-stage-matrix.ps1 -Stage 3 -BaseUrl "http://<EC2_IP>" -Only 500,800
-
-  # Rebuild the summary table from existing JSONs without running k6
+  # Rebuild the summary table only (no k6 run)
   .\k6\run-stage-matrix.ps1 -Stage 3 -TableOnly
 #>
 param(
@@ -28,13 +25,13 @@ param(
     [ValidateSet('1', '2', '3', '4')]
     [string]$Stage,
 
+    # Total VU for this single run. USERS is derived as Vu / Concurrent.
+    [int]$Vu,
+
+    # Duplicate requests per user (dda-dak factor). Total VU must be divisible by this.
+    [int]$Concurrent = 5,
+
     [string]$BaseUrl = 'http://localhost:8080',
-
-    # Cooldown between runs: lets Tomcat queue drain and T3 CPU credits recover a bit
-    [int]$CooldownSec = 120,
-
-    # Filter: run only these total-VU values (e.g. -Only 500,800)
-    [int[]]$Only,
 
     # Skip k6 execution, only rebuild the markdown table from existing JSONs
     [switch]$TableOnly
@@ -44,72 +41,40 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
-if (-not (Get-Command k6 -ErrorAction SilentlyContinue)) {
-    Write-Error "k6 not found in PATH. Install: winget install k6"
-}
-
-# ---- Test matrices ----------------------------------------------------------
-# Stage 1~3: same 8 combos used in Stage 1/2 (comparable graphs)
-# Stage 4:   reduced matrix VU = 100 / 200 / 500 / 2000 (CONCURRENT fixed at 5)
-$matrices = @{
-    '1' = @(
-        @{ u = 45;  c = 4 }, @{ u = 40;  c = 5 }, @{ u = 35;  c = 6 }, @{ u = 50;  c = 5 },
-        @{ u = 60;  c = 5 }, @{ u = 80;  c = 5 }, @{ u = 100; c = 5 }, @{ u = 100; c = 8 }
-    )
-    '2' = @(
-        @{ u = 45;  c = 4 }, @{ u = 40;  c = 5 }, @{ u = 35;  c = 6 }, @{ u = 50;  c = 5 },
-        @{ u = 60;  c = 5 }, @{ u = 80;  c = 5 }, @{ u = 100; c = 5 }, @{ u = 100; c = 8 }
-    )
-    '3' = @(
-        @{ u = 45;  c = 4 }, @{ u = 40;  c = 5 }, @{ u = 35;  c = 6 }, @{ u = 50;  c = 5 },
-        @{ u = 60;  c = 5 }, @{ u = 80;  c = 5 }, @{ u = 100; c = 5 }, @{ u = 100; c = 8 }
-    )
-    '4' = @(
-        @{ u = 20;  c = 5 }, @{ u = 40;  c = 5 }, @{ u = 100; c = 5 }, @{ u = 400; c = 5 }
-    )
-}
-
-$runs = $matrices[$Stage]
-if ($Only) {
-    $runs = @($runs | Where-Object { $Only -contains ($_.u * $_.c) })
-    if ($runs.Count -eq 0) { Write-Error "No matrix combo matches -Only $($Only -join ',')" }
-}
-
 $stageTag = "stage$Stage"
 $resultsDir = Join-Path $repoRoot 'k6\results'
 if (-not (Test-Path $resultsDir)) { New-Item -ItemType Directory -Path $resultsDir | Out-Null }
 
-# ---- Run k6 -----------------------------------------------------------------
+# ---- Single k6 run ----------------------------------------------------------
 if (-not $TableOnly) {
-    $maxUsers = ($runs | ForEach-Object { $_.u } | Measure-Object -Maximum).Maximum
+    if (-not $Vu -or $Vu -le 0) {
+        Write-Error "Pass -Vu <totalVU> (e.g. -Vu 1000), or use -TableOnly to rebuild the table."
+    }
+    if ($Vu % $Concurrent -ne 0) {
+        Write-Error "Vu ($Vu) must be divisible by Concurrent ($Concurrent)."
+    }
+    if (-not (Get-Command k6 -ErrorAction SilentlyContinue)) {
+        Write-Error "k6 not found in PATH. Install: winget install k6"
+    }
+
+    $users = $Vu / $Concurrent
+
     Write-Host ""
-    Write-Host "== $stageTag matrix: $($runs.Count) runs, target=$BaseUrl, cooldown=${CooldownSec}s ==" -ForegroundColor Cyan
-    Write-Host "   Requires test accounts test2..test$($maxUsers + 1) seeded on the target." -ForegroundColor DarkYellow
+    Write-Host "== $stageTag single run: VU=$Vu (USERS=$users x CONCURRENT=$Concurrent) -> $BaseUrl ==" -ForegroundColor Cyan
+    Write-Host "   Test accounts needed: test2..test$($users + 1)" -ForegroundColor DarkYellow
+    Write-Host "   If you want per-run DB ground truth, reset first:  UPDATE info SET req_count = 0;" -ForegroundColor DarkYellow
     Write-Host ""
 
-    $i = 0
-    foreach ($r in $runs) {
-        $i++
-        $vu = $r.u * $r.c
-        Write-Host "--- [$i/$($runs.Count)] $stageTag VU=$vu (USERS=$($r.u) x CONCURRENT=$($r.c)) ---" -ForegroundColor Cyan
+    k6 run `
+        -e BASE_URL=$BaseUrl `
+        -e USERS=$users `
+        -e CONCURRENT=$Concurrent `
+        -e STAGE=$stageTag `
+        k6/dummy-spike-test.js
 
-        k6 run `
-            -e BASE_URL=$BaseUrl `
-            -e USERS=$($r.u) `
-            -e CONCURRENT=$($r.c) `
-            -e STAGE=$stageTag `
-            k6/dummy-spike-test.js
-
-        # exit 99 = threshold failed (still a valid measurement) -> continue
-        # any other non-zero = script/runtime error -> warn but keep going so one bad run doesn't kill the batch
-        if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 99) {
-            Write-Warning "k6 exited with code $LASTEXITCODE on VU=$vu (runtime error?). Check output above."
-        }
-
-        if ($i -lt $runs.Count) {
-            Write-Host "cooldown ${CooldownSec}s ..." -ForegroundColor DarkGray
-            Start-Sleep -Seconds $CooldownSec
-        }
+    # exit 99 = threshold failed (still a valid measurement)
+    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 99) {
+        Write-Warning "k6 exited with code $LASTEXITCODE (runtime error?). Check output above."
     }
 }
 
@@ -139,10 +104,10 @@ foreach ($r in $rows) {
 
 $md.Add("")
 $md.Add("- VU check: total VU = 200-success + 429-reject + limit-hit. X means some requests got an unexpected status (timeout / 5xx).")
-$md.Add("- reject p95: latency of the 429 (rejection) path only. Compare stage2(lock) vs stage3(interceptor) here.")
+$md.Add("- reject p95: client-side latency of the 429 path (includes Tomcat queue wait + TLS, not just server CPU).")
 $md.Add("- DB ground-truth check (run manually, Lost Update proof):")
 $md.Add('  ```sql')
-$md.Add("  SELECT SUM(i.req_count) FROM info i;  -- delta since last reset must equal SUM(success_200)")
+$md.Add("  SELECT SUM(i.req_count) FROM info i;  -- delta since last reset must equal 200-success")
 $md.Add('  ```')
 
 $outFile = Join-Path $resultsDir "$stageTag-summary.md"

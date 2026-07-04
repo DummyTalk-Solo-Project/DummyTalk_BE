@@ -32,8 +32,13 @@ import java.util.concurrent.TimeUnit;
  * 3. 실질적인 접근 허용/거부
  *
  * Redis 키 구조: idempotent:<memberId>:<httpMethod>:<requestURI>
- * TTL = 5초: getDummy leaseTime 4초 보다 약간 길게 설정한 failsafe.
- * afterCompletion에서 즉시 삭제하므로 정상 흐름에서는 TTL 만료 전 제거
+ *
+ * TTL 증가 이유
+ * - 웬만한 키 해제 = afterCompletion의 즉시 삭제.
+ * - TTL은 서버 비정상 종료 대비 failsafe
+ * - [ TTL < 요청 처리 시간 ] ->  요청 처리 도중 키가 만료 = 중복 요청을 허용! (SETNX 통과)
+ * - 실측 최대 처리 시간 19초(Tomcat 큐 대기 포함) < 45초로 여유 확보
+ * - 트레이드오프: 요청 처리 중 서버가 강제 종료되면 해당 유저는 최대 45초 차단
  */
 @Slf4j
 @Component
@@ -42,7 +47,7 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    private static final long IDEMPOTENT_TTL_SECONDS = 5L;
+    private static final long IDEMPOTENT_TTL_SECONDS = 45L;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
