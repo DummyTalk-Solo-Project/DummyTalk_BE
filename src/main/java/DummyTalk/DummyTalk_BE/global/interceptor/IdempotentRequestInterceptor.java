@@ -42,7 +42,7 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    private static final long IDEMPOTENT_TTL_SECONDS = 5L;
+    private static final long IDEMPOTENT_TTL_SECONDS = 45L;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
