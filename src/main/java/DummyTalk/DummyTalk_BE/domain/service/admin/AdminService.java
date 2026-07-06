@@ -24,7 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -43,8 +43,8 @@ public class AdminService {
     private final MemberRepository memberRepository;
     private final DummyRepository dummyRepository;
     private final QuizRepository  quizRepository;
-    // Stage 4 VT 적용 시: TaskScheduler 인터페이스로 교체 + SchedulerConfig @Primary 활성화
-    private final ThreadPoolTaskScheduler taskScheduler;
+    // Stage 4: TaskScheduler 인터페이스로 교체 — SchedulerConfig의 VTTaskScheduler(@Primary) 주입됨
+    private final TaskScheduler taskScheduler;
     private final QuizScheduler quizScheduler;
     private final RedisTemplate redisTemplate;
 
@@ -116,11 +116,11 @@ public class AdminService {
             throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
         }
 
-        // Stage 1~3: ThreadPoolTaskScheduler Pool 상태 조회
-        // Stage 4 VT 전환 시: Pool 개념 없음 → -1 고정값으로 교체
+        // Stage 4 VT 전환: SimpleAsyncTaskScheduler는 Pool이 없음 (태스크당 VT 생성)
+        // → Pool 모니터링 지표는 의미 상실, -1 고정값으로 응답 (FE에서 "VT 모드" 표시용)
         return DummyRespDTO.CheckQuizDTO.builder()
-                .activeCount(taskScheduler.getActiveCount())
-                .poolSize(taskScheduler.getPoolSize())
+                .activeCount(-1)
+                .poolSize(-1)
                 .build();
     }
 

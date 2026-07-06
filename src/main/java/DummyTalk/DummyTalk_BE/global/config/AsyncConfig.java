@@ -17,7 +17,7 @@ public class AsyncConfig {
     // ──────────────────────────────────────────────────────────────────────────
 
     // 메일 발송 전용 — 외부 SMTP I/O가 느리므로 pool 크게 설정
-    @Bean(name = "mailExecutor")
+//    @Bean(name = "mailExecutor")
     public Executor mailExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(15);
@@ -31,7 +31,7 @@ public class AsyncConfig {
     }
 
     // 뱃지 처리 전용 — 내부 DB 작업이므로 pool 작게 설정. 메일 풀과 분리하여 상호 영향 차단
-    @Bean(name = "BadgeExecutor")
+//    @Bean(name = "BadgeExecutor")
     public Executor badgeExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(3);
@@ -45,13 +45,13 @@ public class AsyncConfig {
     }
 
     // Stage 4 전용
-     /*@Bean(name = "mailExecutor")
-     public Executor mailExecutor() {
+     @Bean(name = "mailExecutor")
+     public Executor vtMailExecutor() {
          return new VirtualThreadTaskExecutor("MailVT-");
      }
 
      @Bean(name = "BadgeExecutor")
-     public Executor badgeExecutor() {
+     public Executor vtBadgeExecutor() {
          return new VirtualThreadTaskExecutor("BadgeVT-");
-     }*/
+     }
 }

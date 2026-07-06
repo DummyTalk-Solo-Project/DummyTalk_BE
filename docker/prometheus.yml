@@ -10,7 +10,7 @@ scrape_configs:
   # Spring Boot 애플리케이션 모니터링
   - job_name: 'dummytalk-be'
     metrics_path: '/actuator/prometheus'
-    scrape_interval: 5s
+    scrape_interval: 1s # 테스트 대비 5s -> 1s 로 줄임 (끝나고 높힐 것)
     static_configs:
       # docker-compose 서비스명 기준으로 지정 (container_name 아님)
       # Docker 내부 DNS는 서비스명(spring)을 호스트명으로 등록한다.

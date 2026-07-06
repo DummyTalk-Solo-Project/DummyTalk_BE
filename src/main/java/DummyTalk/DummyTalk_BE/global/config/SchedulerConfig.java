@@ -12,7 +12,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 public class SchedulerConfig {
 
     // Stage 1~3: ThreadPoolTaskScheduler (PT 기반)
-    @Bean
+//    @Bean
     public ThreadPoolTaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(3);
@@ -21,8 +21,8 @@ public class SchedulerConfig {
         return scheduler;
     }
 
-//     @Bean
-//     @Primary
+     @Bean
+     @Primary
      public TaskScheduler VTTaskScheduler() {
          SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
          scheduler.setVirtualThreads(true);
