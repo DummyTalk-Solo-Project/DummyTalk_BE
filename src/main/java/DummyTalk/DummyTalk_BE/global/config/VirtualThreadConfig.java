@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.Executors;
 
-//@Configuration
+@Configuration
 public class VirtualThreadConfig {
 
 
@@ -15,7 +15,7 @@ public class VirtualThreadConfig {
      * 변경: 요청당 VT 1개 생성, Pool/Queue 없음 → Thread 소진으로 인한 Rejection 불가
      * CP 튜닝(Stage 4) 동시 적용 필요!
      */
-//     @Bean
+     @Bean
      public TomcatProtocolHandlerCustomizer<?> virtualThreadCustomizer() {
          return protocolHandler ->
              protocolHandler.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
