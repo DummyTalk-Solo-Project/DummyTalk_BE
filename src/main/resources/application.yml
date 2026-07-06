@@ -25,9 +25,9 @@ spring:
 
     # stage 1~3 에서는 비활성화
     hikari:
-      maximum-pool-size: 5 # PostgreSQL 고려 (대충 연결 당 ~5MB) -> 처음에는 5였다가 10 -> 20 까지 고려
-      minimum-idle: 5 # 기본 5개는 유지
-      connection-timeout: 10000 # 빠른 거절. (P95, P99 대비)
+#      maximum-pool-size: 20 # PostgreSQL 고려 (대충 연결 당 ~5MB) -> 처음에는 5였다가 10 -> 20 까지 고려
+#      minimum-idle: 5 # 기본 5개는 유지
+#      connection-timeout: 10000 # 빠른 거절. (P95, P99 대비)
 #      idle-timeout: 300000 # 5분 이후에는 반납
 #      max-lifetime: 1200000 # < PostgreSQL TCP keepalive
 #      keepalive-time: 60000  # 1m 마다 connection 확인 (Timeout 대비)
