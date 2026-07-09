@@ -44,14 +44,14 @@ public class DistributedLockAspect {
         try{
             isLocked = lock.tryLock(waitTime, leaseTime, TimeUnit.SECONDS);
             if (!isLocked){ // 여기서 false
-                log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
+                log.warn("[DistributedLockAspect] - 락 획득 실패, 사유: 잠김, {}", lockKey);
                 throw new GeneralException(ErrorCode.CANT_GET_LOCK);
             }
             log.info("[DistributedLockAspect] - 락 획득 성공, {}", lockKey);
             return joinPoint.proceed();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("[DistributedLockAspect] - 락 획득 실패, {}", lockKey);
+            log.warn("[DistributedLockAspect] - 락 획득 실패, 사유: InterruptedException, {}", lockKey);
             throw new GeneralException(ErrorCode.CANT_GET_LOCK);
         }
         finally {

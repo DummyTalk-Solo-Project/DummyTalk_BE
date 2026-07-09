@@ -160,3 +160,4 @@ CLAUDE.md
 k6/results/*
 !k6/results/.gitkeep
 !k6/results/README.md
+concurrency-stage-report.md

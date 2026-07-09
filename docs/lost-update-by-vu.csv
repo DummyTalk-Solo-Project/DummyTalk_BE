@@ -1,0 +1,6 @@
+vu,stage1_lost_update,stage2_lost_update,stage3_lost_update,note
+200,11,0,0,
+300,16,0,0,
+400,27,0,0,
+500,32,0,0,stage1 값은 실측 없음 - VU400(27건)/VU800(49건) 선형보간 추정치(약 6.4%)
+800,49,0,0,
