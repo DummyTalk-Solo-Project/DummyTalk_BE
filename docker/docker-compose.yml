@@ -30,6 +30,8 @@ services:
       # Pinning: synchronized 블록 내부 블로킹 I/O → Carrier Thread도 함께 블로킹
       # 의심 지점: Redisson 3.18.0 (RLock 내부), Hibernate (L1 Cache 동기화)
       - TEST_LOAD_USERS=true
+      # CP 스윕 실험용 — 셸에서 HIKARI_POOL_SIZE=20 docker compose up -d spring 처럼 값 지정, 미지정 시 10(기존 baseline)
+      - HIKARI_POOL_SIZE=${HIKARI_POOL_SIZE:-10}
       - DB_HOST=postgresql
       - DB_NAME=${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
