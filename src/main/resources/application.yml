@@ -23,11 +23,12 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
-    # stage 1~3 에서는 비활성화
+    # Stage 4 CP 스윕: HIKARI_POOL_SIZE 환경변수로 재배포(이미지 재빌드) 없이 컨테이너 재시작만으로 풀 크기 조정
+    # 기본값 10 = Stage 1~4 기존 테스트와 동일 baseline
     hikari:
-#      maximum-pool-size: 20 # PostgreSQL 고려 (대충 연결 당 ~5MB) -> 처음에는 5였다가 10 -> 20 까지 고려
-#      minimum-idle: 5 # 기본 5개는 유지
-#      connection-timeout: 10000 # 빠른 거절. (P95, P99 대비)
+      maximum-pool-size: ${HIKARI_POOL_SIZE:10}
+      minimum-idle: ${HIKARI_POOL_SIZE:10} # HikariCP 권장: 버스트 부하는 풀 확장 오버헤드 없는 고정 풀(minimumIdle=maximumPoolSize)이 유리
+  #      connection-timeout: 10000 # 빠른 거절 실험 — CP 크기 확정 후 별도 실험 (지금은 기본 30s 유지)
 #      idle-timeout: 300000 # 5분 이후에는 반납
 #      max-lifetime: 1200000 # < PostgreSQL TCP keepalive
 #      keepalive-time: 60000  # 1m 마다 connection 확인 (Timeout 대비)
