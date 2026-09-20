@@ -259,7 +259,7 @@
       "type": "timeseries",
       "id": 3,
       "title": "In-flight 요청 수  (서버 안에 머무는 요청 — VT 모드에서도 유효)",
-      "description": "Micrometer LongTaskTimer. Tomcat 스레드 지표는 VT executor 로 바꾸면 -1 이 되지만 이 값은 요청 단위라 살아있다. 도착률 × 지연 ≈ in-flight (Little's law). 계속 오르면 처리 못 하고 쌓이는 중.",
+      "description": "Micrometer LongTaskTimer(http.server.requests.active)의 gcount = 지금 처리 중인 요청 수. 핸들러 매칭 전에 시작돼 uri 라벨이 UNKNOWN 이므로 URI 필터 없이 합산한다(실측 확인). Tomcat 스레드 지표는 VT executor 로 바꾸면 -1 이 되지만 이 값은 요청 단위라 살아있다. 도착률 × 지연 ≈ in-flight (Little's law).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -305,8 +305,8 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(http_server_requests_active_seconds_active_count{uri=\"$uri\"})",
-          "legendFormat": "in-flight",
+          "expr": "sum(http_server_requests_active_seconds_gcount)",
+          "legendFormat": "in-flight (전체 URI)",
           "refId": "A"
         }
       ]
@@ -369,7 +369,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(rate(http_server_requests_seconds_count{uri=\"$uri\",status=\"429\"}[$rate_window])) / sum(rate(http_server_requests_seconds_count{uri=\"$uri\"}[$rate_window]))",
+          "expr": "(sum(rate(http_server_requests_seconds_count{uri=\"$uri\",status=\"429\"}[$rate_window])) or vector(0)) / sum(rate(http_server_requests_seconds_count{uri=\"$uri\"}[$rate_window]))",
           "legendFormat": "429",
           "refId": "A"
         }
@@ -429,7 +429,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(rate(http_server_requests_seconds_count{uri=\"$uri\",status=~\"5..\"}[$rate_window])) / sum(rate(http_server_requests_seconds_count{uri=\"$uri\"}[$rate_window]))",
+          "expr": "(sum(rate(http_server_requests_seconds_count{uri=\"$uri\",status=~\"5..\"}[$rate_window])) or vector(0)) / sum(rate(http_server_requests_seconds_count{uri=\"$uri\"}[$rate_window]))",
           "legendFormat": "5xx",
           "refId": "A"
         }
@@ -1361,7 +1361,7 @@
       "type": "timeseries",
       "id": 20,
       "title": "비동기 Executor 큐 (뱃지 이벤트 · 메일)  — 뽑기마다 DummyViewedEvent 가 badgeExecutor 로 감",
-      "description": "badgeExecutor core 3 / max 10 / queue 50. 큐가 50 에 붙으면 RejectedExecution → 뱃지 유실. 뽑기 rps 가 오르면 가장 먼저 밀릴 수 있는 곳.",
+      "description": "ThreadPoolTaskExecutor(플랫폼 풀) 모드에서만 나온다 — badgeExecutor core 3 / max 10 / queue 50, 큐가 50 에 붙으면 RejectedExecution → 뱃지 유실. 현재 Stage 4 는 VirtualThreadTaskExecutor 라 이 패널이 비어 있는 것이 정상(실측 확인). 플랫폼 풀로 되돌린 비교 회차에서 본다.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
