@@ -1,3 +1,6 @@
+# 베이스 이미지는 amd64/arm64 멀티아치 매니페스트를 제공하므로 buildx --platform 만으로 c7g(arm64)용 빌드 가능.
+# 단, 아래 RUN(플러그인 설치)은 "타깃" 아치에서 실행되므로 amd64 러너에서 arm64 이미지를 만들 땐 QEMU가 필요
+# → deploy.yml 의 docker/setup-qemu-action 이 이 파일 때문에 들어감. Nori 플러그인 자체는 Java 라 아치 중립.
 FROM docker.elastic.co/elasticsearch/elasticsearch:8.11.1
 
 RUN bin/elasticsearch-plugin remove analysis-nori || true
