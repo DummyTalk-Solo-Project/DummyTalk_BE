@@ -105,6 +105,8 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+        # 커넥션 획득 대기 분포 — 포화 순서의 DB 축 (Grafana "HikariCP acquire p95" 패널 전제)
+        hikaricp.connections.acquire: true
 
   health:
     elasticsearch:
