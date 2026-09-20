@@ -20,16 +20,17 @@ services:
     expose: # nginx가 프록시하므로 외부 직접 접근 차단 (같은 container 끼리는 가능)
       - "8080"
     environment:
-      # ZGC + ZGenerational: VT Continuation(단명 객체) 수거 최적화
-      # G1GC(기본) → Young GC STW 10~200ms → VT 부하 시 p99 스파이크 원인
-      # ZGenerational: Concurrent 수거, STW < 1ms, Young/Old 분리로 단명 객체 빠르게 수거
-#      - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational
-      # Pinning 진단 시 위 줄을 아래로 교체 (JAVA_TOOL_OPTIONS는 하나만 유효)
-      # - JAVA_TOOL_OPTIONS=-XX:+UseZGC -XX:+ZGenerational -Djdk.tracePinnedThreads=full
-      # Virtual Thread Pinning 진단 — K6 부하 테스트 시에만 위 조합 줄로 교체
-      # Pinning: synchronized 블록 내부 블로킹 I/O → Carrier Thread도 함께 블로킹
-      # 의심 지점: Redisson 3.18.0 (RLock 내부), Hibernate (L1 Cache 동기화)
+      # JVM heap 고정 — 컨테이너 기본 heap = 호스트 메모리의 25% 라 인스턴스(t3.small 2GiB → m7g.large 8GiB)에 따라
+      # heap 이 달라져 GC 지표가 인스턴스 변수에 오염됨 (로컬 실측: 16GiB PC 에서 max 3.88GiB).
+      # -Xms=-Xmx 로 회차 중 heap 리사이즈까지 제거. 값은 .env 의 JAVA_HEAP 로 (기본 1g, 회차 사이엔 바꾸지 않음).
+      # ZGC/Pinning 진단 옵션을 쓸 땐 같은 변수에 이어 붙일 것 (JAVA_TOOL_OPTIONS 는 하나만 유효):
+      #   -XX:+UseZGC -XX:+ZGenerational               → VT Continuation(단명 객체) 수거 최적화, STW < 1ms
+      #   -Djdk.tracePinnedThreads=full                 → synchronized 내부 블로킹 I/O 로 캐리어가 묶이는 지점 추적
+      #   (의심 지점: Redisson 3.18.0 RLock 내부, Hibernate L1 Cache 동기화)
+      - JAVA_TOOL_OPTIONS=-Xms${JAVA_HEAP:-1g} -Xmx${JAVA_HEAP:-1g}
       - TEST_LOAD_USERS=true
+      # 테스트 유저 시딩 규모 = 본측정 최대 RATE × INTERVAL (300 × 5s = 1500). application.yml test.load-users-count 로 연결, 멱등
+      - TEST_LOAD_USERS_COUNT=${TEST_LOAD_USERS_COUNT:-300}
       # CP 스윕 실험용 — 셸에서 HIKARI_POOL_SIZE=20 docker compose up -d spring 처럼 값 지정, 미지정 시 10(기존 baseline)
       - HIKARI_POOL_SIZE=${HIKARI_POOL_SIZE:-10}
       - DB_HOST=postgresql
