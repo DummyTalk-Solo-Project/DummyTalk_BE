@@ -51,6 +51,21 @@ public class AdminService {
     private final ObjectMapper objectMapper;
     private final DummyService dummyService;
     private final RarityRepository rarityRepository;
+    private final InfoRepository infoRepository;
+
+    // ─── K6 부하 테스트 지원 API 게이트/헤더 값 ───
+    // test.load-users=false(운영)면 ADMIN이어도 LOAD_TEST_DISABLED — TestMemberDataLoader와 같은 스위치로 묶어
+    // 측정 서버에서만 켜지고 Oracle 상시 배포에서는 프로퍼티만 내리면 자동 비활성
+    @Value("${test.load-users:false}")
+    private boolean loadTestEnabled;
+    @Value("${concurrency.getDummy-version:3}")
+    private int getDummyVersion;
+    @Value("${concurrency.interceptor-enabled:true}")
+    private boolean interceptorEnabled;
+    @Value("${spring.datasource.hikari.maximum-pool-size:10}")
+    private int hikariPoolSize;
+    @Value("${spring.threads.virtual.enabled:false}")
+    private boolean virtualThreadsEnabled;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
@@ -204,5 +219,49 @@ public class AdminService {
 
 
         return savedQuiz;
+    }
+    // ===================== K6 부하 테스트 지원 =====================
+
+    // ADMIN 권한 + test.load-users 2중 게이트 (기존 ADMIN 체크 패턴 재사용)
+    private void checkLoadTestAccess(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
+        if (member.getRole().equals(MemberRole.MEMBER)) {
+            throw new MemberHandler(ErrorCode.AUTH_FORBIDDEN);
+        }
+        if (!loadTestEnabled) {
+            throw new AdminHandler(ErrorCode.LOAD_TEST_DISABLED);
+        }
+    }
+
+    /**
+     * 회차 사이 테스트 유저 초기화 — k6 setup() 이 호출.
+     * reqCount=0 + isSubscribe=true(40회 한도). 이전엔 EC2에서 수동 SQL(UPDATE info SET req_count=0)로 하던 것.
+     * @return 갱신된 테스트 유저 수 (= 시딩된 유저 수와 일치해야 정상)
+     */
+    @Transactional
+    public int resetLoadTestUsers(Long memberId) {
+        checkLoadTestAccess(memberId);
+        int updated = infoRepository.resetLoadTestUsers();
+        log.warn("[AdminService - resetLoadTestUsers()] - 부하 테스트 유저 초기화 | updated={}", updated);
+        return updated;
+    }
+
+    /**
+     * 회차 헤더/판정용 스냅샷 — k6 setup()·teardown() 이 각각 호출.
+     * reqCountSum 의 전후 델타 = DB 가 실제로 반영한 뽑기 수 → k6 success_200 과 비교해 Lost Update 자동 판정.
+     * 서버 설정값은 결과 파일에 기록되어 "어느 설정의 회차였나"를 재현 가능하게 함.
+     */
+    @Transactional(readOnly = true)
+    public AdminRespDTO.LoadTestStateDTO getLoadTestState(Long memberId) {
+        checkLoadTestAccess(memberId);
+        return AdminRespDTO.LoadTestStateDTO.builder()
+                .testUserCount(infoRepository.countLoadTestUsers())
+                .reqCountSum(infoRepository.sumReqCountOfLoadTestUsers())
+                .getDummyVersion(getDummyVersion)
+                .interceptorEnabled(interceptorEnabled)
+                .hikariPoolSize(hikariPoolSize)
+                .virtualThreads(virtualThreadsEnabled)
+                .build();
     }
 }

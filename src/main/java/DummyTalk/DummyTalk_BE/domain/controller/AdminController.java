@@ -151,4 +151,24 @@ public class AdminController {
     public APIResponse<Object> checkQuiz(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return APIResponse.onSuccess(adminService.checkQuiz(userDetails.getMember().getId()), SuccessCode.CHECK_QUIZ_SUCCESS);
     }
+
+    // ===================== K6 부하 테스트 지원 (test.load-users=true 일 때만) =====================
+    // k6/dummy-arrival-test.js 의 setup()/teardown() 이 관리자 토큰으로 호출.
+    // 별도 컨트롤러 대신 여기에 두어 ADMIN 권한 체크 패턴을 그대로 재사용 (AdminService 에서 2중 게이트).
+
+    // 테스트 유저(test%@test.com) reqCount=0 + 구독자(40회) 전환 — 회차 사이 일일 한도 초기화
+    @PostMapping("/load-test/reset")
+    public APIResponse<Integer> resetLoadTestUsers(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return APIResponse.onSuccess(
+                adminService.resetLoadTestUsers(userDetails.getMember().getId()),
+                SuccessCode.LOAD_TEST_RESET_SUCCESS);
+    }
+
+    // 테스트 유저 수·reqCount 합(Lost Update 판정용)·서버 동시성 설정 스냅샷 — 결과 파일 헤더에 기록
+    @GetMapping("/load-test/state")
+    public APIResponse<AdminRespDTO.LoadTestStateDTO> getLoadTestState(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return APIResponse.onSuccess(
+                adminService.getLoadTestState(userDetails.getMember().getId()),
+                SuccessCode.LOAD_TEST_STATE_SUCCESS);
+    }
 }
