@@ -98,6 +98,16 @@ management:
       exposure:
         include: health, info, prometheus
 
+  # http_server_requests_seconds_bucket 노출 — 기본은 count/sum/max 만 나가서 분위수 계산 불가
+  # K6 teardown 이 회차 전후 버킷 델타로 서버측 p95/p99 를 구하고(RTT 제외), Grafana histogram_quantile 도 이 버킷이 전제
+  # 버킷 개수만큼 시계열이 늘어나지만(엔드포인트당 수십 개) 측정 서버 규모에선 무시 가능
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        # 커넥션 획득 대기 분포 — 포화 순서의 DB 축 (Grafana "HikariCP acquire p95" 패널 전제)
+        hikaricp.connections.acquire: true
+
   health:
     elasticsearch:
       enabled: false
@@ -106,11 +116,13 @@ discord:
   webhook:
     url: ${DISCORD_WEBHOOK}
 
-# K6 테스트용 더미 유저 적재 (TestMemberDataLoader)
-# false(기본값) = 비활성, true = 앱 기동 시 test1~200@test.com 자동 생성
+# K6 테스트용 더미 유저 적재 (TestMemberDataLoader) + Admin 부하테스트 API(/api/admin/load-test/*) 게이트
+# false(기본값) = 비활성, true = 앱 기동 시 test1~N@test.com 자동 생성 + load-test API 활성
 # EC2 시딩 방법은 TestMemberDataLoader.java 주석 참고
 test:
   load-users: true
+  # 유저 수 = open model 동시 활성 유저 = RATE × INTERVAL (300rps × 5s = 1500). 시딩은 멱등이라 늘려서 재기동만 하면 됨
+  load-users-count: ${TEST_LOAD_USERS_COUNT:300}
 
 # ─── getDummy() 동시성 전략 K6 비교 설정 ──────────────────────────────────────
 # K6 stage 테스트 시 아래 두 값만 바꾸고 EC2 재배포 후 측정

@@ -36,6 +36,8 @@ public enum SuccessCode  {
     GET_SETTLEMENT_SUCCESS(HttpStatus.OK, "ADMIN2001", "정산 데이터 조회에 성공했습니다."),
     OPEN_QUIZ_ADMIN_SUCCESS(HttpStatus.OK, "ADMIN2002", "(Admin) 퀴즈 오픈에 성공했습니다."),
     APPROVE_SUBSCRIBE_SUCCESS(HttpStatus.OK, "ADMIN2003", "(Admin) 구독 승인에 성공했습니다."),
+    LOAD_TEST_RESET_SUCCESS(HttpStatus.OK, "ADMIN2004", "(Admin) 부하 테스트 유저 초기화에 성공했습니다."),
+    LOAD_TEST_STATE_SUCCESS(HttpStatus.OK, "ADMIN2005", "(Admin) 부하 테스트 상태 조회에 성공했습니다."),
 
     // NOTICE
     GET_NOTICE_SUCCESS(HttpStatus.OK, "NOTICE2001", "공지사항 조회에 성공했습니다."),

@@ -8,6 +8,7 @@ import DummyTalk.DummyTalk_BE.domain.repository.jpa.InfoRepository;
 import DummyTalk.DummyTalk_BE.domain.repository.jpa.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,9 +26,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * K6 부하 테스트용 테스트 유저 사전 적재 (test1~200@test.com / Test1234!)
+ * K6 부하 테스트용 테스트 유저 사전 적재 (test1~N@test.com / Test1234!, N = test.load-users-count)
  *
  * 활성화: application.yml 의 test.load-users=true 로 설정 (기본 false)
+ * 유저 수: test.load-users-count (env TEST_LOAD_USERS_COUNT, 기본 300)
+ *   open model 본측정은 동시 활성 유저 = RATE × INTERVAL 만큼 필요 (300rps × 5s = 1500) → 늘려서 재기동 1회
  *
  * ── EC2 DB 시딩 방법 ────────────────────────────────────────────────────────
  *
@@ -55,7 +58,9 @@ import java.util.stream.IntStream;
 @ConditionalOnProperty(name = "test.load-users", havingValue = "true", matchIfMissing = false)
 public class TestMemberDataLoader implements ApplicationRunner {
 
-    private static final int TEST_USER_COUNT = 300;
+    // 유저 수는 프로퍼티로 외부화 — 회차 rate 에 맞춰 시딩 규모를 바꾸기 위함 (멱등이라 늘려서 재기동만)
+    @Value("${test.load-users-count:300}")
+    private int testUserCount;
     private static final String TEST_PASSWORD = "Test1234!";
     private static final String EMAIL_FORMAT = "test%d@test.com";
     private static final String USERNAME_FORMAT = "TestUser%d";
@@ -74,13 +79,13 @@ public class TestMemberDataLoader implements ApplicationRunner {
                 .filter(email -> email.matches("test\\d+@test\\.com"))
                 .collect(Collectors.toSet());
 
-        List<String> toCreate = IntStream.rangeClosed(1, TEST_USER_COUNT)
+        List<String> toCreate = IntStream.rangeClosed(1, testUserCount)
                 .mapToObj(i -> String.format(EMAIL_FORMAT, i))
                 .filter(email -> !existingEmails.contains(email))
                 .toList();
 
         if (toCreate.isEmpty()) {
-            log.info("[TestMemberDataLoader] - 테스트 유저 {}명 이미 존재, 건너뜀", TEST_USER_COUNT);
+            log.info("[TestMemberDataLoader] - 테스트 유저 {}명 이미 존재, 건너뜀", testUserCount);
             return;
         }
 
@@ -109,7 +114,8 @@ public class TestMemberDataLoader implements ApplicationRunner {
         for (Member member : savedMembers) {
             infoList.add(Info.builder()
                     .member(member)
-                    .isSubscribe(false)
+                    // 구독자(일일 40회) — 5s 주기 × 3분 회차 = 36회라 비구독(20회)로는 완주 불가. 한도 상수 외 경로 동일
+                    .isSubscribe(true)
                     .reqCount(0)
                     .build());
 

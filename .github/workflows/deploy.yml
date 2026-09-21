@@ -30,17 +30,45 @@ jobs:
           username: ${{secrets.DOCKER_USERNAME}}
           password: ${{secrets.DOCKER_PASSWORD}}
 
-      - name: build and push spring app image
-        run: |
-          docker build -t ${{secrets.DOCKER_USERNAME}}/dummytalk .
-          docker push ${{secrets.DOCKER_USERNAME}}/dummytalk
+      # ── 멀티아치(amd64 + arm64) 빌드 ─────────────────────────────────────────
+      # c7g.large(Graviton, arm64) 재측정용. 러너는 amd64 이므로 그냥 docker build 하면 amd64 단일 이미지가
+      # 만들어지고, arm64 EC2 에서는 QEMU 에뮬레이션으로 돌아가 측정이 전부 무효가 됨.
+      # 같은 태그(:latest, :8.11.1)에 두 아치를 매니페스트로 묶어 두면 EC2 는 자기 아치에 맞는 변형을 자동 pull.
+      - name: set up QEMU
+        # Dockerfile-es 의 RUN(플러그인 설치)이 arm64 타깃에서 실행되기 때문에 필요.
+        # Spring 앱 Dockerfile 은 builder 를 --platform=$BUILDPLATFORM 으로 고정해 QEMU 를 타지 않음.
+        uses: docker/setup-qemu-action@v4
+
+      - name: set up buildx
+        # 기본 docker 드라이버로는 멀티 플랫폼 매니페스트를 만들 수 없어 docker-container 드라이버 빌더가 필요
+        uses: docker/setup-buildx-action@v4
+
+      - name: build and push spring app image (amd64 + arm64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          # :sha 태그 — 측정 회차별 "어느 커밋의 이미지였나"를 추적하기 위함 (레이어 공유라 용량 부담 없음)
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/dummytalk:latest
+            ${{ secrets.DOCKER_USERNAME }}/dummytalk:${{ github.sha }}
+          # GitHub Actions 캐시 — 두 아치 × Gradle 의존성 재다운로드 방지
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # Dockerfile-es 로 빌드한 Nori 플러그인 포함 ES 이미지를 Docker Hub에 올림
       # docker compose pull 시 이 이미지를 받아와야 Nori 플러그인이 정상 동작함
-      - name: build and push elasticsearch-nori image
-        run: |
-          docker build -f docker/Dockerfile-es -t ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1 .
-          docker push ${{secrets.DOCKER_USERNAME}}/elasticsearch-nori:8.11.1
+      - name: build and push elasticsearch-nori image (amd64 + arm64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile-es
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/elasticsearch-nori:8.11.1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: copy deploy files to ec2...
         uses: appleboy/scp-action@v0.1.7
@@ -48,7 +76,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "docker/docker-compose.yml,docker/prometheus.yml,docker/nginx.conf"
+          source: "docker/docker-compose.yml,docker/prometheus.yml,docker/nginx.conf,docker/grafana"
           target: "~/dummytalk"
 
   ec2-deploy:
@@ -112,6 +140,12 @@ jobs:
 
             echo "===== [3/5] up all services ====="
             sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d
+
+            # 아치 검증 — arm64 EC2(c7g)에서 amd64 이미지가 QEMU로 돌면 측정이 무효이므로 배포 로그에 남겨 즉시 발견
+            # 기대값: host=aarch64, image arch=arm64 (t3.small 등 x86 EC2면 x86_64 / amd64)
+            echo "===== [arch check] host=$(uname -m) ====="
+            sudo docker image inspect ${{ secrets.DOCKER_USERNAME }}/dummytalk:latest --format 'dummytalk image arch: {{.Architecture}}'
+            sudo docker image inspect ${{ secrets.DOCKER_USERNAME }}/elasticsearch-nori:8.11.1 --format 'elasticsearch-nori image arch: {{.Architecture}}'
 
             echo "===== [4/5] prune old images ====="
             sudo docker image prune -f

@@ -83,6 +83,7 @@ public enum ErrorCode implements BaseErrorCode {
 
     // ADMIN
     SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 날짜의 정산 데이터가 없습니다."),
+    LOAD_TEST_DISABLED(HttpStatus.FORBIDDEN, "ADMIN4002", "부하 테스트 지원 API가 비활성화되어 있습니다. (test.load-users=false)"),
 
 
     // NOTICE

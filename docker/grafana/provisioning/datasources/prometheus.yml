@@ -1,0 +1,14 @@
+# Grafana 기동 시 Prometheus 데이터소스를 자동 등록 — c7g 신규 인스턴스에서 UI 클릭 없이 대시보드가 바로 뜨게 함
+# compose 서비스명(prometheus)으로 접근. uid 는 대시보드 JSON 의 ${DS_PROMETHEUS} 변수 기본값과 맞춤
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 1s   # prometheus.yml 의 dummytalk-be scrape_interval 과 동일 — rate() 최소 창 계산 기준

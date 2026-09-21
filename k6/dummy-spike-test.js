@@ -181,8 +181,10 @@ export default function (tokenMap) {
 }
 
 // ─── 결과 자동 수집: 회차별 압축 JSON 저장 ───────────────────────────────────
-// run-stage-matrix.ps1이 이 JSON들을 모아 마크다운 표를 자동 생성
-// 파일명: k6/results/<STAGE>-vu<총VU>-<USERS>x<CONCURRENT>.json (재실행 시 같은 조합은 덮어씀)
+// run-stage-matrix.ps1이 이 JSON들을 모아 스테이지별 마크다운 표(latest-per-VU) +
+// 전체 실행 이력 마크다운(run-history.md)을 자동 생성
+// 파일명: k6/results/<yyyyMMdd-HHmmss>_<STAGE>-vu<총VU>-<USERS>x<CONCURRENT>.json
+//   앞에 실행 시각(로컬)을 붙여 재실행해도 이전 결과를 덮어쓰지 않고 전부 보존
 export function handleSummary(data) {
   const m = data.metrics;
   const v = (name, stat) => {
@@ -192,6 +194,7 @@ export function handleSummary(data) {
 
   const stage   = __ENV.STAGE || 'stageX';
   const totalVu = USERS * CONCURRENT;
+  const now     = new Date(); // ran_at과 파일명 타임스탬프를 같은 시점으로 통일
   const success = v('success_200_count', 'count');
   const ff      = v('fast_fail_429_count', 'count');
   const limit   = v('limit_hit_count', 'count');
@@ -220,13 +223,18 @@ export function handleSummary(data) {
     // 검증식: 모든 VU가 성공/거절/한도소진 중 하나로 분류되어야 함 (불일치 = 유실 or 예외 응답)
     vu_equation_ok: (success + ff + limit) === totalVu,
     vu_equation_sum: success + ff + limit,
-    ran_at: new Date().toISOString(),
+    ran_at: now.toISOString(),
   };
+
+  // 로컬 시각 기준 yyyyMMdd-HHmmss (파일명에 콜론 등 금지문자 없이 정렬 가능한 형태)
+  const pad = (n) => String(n).padStart(2, '0');
+  const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-`
+           + `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 
   // JSON = 표/그래프용 압축 요약, TXT = K6 터미널 요약 원본 (http_req_* 세부 분해 보존용)
   // TXT를 남기는 이유: JSON엔 없는 http_req_blocked/tls_handshaking/waiting 분해가
   //   레이턴시 원인 진단(TLS vs 큐 대기 vs 서버 처리)에 필요할 때가 있음
-  const base = `k6/results/${stage}-vu${totalVu}-${USERS}x${CONCURRENT}`;
+  const base = `k6/results/${ts}_${stage}-vu${totalVu}-${USERS}x${CONCURRENT}`;
   return {
     [`${base}.json`]: JSON.stringify(summary, null, 2),
     [`${base}.txt`]:  textSummary(data, { indent: ' ', enableColors: false }),

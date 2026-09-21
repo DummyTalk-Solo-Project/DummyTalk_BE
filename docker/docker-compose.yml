@@ -119,6 +119,9 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      # 프로비저닝 — 데이터소스(Prometheus)·부하테스트 대시보드 자동 로드. SCP 로 EC2 ~/dummytalk/docker/grafana/ 에 복사
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
     restart: always
