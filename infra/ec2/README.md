@@ -122,7 +122,7 @@ deploy.yml 은 배포마다 `~/dummytalk/.env` 를 **새로 덮어쓴다.** 측�
 ```bash
 cd ~/dummytalk
 cat >> .env <<'EOF'
-JAVA_HEAP=1g
+JAVA_HEAP=2g
 TEST_LOAD_USERS_COUNT=1500
 HIKARI_POOL_SIZE=10
 EOF
@@ -131,7 +131,7 @@ sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up
 sudo docker logs -f DummyTalk_Spring 2>&1 | grep -m1 "테스트 유저"   # "테스트 유저 1200명 생성 완료" (기존 300 제외)
 ```
 - `TEST_LOAD_USERS_COUNT` = 본측정 최대 RATE × INTERVAL (300 × 5s = 1500). 시딩은 멱등 — 늘려서 재기동만 하면 된다.
-- `JAVA_HEAP` 은 회차 사이에 바꾸지 않는다 (바꾸면 다른 실험). 실배포(ES·Grafana off)에서 2g 검토.
+- `JAVA_HEAP` 은 회차 사이에 바꾸지 않는다 (바꾸면 다른 실험). compose 기본값이 2g 라 이 줄을 빠뜨려도 2g 로 뜬다.
 - CP 스윕은 `HIKARI_POOL_SIZE` 만 바꿔 `up -d spring` (nginx 는 resolver 로 새 IP 를 따라감).
 
 ## 11. 회차 전 체크리스트 (매 회차)

@@ -21,13 +21,16 @@ services:
       - "8080"
     environment:
       # JVM heap 고정 — 컨테이너 기본 heap = 호스트 메모리의 25% 라 인스턴스(t3.small 2GiB → m7g.large 8GiB)에 따라
-      # heap 이 달라져 GC 지표가 인스턴스 변수에 오염됨 (로컬 실측: 16GiB PC 에서 max 3.88GiB).
-      # -Xms=-Xmx 로 회차 중 heap 리사이즈까지 제거. 값은 .env 의 JAVA_HEAP 로 (기본 1g, 회차 사이엔 바꾸지 않음).
+      # heap 이 달라져 GC 지표가 인스턴스 변수에 오염됨 (m7g.large 실측: 고정 전 max 1.89GiB).
+      # -Xms=-Xmx 로 회차 중 heap 리사이즈까지 제거. 값은 .env 의 JAVA_HEAP, 회차 사이엔 바꾸지 않는다.
+      # 기본값 2g 인 이유: 8 GiB 중 동거 컴포넌트(ES·PG·Redis·Prometheus·Grafana) 합계가 ~2 GiB 라 여유가 충분하고,
+      #   deploy.yml 이 배포마다 .env 를 덮어쓰므로 JAVA_HEAP 재추가를 잊어도 의도한 값으로 뜨게 하기 위함.
+      #   (트레이드오프: heap 이 클수록 GC 가 드물어져 3분 회차에서 GC 표본이 적게 잡힐 수 있음 — GC 비교는 별도 회차로)
       # ZGC/Pinning 진단 옵션을 쓸 땐 같은 변수에 이어 붙일 것 (JAVA_TOOL_OPTIONS 는 하나만 유효):
       #   -XX:+UseZGC -XX:+ZGenerational               → VT Continuation(단명 객체) 수거 최적화, STW < 1ms
       #   -Djdk.tracePinnedThreads=full                 → synchronized 내부 블로킹 I/O 로 캐리어가 묶이는 지점 추적
       #   (의심 지점: Redisson 3.18.0 RLock 내부, Hibernate L1 Cache 동기화)
-      - JAVA_TOOL_OPTIONS=-Xms${JAVA_HEAP:-1g} -Xmx${JAVA_HEAP:-1g}
+      - JAVA_TOOL_OPTIONS=-Xms${JAVA_HEAP:-2g} -Xmx${JAVA_HEAP:-2g}
       - TEST_LOAD_USERS=true
       # 테스트 유저 시딩 규모 = 본측정 최대 RATE × INTERVAL (300 × 5s = 1500). application.yml test.load-users-count 로 연결, 멱등
       - TEST_LOAD_USERS_COUNT=${TEST_LOAD_USERS_COUNT:-300}
