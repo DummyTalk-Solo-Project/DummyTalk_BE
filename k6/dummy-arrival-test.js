@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import exec from 'k6/execution';
-import { Counter, Trend } from 'k6/metrics';
+import { Counter, Trend, Gauge } from 'k6/metrics';
 import {
     BASE, TARGET_URI,
     loginPool, adminLogin, loadTestReset, loadTestState, tagFromState,
@@ -77,6 +77,26 @@ const raceSuspect    = new Counter('race_condition_suspect');       // remaining
 const lostUpdate     = new Counter('lost_update_count');            // teardown: success_200 − Δ(DB reqCount 합)
 const edge429Count   = new Counter('edge_429_count');                // Cloudflare 등 엣지가 돌려준 429 (앱 거절과 구분)
 const droppedByPool  = new Counter('token_missing_count');          // 로그인 실패 유저에 배정된 반복
+
+/*
+ * teardown -> handleSummary 값 전달용 Gauge.
+ *
+ * k6 는 teardown 과 handleSummary 를 **별도 JS 런타임**에서 돌린다 — 모듈 변수에 담아 넘기면
+ * handleSummary 에서는 초기값만 보인다. 실제로 콘솔에는 서버측 p95·Δ reqCount 가 찍히는데
+ * 결과 파일의 verdict 는 전부 null 이 되는 현상으로 드러났다 (Lumo_Backend 20260903 회차 분석에 같은 기록).
+ * data.metrics 는 두 런타임을 건너 전달되므로, teardown 이 구한 값은 전부 메트릭으로 등록해서 넘긴다.
+ * (Gauge 는 마지막 값 1개만 보관 — 회차당 한 번만 add 하므로 적합)
+ */
+const gServerP50      = new Gauge('server_p50_ms');
+const gServerP95      = new Gauge('server_p95_ms');
+const gServerP99      = new Gauge('server_p99_ms');
+const gServerTotal    = new Gauge('server_handled_total');   // 히스토그램 +Inf 델타 = 서버가 처리한 건수
+const gDbDelta        = new Gauge('db_req_count_delta');     // Δ SUM(reqCount). -1 = 관리자 미지정으로 측정 불가
+// 서버 설정 스냅샷 — 문자열은 메트릭에 못 실으므로 숫자로 인코딩해 handleSummary 에서 TAG 를 복원한다
+const gCfgVersion     = new Gauge('cfg_getdummy_version');
+const gCfgInterceptor = new Gauge('cfg_interceptor_enabled');
+const gCfgVt          = new Gauge('cfg_virtual_threads');
+const gCfgPool        = new Gauge('cfg_hikari_pool_size');
 
 // ─── 시나리오 ─────────────────────────────────────────────────────────────────
 export const options = {
@@ -220,11 +240,7 @@ export default function (data) {
     }
 }
 
-// ─── teardown: 서버측 분위수 + Lost Update 판정 → handleSummary 로 넘길 텍스트 ───
-// setup / teardown / handleSummary 는 같은 런타임에서 돌므로 모듈 변수로 전달할 수 있다 (VU 코드에서는 안 보임).
-let processingReport = '';
-let verdict = {};
-
+// ─── teardown: 서버측 분위수 + DB 반영 건수 → Gauge 로 handleSummary 에 전달 ───
 export function teardown(data) {
     const base = data.base || {};
     const nowBuckets = scrapeBuckets(TARGET_URI);
@@ -234,47 +250,72 @@ export function teardown(data) {
     const serverTotal = bucketTotal(base.buckets, nowBuckets);
 
     // Lost Update ground truth: DB 가 실제로 반영한 뽑기 수(Δ reqCount 합) vs k6 가 200 으로 센 수.
-    // 같은 트랜잭션이 갱신을 덮어쓰면 Δ 가 success 보다 작다. (teardown 시점엔 success 카운터 값을 직접 읽을 수 없어
-    // handleSummary 에서 metrics 로 최종 계산하고, 여기서는 서버 수치만 찍어 둔다)
-    lostUpdate.add(0); // 표본을 하나 남겨 요약에 metric 이 나타나게 함 (실제 값은 handleSummary 에서 덮어씀)
+    // 최종 비교는 handleSummary 에서 한다 (여기서는 success_200_count 의 최종값을 읽을 수 없다).
     const now = loadTestState(data.adminToken);
     const deltaSum = (now && base.state) ? (now.reqCountSum - base.state.reqCountSum) : null;
 
-    verdict = {
-        server_p50_ms: serverP50 === null ? null : +(serverP50 * 1000).toFixed(1),
-        server_p95_ms: serverP95 === null ? null : +(serverP95 * 1000).toFixed(1),
-        server_p99_ms: serverP99 === null ? null : +(serverP99 * 1000).toFixed(1),
-        server_handled_total: serverTotal,
-        db_req_count_delta: deltaSum,
-        config: base.state || null,
-        config_after: now || null,
-    };
+    const toMs = (v) => (v === null || v === undefined ? -1 : Math.round(v * 100000) / 100);
+    gServerP50.add(toMs(serverP50));
+    gServerP95.add(toMs(serverP95));
+    gServerP99.add(toMs(serverP99));
+    gServerTotal.add(serverTotal);
+    gDbDelta.add(deltaSum === null ? -1 : deltaSum);
 
-    processingReport = `
-────────────── 서버측 결과 (RATE ${RATE}/s · ${DURATION} · ACTIVE ${ACTIVE}명) ──────────────
-  [서버 설정]      getDummy v${base.state ? base.state.getDummyVersion : '?'} · interceptor=${base.state ? base.state.interceptorEnabled : '?'}`
-        + ` · VT=${base.state ? base.state.virtualThreads : '?'} · hikari=${base.state ? base.state.hikariPoolSize : '?'}
-  [서버측 지연]    p50 / p95 / p99 = ${fmt(serverP50)} / ${fmt(serverP95)} / ${fmt(serverP99)}   (RTT 제외, ${TARGET_URI} 전 status 합산)
-  [서버 처리 건수] ${serverTotal}건 (히스토그램 +Inf 델타)
-  [DB 반영 건수]   Δ reqCount 합 = ${deltaSum === null ? 'n/a (관리자 미지정)' : deltaSum}
-  ※ Lost Update 판정: 아래 METRICS 의 success_200_count 와 Δ reqCount 합이 같아야 한다. 작으면 갱신 유실.
-  ※ k6 요약의 http_req_duration / dummy_req_duration_ms 는 RTT 를 포함한 '사용자 체감'. 전략 비교는 위 서버측 값으로.
-  ※ reject_429_count 가 오르기 시작한 rate = 서버측 지연이 INTERVAL(${INTERVAL}s) 을 넘은 지점 = 실질 상한.
-──────────────────────────────────────────────────────────────────────────`;
-    console.log(processingReport);
+    const cfg = base.state;
+    gCfgVersion.add(cfg ? cfg.getDummyVersion : -1);
+    gCfgInterceptor.add(cfg ? (cfg.interceptorEnabled ? 1 : 0) : -1);
+    gCfgVt.add(cfg ? (cfg.virtualThreads ? 1 : 0) : -1);
+    gCfgPool.add(cfg ? cfg.hikariPoolSize : -1);
+
+    console.log('\n[teardown] 서버측 p50/p95/p99 = ' + fmt(serverP50) + ' / ' + fmt(serverP95) + ' / ' + fmt(serverP99)
+        + '  |  서버 처리 ' + serverTotal + '건  |  Δ reqCount = ' + (deltaSum === null ? 'n/a (관리자 미지정)' : deltaSum)
+        + '  → 상세 판정은 아래 요약/결과 파일 참조');
 }
 
-// ─── handleSummary: Lost Update 최종 판정 + 파일 저장 ──────────────────────────
+// ─── handleSummary: Gauge 로 넘어온 서버측 값 + Lost Update 최종 판정 → 파일 저장 ───
 export function handleSummary(data) {
     const m = data.metrics || {};
-    const cnt = (name) => (m[name] && m[name].values && m[name].values.count) || 0;
-    const success = cnt('success_200_count');
+    const cnt = (n) => (m[n] && m[n].values && m[n].values.count) || 0;
+    // Gauge 는 values.value 에 마지막 값이 들어온다. -1 은 "측정 불가"(관리자 미지정 등) 센티널.
+    const gauge = (n) => {
+        const v = m[n] && m[n].values ? m[n].values.value : undefined;
+        return (v === undefined || v === -1) ? null : v;
+    };
 
-    if (verdict.db_req_count_delta !== null && verdict.db_req_count_delta !== undefined) {
-        verdict.lost_update_count = Math.max(0, success - verdict.db_req_count_delta);
+    const success = cnt('success_200_count');
+    const dbDelta = gauge('db_req_count_delta');
+    const cfgVer  = gauge('cfg_getdummy_version');
+    const config = cfgVer === null ? null : {
+        getDummyVersion: cfgVer,
+        interceptorEnabled: gauge('cfg_interceptor_enabled') === 1,
+        virtualThreads: gauge('cfg_virtual_threads') === 1,
+        hikariPoolSize: gauge('cfg_hikari_pool_size'),
+    };
+
+    const verdict = {
+        success_200:          success,
+        reject_429:           cnt('reject_429_count'),
+        edge_429:             cnt('edge_429_count'),
+        limit_hit_400:        cnt('limit_hit_400_count'),
+        unexpected_status:    cnt('unexpected_status_count'),
+        token_missing:        cnt('token_missing_count'),
+        dropped_iterations:   cnt('dropped_iterations'),
+        server_p50_ms:        gauge('server_p50_ms'),
+        server_p95_ms:        gauge('server_p95_ms'),
+        server_p99_ms:        gauge('server_p99_ms'),
+        server_handled_total: gauge('server_handled_total'),
+        db_req_count_delta:   dbDelta,
+        config: config,
+    };
+
+    let lostLine;
+    if (dbDelta === null) {
+        lostLine = '  [판정] Δ reqCount 측정 불가 (ADMIN_EMAIL/ADMIN_PASSWORD 미지정 또는 Admin API 실패) — Lost Update 판정 생략';
+    } else {
+        verdict.lost_update_count = Math.max(0, success - dbDelta);
         verdict.lost_update_ok = verdict.lost_update_count === 0;
-        processingReport += `\n  [판정] success_200=${success} vs Δ reqCount=${verdict.db_req_count_delta} → `
-            + (verdict.lost_update_ok ? 'Lost Update 없음 ✓' : `⚠️ ${verdict.lost_update_count}건 유실 의심`);
+        lostLine = '  [판정] success_200=' + success + ' vs Δ reqCount=' + dbDelta + ' → '
+            + (verdict.lost_update_ok ? 'Lost Update 없음 OK' : '[!] ' + verdict.lost_update_count + '건 유실 의심');
         // teardown 이후라 Counter 로는 못 올리므로 요약 metrics 에 직접 기록 (threshold 표시용)
         if (m.lost_update_count) {
             m.lost_update_count.values.count = verdict.lost_update_count;
@@ -283,20 +324,36 @@ export function handleSummary(data) {
             }
         }
     }
-    verdict.success_200 = success;
-    verdict.reject_429 = cnt('reject_429_count');
-    verdict.edge_429 = cnt('edge_429_count');
-    verdict.limit_hit_400 = cnt('limit_hit_400_count');
-    verdict.dropped_iterations = cnt('dropped_iterations');
 
-    const tag = __ENV.TAG || tagFromState(verdict.config);
+    const fmt = (v) => (v === null ? 'n/a' : v.toFixed(1) + 'ms');
+    const processingReport = [
+        '',
+        '────────────── 서버측 결과 (RATE ' + RATE + '/s · ' + DURATION + ' · ACTIVE ' + ACTIVE + '명) ──────────────',
+        '  [서버 설정]      getDummy v' + (config ? config.getDummyVersion : '?')
+            + ' · interceptor=' + (config ? config.interceptorEnabled : '?')
+            + ' · VT=' + (config ? config.virtualThreads : '?')
+            + ' · hikari=' + (config ? config.hikariPoolSize : '?'),
+        '  [서버측 지연]    p50 / p95 / p99 = ' + fmt(verdict.server_p50_ms) + ' / ' + fmt(verdict.server_p95_ms)
+            + ' / ' + fmt(verdict.server_p99_ms) + '   (RTT 제외, ' + TARGET_URI + ' 전 status 합산)',
+        '  [서버 처리 건수] ' + (verdict.server_handled_total === null ? 'n/a' : verdict.server_handled_total) + '건 (히스토그램 +Inf 델타)',
+        '  [DB 반영 건수]   Δ reqCount 합 = ' + (dbDelta === null ? 'n/a' : dbDelta),
+        lostLine,
+        "  ※ k6 요약의 http_req_duration / dummy_req_duration_ms 는 RTT 를 포함한 '사용자 체감'. 전략 비교는 위 서버측 값으로.",
+        '  ※ reject_429_count 가 오르기 시작한 rate = 서버측 지연이 INTERVAL(' + INTERVAL + 's) 을 넘은 지점 = 실질 상한.',
+        '  ※ edge_429_count 가 0 이 아니면 Cloudflare 가 개입한 것 — 그 회차의 429 해석은 오염됐다.',
+        '──────────────────────────────────────────────────────────────────────────',
+    ].join('\n');
+
+    const tag = __ENV.TAG || tagFromState(config);
     return summaryFiles(data, {
         rate: RATE,
         duration: DURATION,
-        tag,
-        scenario: `open model (constant-arrival-rate ${RATE}/s ${DURATION}, INTERVAL ${INTERVAL}s, ACTIVE ${ACTIVE}명, maxVUs ${MAX_VUS})`,
-        params: { rate: RATE, interval_s: INTERVAL, duration: DURATION, active_users: ACTIVE, pool_size: POOL_SIZE, max_vus: MAX_VUS, limit: LIMIT },
-        processingReport,
+        tag: tag,
+        scenario: 'open model (constant-arrival-rate ' + RATE + '/s ' + DURATION + ', INTERVAL ' + INTERVAL
+            + 's, ACTIVE ' + ACTIVE + '명, maxVUs ' + MAX_VUS + ')',
+        params: { rate: RATE, interval_s: INTERVAL, duration: DURATION, active_users: ACTIVE,
+                  pool_size: POOL_SIZE, max_vus: MAX_VUS, limit: LIMIT },
+        processingReport: processingReport,
         extra: verdict,
     });
 }
