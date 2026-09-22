@@ -75,6 +75,7 @@ const limitHitCount  = new Counter('limit_hit_400_count');          // 0 이어�
 const otherCount     = new Counter('unexpected_status_count');      // 5xx / 타임아웃 등
 const raceSuspect    = new Counter('race_condition_suspect');       // remainingCount 음수 or 한도 초과
 const lostUpdate     = new Counter('lost_update_count');            // teardown: success_200 − Δ(DB reqCount 합)
+const edge429Count   = new Counter('edge_429_count');                // Cloudflare 등 엣지가 돌려준 429 (앱 거절과 구분)
 const droppedByPool  = new Counter('token_missing_count');          // 로그인 실패 유저에 배정된 반복
 
 // ─── 시나리오 ─────────────────────────────────────────────────────────────────
@@ -90,6 +91,15 @@ export const options = {
             maxVUs: MAX_VUS,
         },
     },
+    /*
+     * 오리진 직타 폴백 — Cloudflare 엣지가 측정에 개입(레이트리밋·봇차단)하면
+     *   SG 443 을 내 IP 에 열고 -e BASE_URL=https://<EC2 퍼블릭 IP> 로 쏜다.
+     * 이때 nginx 는 Cloudflare Origin 인증서를 제시하는데, 이 CA 는 공개 신뢰 체인에 없다
+     *   (설계상 Cloudflare 엣지만 신뢰하는 인증서) → k6 는 커스텀 CA 번들을 지원하지 않으므로 검증을 끄는 것이 유일한 방법.
+     * 대상이 본인 소유 오리진이고 엣지 우회가 목적이므로 수용 가능한 트레이드오프.
+     * 공개 인증서 경로(ddotg.dev)로 되돌릴 땐 -e STRICT_TLS=true.
+     */
+    insecureSkipTLSVerify: __ENV.STRICT_TLS !== 'true',
     // setup 의 병렬 로그인(1,500명 ≈ 1~2분) + teardown 의 스크레이프 여유
     setupTimeout: '10m',
     teardownTimeout: '2m',
@@ -101,6 +111,8 @@ export const options = {
         race_condition_suspect: ['count<1'],
         lost_update_count:      ['count<1'],
         limit_hit_400_count:    ['count<1'],
+        // 엣지(Cloudflare) 가 돌려준 429 — 1건이라도 있으면 그 회차의 429 해석이 오염된다
+        edge_429_count:         ['count<1'],
     },
 };
 
@@ -161,7 +173,19 @@ export default function (data) {
     dummyDuration.add(elapsed);
 
     if (res.status === 429) {
-        // 직전 요청이 INTERVAL 안에 안 끝남 → 서버측 지연 > 주기. 포화 신호로 카운트만 하고 재시도하지 않는다.
+        /*
+         * 429 는 두 출처가 있고 섞이면 판정이 뒤집힌다.
+         *   앱(인터셉터/분산락) : APIResponse JSON → 본문에 "code" 필드가 있다.
+         *                        "직전 요청이 INTERVAL 안에 안 끝났다" = 서버측 지연 > 주기 → 포화 신호.
+         *   엣지(Cloudflare)    : 레이트리밋/챌린지 HTML → "code" 필드가 없다.
+         *                        이건 서버 포화가 아니라 경로 문제이므로 분리해서 센다 (threshold count==0).
+         */
+        const body = res.body || '';
+        if (body.indexOf('"code"') < 0) {
+            edge429Count.add(1);
+            if (iter % 200 === 0) console.warn(`[EDGE 429] iter=${iter} — Cloudflare 개입 의심, 오리진 직타 폴백 검토`);
+            return;
+        }
         rejectCount.add(1);
         rejectDuration.add(elapsed);
         return;
@@ -261,6 +285,7 @@ export function handleSummary(data) {
     }
     verdict.success_200 = success;
     verdict.reject_429 = cnt('reject_429_count');
+    verdict.edge_429 = cnt('edge_429_count');
     verdict.limit_hit_400 = cnt('limit_hit_400_count');
     verdict.dropped_iterations = cnt('dropped_iterations');
 
