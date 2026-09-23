@@ -7,6 +7,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
+/*
+ * member_id 인덱스 추가
+ * - MySQL 과 달리 FK 컬럼에 인덱스를 자동 생성 X
+ * - countByMemberID -> 모든 테이블을 탐색하게 됨.
+ * - ddl-auto: update 가 기동 시 생성한다.
+ */
+@Table(indexes = @Index(name = "idx_member_dummy_member_id", columnList = "member_id"))
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
