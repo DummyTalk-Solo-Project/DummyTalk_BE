@@ -34,6 +34,12 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DummyService {
 
+    /*
+     * 뽑기/천장 관련 로그는 요청당 3건이라 info 로 두면 부하 회차에서 CPU 를 눈에 띄게 먹는다
+     * (200rps 실측: 앱 info 로그만 초당 1.5K건, CPU system 99% 상황). 전부 debug 로 내렸고
+     * 동작 추적이 필요하면 LOG_LEVEL_APP=DEBUG 로 다시 켠다.
+     */
+
 
     private final MemberRepository memberRepository;
     private final RarityRepository rarityRepository;      // V1에서 DB 기반 확률 조회에 사용
@@ -83,19 +89,19 @@ public class DummyService {
         if (currentCommonStack >= 10) {
             selectedRarity = rarityRepository.findByName(RarityType.RARE).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             isPityTriggered = true;
-            log.info("[DummyService - getDummyV1()] - COMMON 천장 사용 -> RARE!");
+            log.debug("[DummyService - getDummyV1()] - COMMON 천장 사용 -> RARE!");
         } else if (currentRareStack >= 10) {
             selectedRarity = rarityRepository.findByName(RarityType.EPIC).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             isPityTriggered = true;
-            log.info("[DummyService - getDummyV1()] - RARE 천장 사용 -> EPIC!");
+            log.debug("[DummyService - getDummyV1()] - RARE 천장 사용 -> EPIC!");
         } else if (currentEpicStack >= 10) {
             selectedRarity = rarityRepository.findByName(RarityType.SPECIAL).orElseThrow(() -> new DummyHandler(ErrorCode.WRONG_RARITY));
             isPityTriggered = true;
-            log.info("[DummyService - getDummyV1()] - EPIC 천장 사용 -> SPECIAL!");
+            log.debug("[DummyService - getDummyV1()] - EPIC 천장 사용 -> SPECIAL!");
         } else {
             // DB에서 확률 조회 후 랜덤 선택 (Redis 미사용 — V1 특징)
             selectedRarity = getRandomRarityFromDB();
-            log.info("[DummyService - getDummyV1()] - 랜덤 뽑기: {}", selectedRarity.getName());
+            log.debug("[DummyService - getDummyV1()] - 랜덤 뽑기: {}", selectedRarity.getName());
         }
 
         Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarity.getName(), isPityTriggered);
@@ -163,18 +169,18 @@ public class DummyService {
         if (currentCommonStack >= 10) {
             selectedRarityType = RarityType.RARE;
             isPityTriggered = true;
-            log.info("[DummyService - getDummyV2()] - COMMON 천장 사용 -> RARE!");
+            log.debug("[DummyService - getDummyV2()] - COMMON 천장 사용 -> RARE!");
         } else if (currentRareStack >= 10) {
             selectedRarityType = RarityType.EPIC;
             isPityTriggered = true;
-            log.info("[DummyService - getDummyV2()] - RARE 천장 사용 -> EPIC!");
+            log.debug("[DummyService - getDummyV2()] - RARE 천장 사용 -> EPIC!");
         } else if (currentEpicStack >= 10) {
             selectedRarityType = RarityType.SPECIAL;
             isPityTriggered = true;
-            log.info("[DummyService - getDummyV2()] - EPIC 천장 사용 -> SPECIAL!");
+            log.debug("[DummyService - getDummyV2()] - EPIC 천장 사용 -> SPECIAL!");
         } else {
             selectedRarityType = getRandomRarityType();
-            log.info("[DummyService - getDummyV2()] - 랜덤 뽑기: {}", selectedRarityType);
+            log.debug("[DummyService - getDummyV2()] - 랜덤 뽑기: {}", selectedRarityType);
         }
 
         Boolean isNextPityTriggered = updatePityStack(pityKey, selectedRarityType, isPityTriggered);
@@ -255,22 +261,22 @@ public class DummyService {
         if (currentCommonStack >= 10) { // COMMON -> RARE
             selectedRarityType = RarityType.RARE;
             isPityTriggered = true;
-            log.info("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
+            log.debug("[DummyService - getDummy()] - COMMON 천장 사용 -> RARE!");
         }
         else if (currentRareStack >= 10) { // RARE -> EPIC
             selectedRarityType = RarityType.EPIC;
             isPityTriggered = true;
-            log.info("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
+            log.debug("[DummyService - getDummy()] - RARE 천장 사용 -> EPIC!");
         }
         else if (currentEpicStack >= 10) { // EPIC -> SPECIAL
             selectedRarityType = RarityType.SPECIAL;
             isPityTriggered = true;
-            log.info("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
+            log.debug("[DummyService - getDummy()] - EPIC 천장 사용 -> SPECIAL!");
         }
         else {
             // 2. 천장 없는 경우 Redis 확률 기반 추첨 (rarity:probabilities 해시)
             selectedRarityType = getRandomRarityType();
-            log.info("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarityType);
+            log.debug("[DummyService - getDummy()] - 랜덤 뽑기: {}", selectedRarityType);
         }
 
         // 스택 update, 다음 뽑기 천장 예정 여부 반환
@@ -324,7 +330,7 @@ public class DummyService {
                 .isNextPityTriggered(isNextPityTriggered)
                 .remainingCount((Boolean.TRUE.equals(info.getIsSubscribe()) ? 40 : 20) - info.getReqCount())
                 .build();
-        log.info("[DummyService - getDummy()] - selectedRarity: {}", selectedRarityType);
+        log.debug("[DummyService - getDummy()] - selectedRarity: {}", selectedRarityType);
         return dto;
     }
 
@@ -337,7 +343,7 @@ public class DummyService {
             if (wonRarity == RarityType.SPECIAL) {
                 // SPECIAL은 최상위 등급, 다음 천장 없음
                 redisTemplate.opsForHash().put(key, "EPIC", "0");
-                log.info("[DummyService - updatePityStack()] - EPIC 천장! => SPECIAL");
+                log.debug("[DummyService - updatePityStack()] - EPIC 천장! => SPECIAL");
                 return false;
             }
             else if (wonRarity == RarityType.EPIC) {
@@ -347,7 +353,7 @@ public class DummyService {
                 redisTemplate.opsForHash().put(key, "RARE", "0");
                 redisTemplate.opsForHash().increment(key, "EPIC", 1);
 
-                log.info("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", nextEpic);
+                log.debug("[DummyService - updatePityStack()] - RARE 천장! => EPIC, newEpicStack={}", nextEpic);
                 return nextEpic >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
@@ -356,7 +362,7 @@ public class DummyService {
 
                 redisTemplate.opsForHash().put(key, "COMMON", "0");
                 redisTemplate.opsForHash().increment(key, "RARE", 1); // 누락됐던 RARE 증가
-                log.info("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", nextRare);
+                log.debug("[DummyService - updatePityStack()] - COMMON 천장! => RARE, newRareStack={}", nextRare);
                 return nextRare >= 10;
             }
         }
@@ -365,21 +371,21 @@ public class DummyService {
                 Object currentCommon = redisTemplate.opsForHash().get(key, "COMMON");
                 long nextCommon = (currentCommon == null ? 0L : Long.parseLong(currentCommon.toString())) + 1;
                 redisTemplate.opsForHash().increment(key, "COMMON", 1); // WRITE: 큐잉
-                log.info("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", nextCommon);
+                log.debug("[DummyService - updatePityStack()] - COMMON 스택 증가 = {}", nextCommon);
                 return nextCommon >= 10;
             }
             else if (wonRarity == RarityType.RARE) {
                 Object currentRare = redisTemplate.opsForHash().get(key, "RARE");
                 long nextRare = (currentRare == null ? 0L : Long.parseLong(currentRare.toString())) + 1;
                 redisTemplate.opsForHash().increment(key, "RARE", 1); // WRITE: 큐잉
-                log.info("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", nextRare);
+                log.debug("[DummyService - updatePityStack()] - RARE 스택 증가 = {}", nextRare);
                 return nextRare >= 10;
             }
             else if (wonRarity == RarityType.EPIC) {
                 Object currentEpic = redisTemplate.opsForHash().get(key, "EPIC");
                 long nextEpic = (currentEpic == null ? 0L : Long.parseLong(currentEpic.toString())) + 1;
                 redisTemplate.opsForHash().increment(key, "EPIC", 1); // WRITE: 큐잉
-                log.info("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", nextEpic);
+                log.debug("[DummyService - updatePityStack()] - EPIC 스택 증가 = {}", nextEpic);
                 return nextEpic >= 10;
             }
         }

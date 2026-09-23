@@ -1,6 +1,15 @@
+# ─── 로그 레벨 ───────────────────────────────────────────────────────────────
+# 부하 측정에서 로그가 CPU 를 먹는 것이 실측으로 드러나 정리했다.
+#   200rps 회차에서 logback_events_total 이 초당 3,066건 (debug 1.82K + info 1.50K).
+#   원인 ① org.hibernate.SQL=DEBUG 로 모든 쿼리를 출력  ② 요청당 info 6건(JWT·인터셉터·뽑기·천장).
+#   CPU(system) 가 99% 로 벽에 닿은 상태라 이 비용이 측정 결과를 직접 흔든다.
+# 대응: 요청당 로그는 코드에서 debug 로 내리고, 아래 레벨은 env 로 다시 켤 수 있게 남긴다.
+#   LOG_LEVEL_SQL=DEBUG  → 쿼리 확인(N+1·조인 점검)이 필요할 때만
+#   LOG_LEVEL_APP=DEBUG  → 부하 경로 동작 추적이 필요할 때만 (회차 측정 중에는 INFO 유지)
 logging:
   level:
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:OFF}
+    DummyTalk.DummyTalk_BE: ${LOG_LEVEL_APP:INFO}
 
 
 server:

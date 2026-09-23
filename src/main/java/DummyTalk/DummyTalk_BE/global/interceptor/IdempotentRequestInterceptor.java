@@ -82,7 +82,8 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
             throw new GeneralException(ErrorCode.DUPLICATE_REQUEST);
         }
 
-        log.info("[IdempotentRequestInterceptor - preHandle()] - 요청 허용, memberId: {}, key: {}", memberId, redisKey);
+        // 요청당 1건이라 info 로 두면 부하 회차에서 초당 수백 건이 찍힌다 (LOG_LEVEL_APP=DEBUG 로 다시 볼 수 있음)
+        log.debug("[IdempotentRequestInterceptor - preHandle()] - 요청 허용, memberId: {}, key: {}", memberId, redisKey);
         return true;
     }
 
@@ -105,7 +106,7 @@ public class IdempotentRequestInterceptor implements HandlerInterceptor {
         // 8. Redis 키 삭제 — TTL 만료를 기다리지 않고 즉시 제거 (SETNX)
         String redisKey = buildRedisKey(memberId, request);
         redisTemplate.delete(redisKey);
-        log.info("[IdempotentRequestInterceptor - afterCompletion()] - Redis 키 삭제 완료, key: {}", redisKey);
+        log.debug("[IdempotentRequestInterceptor - afterCompletion()] - Redis 키 삭제 완료, key: {}", redisKey);
     }
 
     private String buildRedisKey(Long memberId, HttpServletRequest request) {

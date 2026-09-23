@@ -120,7 +120,8 @@ public class JWTProvider {
 
         // 표준 필드로 변경
 //        log.info("[JWTProvider - getAuthentication()] email: {}", claims.get("username", String.class));
-        log.info("[JWTProvider - getAuthentication()] email: {}", claims.getSubject());
+        // 매 요청 실행되는 경로 — info 로 두면 부하 시 초당 수백 건이 찍히고, 이메일이 로그에 그대로 남는다
+        log.debug("[JWTProvider - getAuthentication()] email: {}", claims.getSubject());
 
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(claims.getSubject());
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
