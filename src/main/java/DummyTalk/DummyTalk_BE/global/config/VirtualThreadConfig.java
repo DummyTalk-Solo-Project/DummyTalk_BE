@@ -1,5 +1,6 @@
 package DummyTalk.DummyTalk_BE.global.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.embedded.tomcat.TomcatProtocolHandlerCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,15 +10,23 @@ import java.util.concurrent.Executors;
 @Configuration
 public class VirtualThreadConfig {
 
-
     /**
-     * [Stage 4 전용 — VT 활성화 시 아래 @Bean 주석 해제]
-     * 변경: 요청당 VT 1개 생성, Pool/Queue 없음 → Thread 소진으로 인한 Rejection 불가
-     * CP 튜닝(Stage 4) 동시 적용 필요!
+     * Tomcat 요청 처리 executor 를 Virtual Thread 로 교체 — V4 전용.
+     *
+     * 요청당 VT 1개를 새로 만들므로 스레드 풀도 TaskQueue 도 없다
+     * (그래서 VT 모드에서는 tomcat_threads_* 메트릭이 전부 -1 로 나온다. 실측 확인).
+     *
+     * 전에는 이 @Bean 의 주석을 손으로 풀고 조여서 VT 를 켰다 껐다 했는데,
+     * spring.threads.virtual.enabled 와 따로 놀아 "V3 인 줄 알았는데 VT 가 켜져 있던" 혼동이 났다.
+     * 이제 프로퍼티 하나를 따라가므로 .env 의 VIRTUAL_THREADS 만 바꾸면 된다 (재배포 불필요).
+     *
+     * ⚠️ 이 빈이 바꾸는 것은 "요청 처리" 스레드뿐이다.
+     *    AsyncConfig(badge/mail)·SchedulerConfig 의 VT executor 는 회차 내내 고정한다 — 이유는 application.yml 주석 참고.
      */
-     @Bean
-     public TomcatProtocolHandlerCustomizer<?> virtualThreadCustomizer() {
-         return protocolHandler ->
-             protocolHandler.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
-     }
+    @Bean
+    @ConditionalOnProperty(name = "spring.threads.virtual.enabled", havingValue = "true")
+    public TomcatProtocolHandlerCustomizer<?> virtualThreadCustomizer() {
+        return protocolHandler ->
+                protocolHandler.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+    }
 }
