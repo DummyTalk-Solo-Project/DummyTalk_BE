@@ -26,7 +26,8 @@ public class BadgeEventListener {
     @Async("BadgeExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) //  MemberDummy 영속 완료 시점으로 이동
     public void onDummyViewed(DummyViewedEvent event) {
-        log.info("[BadgeEventListener] - 이벤트 발생! memberId={}, rarity={}, pity={}, totalCount={}",
+        // 뽑기 성공마다 1건 — 200rps 면 초당 200건이다. 실제로 로그 정리 후에도 남아 있던 유일한 요청당 info 였다
+        log.debug("[BadgeEventListener] - 이벤트 발생! memberId={}, rarity={}, pity={}, totalCount={}",
                 event.getMemberId(), event.getRarityName(), event.getIsPityTriggered(), event.getTotalDummyCount());
         try {
             badgeService.checkAndAwardByDummyViewed(

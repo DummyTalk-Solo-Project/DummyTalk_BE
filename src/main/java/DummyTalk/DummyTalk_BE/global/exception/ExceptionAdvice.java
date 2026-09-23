@@ -45,7 +45,18 @@ public class ExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> onThrowExcpetion(GeneralException generalEx, HttpServletRequest request) {
         ErrorReasonDTO reasonHttpStatus = generalEx.getReasonHttpStatus();
 
-        log.error("[Exception occurred] : {}", reasonHttpStatus.getMessage());
+        /*
+         * GeneralException 은 "예상된 실패" 를 담는다 — 따닥 차단(429 CANT_GET_LOCK / DUPLICATE_REQUEST),
+         * 한도 소진(400 DUMMY_4001) 처럼 설계된 거절이 대부분이다. 이것을 error 로 찍으면
+         *   ① 실제 장애 알림과 섞여 운영 중 노이즈가 되고
+         *   ② 폭주 시 거절 1건당 ERROR 1줄이라 측정·운영 비용이 된다 (V2 스파이크 실측: error 초당 4.1건)
+         * 4xx 는 warn, 진짜 서버 오류(5xx)는 위쪽 핸들러에서 error 로 남는다.
+         */
+        if (reasonHttpStatus.getHttpStatus().is5xxServerError()) {
+            log.error("[Exception occurred] : {}", reasonHttpStatus.getMessage());
+        } else {
+            log.warn("[Exception occurred] : {}", reasonHttpStatus.getMessage());
+        }
 
         return handleExceptionInternal(generalEx, reasonHttpStatus, null, request);
     }
