@@ -38,6 +38,11 @@ services:
       # 200rps 실측에서 로그가 초당 3,066건이었고 CPU(system) 가 99% 라 이 비용이 결과를 직접 흔들었다.
       - LOG_LEVEL_SQL=${LOG_LEVEL_SQL:-OFF}
       - LOG_LEVEL_APP=${LOG_LEVEL_APP:-INFO}
+      # V1~V4 동시성 전략·스레드 모델 전환 — .env 3줄만 바꿔 `up -d spring`(40초) 하면 끝, 재배포 불필요.
+      # 조합표는 application.yml 의 concurrency 블록 주석 참고. 실제 적용 여부는 /api/admin/load-test/state 로 확인.
+      - GETDUMMY_VERSION=${GETDUMMY_VERSION:-3}
+      - INTERCEPTOR_ENABLED=${INTERCEPTOR_ENABLED:-true}
+      - VIRTUAL_THREADS=${VIRTUAL_THREADS:-true}
       # CP 스윕 실험용 — 셸에서 HIKARI_POOL_SIZE=20 docker compose up -d spring 처럼 값 지정, 미지정 시 10(기존 baseline)
       - HIKARI_POOL_SIZE=${HIKARI_POOL_SIZE:-10}
       - DB_HOST=postgresql

@@ -261,7 +261,12 @@ export function summaryFiles(data, meta) {
     const durMs = (data.state && data.state.testRunDurationMs) || 0;
     const startedAt = new Date(endedAt.getTime() - durMs);
 
-    const name = `${stamp(startedAt)}_${meta.rate}rps_${meta.duration}_${meta.tag}`;
+    // 부하 표기는 시나리오 모델에 따라 다르다 (CLAUDE_INIT 파일명 규칙):
+    //   open model(constant-arrival-rate) → `${N}rps` — 도착률이 부하의 실체
+    //   closed model(per-vu-iterations 등) → `${N}vu` — VU 가 상한이 아니라 부하 그 자체
+    // meta.load 를 주면 그 문자열을 그대로 쓰고, 없으면 rate 기반으로 만든다.
+    const load = meta.load || `${meta.rate}rps`;
+    const name = `${stamp(startedAt)}_${load}_${meta.duration}_${meta.tag}`;
     const dir = __ENV.RESULT_DIR || __ENV.DUMMYTALK_RESULT_DIR || '../../dev_notes/DummyTalk/results';
     const base = `${dir}/${name}`;
 

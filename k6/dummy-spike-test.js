@@ -1,243 +1,319 @@
-/**
- * getDummy() 동시성 제어 단계별 스파이크 테스트
- *
- * 목적:
- *   동시성 개선 4단계를 같은 시나리오로 비교 → 결과 그래프 나란히 비교
- *   Stage 1 (순수 트랜잭션, No Lock)    → race_condition_suspect 발생, remainingCount 음수 감지
- *   Stage 2 (Redisson 분산락)          → 정합성 보장, but leaseTime(4s) 만료 시 락 바이패스 재발 가능
- *   Stage 3 (Interceptor, 따닥 차단)    → fast_fail_429_count 발생, 락/DB 도달 전 차단 → 처리량·지연 개선
- *   Stage 4 (Virtual Thread + CP + GC) → Stage 3과 동일 조건에서 처리량/지연시간 동시 개선 (예정)
- *
- * 시나리오 설계:
- *   - USERS명의 유저가 각각 CONCURRENT개의 따닥 요청을 동시에 발사 후 종료 (1회)
- *   - ramping-vus(램프업) 없이 per-vu-iterations(1회성 스파이크)로 즉각 동시성 유발
- *   - 로그인은 setup()에서 선처리 → 본 테스트에서 로그인 오버헤드 제거, 뽑기 요청에 집중
- *   - sleep 없음 → 같은 유저에 배정된 CONCURRENT개의 VU가 거의 동시에 요청 발사
- *
- * 실행 예시:
- *   [Stage 1 - 순수 트랜잭션 (레이스 컨디션 확인)]
- *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage1-raw.json
- *
- *   [Stage 2 - Redisson 분산락 (커넥션 풀 압박 + leaseTime 만료 확인)]
- *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage2-redisson.json
- *
- *   [Stage 3 - Interceptor 따닥 차단 (빠른 거절 + 풀 안정 확인)]
- *   k6 run -e BASE_URL=http://localhost:8080 -e USERS=20 -e CONCURRENT=5 k6/dummy-spike-test.js --out json=k6/results/stage3-interceptor.json
- *
- * 환경변수:
- *   BASE_URL    : 대상 서버 (기본: http://localhost:8080)
- *   USERS       : 유저 수 (기본: 10 — T3.Small 기준, 총 VU = 10×5 = 50)
- *   CONCURRENT  : 유저당 동시 따닥 요청 수 (기본: 5) → 총 VU = USERS × CONCURRENT
- *
- * ── T3.Small VU 가이드 ────────────────────────────────────────────────────────
- *   기본 (따닥 재현):  USERS=10, CONCURRENT=5  → 총 50 VU (T3.Small 안정 범위)
- *   강한 스파이크:    USERS=20, CONCURRENT=5  → 총 100 VU (Thread Pool 압박)
- *   극단 스파이크:    USERS=30, CONCURRENT=5  → 총 150 VU (HikariCP 풀 고갈/커넥션 타임아웃 관찰용)
- *   ※ Tomcat 내장 Executor는 maxQueueSize가 기본 무제한이라 RejectedExecutionException은
- *     이 VU 범위에서 재현되지 않음 — 먼저 터지는 건 HikariCP connection-timeout(기본 30s) 쪽.
- *   ※ CONCURRENT 값은 1명당 따닥 VU 수 — 동시성 테스트 핵심이므로 5 유지 권장
- */
-
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { Counter, Trend, Rate } from 'k6/metrics';
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
+import { Counter, Trend, Gauge } from 'k6/metrics';
+import {
+    BASE, TARGET_URI,
+    loginPool, adminLogin, loadTestReset, loadTestState, tagFromState,
+    scrapeBuckets, quantileFromBuckets, bucketTotal,
+    summaryFiles,
+} from './lib/dummytalk.js';
 
-// ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
-const dummyDuration      = new Trend('dummy_req_duration_ms');        // 뽑기 응답 시간 분포
-const raceSuspect        = new Counter('race_condition_suspect');     // remainingCount 음수/이상 감지 → Stage 1에서 발생 예상
-const fastFailCount      = new Counter('fast_fail_429_count');        // 인터셉터/분산락 즉시 거절 횟수 → Stage 2/3 공통 지표
-const fastFailRate       = new Rate('fast_fail_429_rate');            // 전체 중 429 차단 비율 (인터셉터 효과 측정)
-const limitHitCount      = new Counter('limit_hit_count');            // 20회 정상 소진 횟수
-const successCount       = new Counter('success_200_count');          // 200 성공 수 → 검증식 VU = success + fast_fail + limit_hit
-const rejectDuration     = new Trend('reject_429_duration_ms');       // 429 거절 경로만의 응답 시간 = "거절 비용" (Stage2 락 vs Stage3 인터셉터 비교 지표)
+/**
+ * getDummy() 따닥 스파이크 — 동시성 전략의 **정합성** 판정용 (closed model)
+ *
+ * ── 이 파일의 역할 (dummy-arrival-test.js 와의 분담) ─────────────────────────
+ *   arrival(open model) : 처리량·지연·포화 순서. 유저당 INTERVAL(5s) 간격이라
+ *                         같은 유저의 요청이 겹치지 않는다 → Lost Update 가 원리상 안 나온다.
+ *   spike(이 파일)      : 같은 유저에게 CONCURRENT 개의 VU 를 붙여 **동시에** 발사한다.
+ *                         같은 info 행에 대한 동시 read-modify-write 를 만들어
+ *                         "전략이 실제로 갱신 유실을 막는가" 를 판정한다.
+ *
+ * ── 왜 서버 상한을 다시 잴 필요가 없나 ──────────────────────────────────────
+ *   이 테스트의 결론은 성능이 아니라 **불변식**이다:
+ *     (1) success_200 == Δ reqCount (DB 가 실제로 반영한 수)  ← Lost Update ground truth
+ *     (2) race_condition_suspect == 0                         ← remainingCount 이상값
+ *     (3) 총 VU == success + 429 + limit                      ← 응답 분류 누락 없음
+ *   참/거짓은 인스턴스 성능과 무관하다. 조정할 값은 총 VU 가 아니라 **CONCURRENT**(유저당 동시 요청 수)이고,
+ *   총 VU 는 오히려 **서버를 포화시키지 않는 크기**여야 한다 — 포화시키면 큐·지연이 섞여 판정이 흐려진다.
+ *
+ * ── 시나리오 ────────────────────────────────────────────────────────────────
+ *   per-vu-iterations(iterations=1) — VU 하나가 1회 발사 후 종료. 램프업·유지 구간 없음.
+ *   VU → 유저 매핑: CONCURRENT 개의 VU 가 같은 유저를 공유 (따닥 재현의 핵심)
+ *   setup 에서 로그인을 끝내므로 발사 시점에는 뽑기 요청만 남는다.
+ *
+ * ── 파라미터 ────────────────────────────────────────────────────────────────
+ *   USERS       유저 수            (기본 200)   총 VU = USERS × CONCURRENT
+ *   CONCURRENT  유저당 동시 요청 수 (기본 5)    ★ 따닥 강도. 이 값을 낮추면 재현이 안 된다
+ *   TAG/STAGE   파일명 특이사항     (기본: 서버 설정에서 자동, 예 v1NoInterceptorPtCp10)
+ *   BASE_URL / ADMIN_EMAIL / ADMIN_PASSWORD / RESULT_DIR — arrival 과 동일
+ *
+ * ── 응답 해석 ───────────────────────────────────────────────────────────────
+ *   200  정상 뽑기
+ *   429  V2 = @DistributedLock(waitTime=0) 획득 실패(CANT_GET_LOCK) / V3·V4 = 인터셉터 SETNX 거절
+ *        → 둘 다 TOO_MANY_REQUESTS. 정상 동작이며 "따닥을 막았다" 는 증거다
+ *   400  DUMMY_4001 한도 소진 (회차 전 리셋하므로 0 이어야 정상)
+ *
+ * ── 실행 예시 (레포 루트에서) ───────────────────────────────────────────────
+ *   k6 run -e BASE_URL=https://ddotg.dev -e ADMIN_EMAIL=... -e ADMIN_PASSWORD=... \
+ *          -e USERS=200 -e CONCURRENT=5 k6/dummy-spike-test.js
+ */
 
 // ─── 파라미터 ─────────────────────────────────────────────────────────────────
-const BASE_URL   = __ENV.BASE_URL              || 'http://localhost:8080';
-const USERS      = parseInt(__ENV.USERS)       || 10;  // T3.Small 기본값 (총 VU = 10×5 = 50)
-const CONCURRENT = parseInt(__ENV.CONCURRENT)  || 5;   // 유저당 따닥 VU 수 (따닥 재현 핵심, 변경 비권장)
+const USERS      = parseInt(__ENV.USERS)      || 200;
+const CONCURRENT = parseInt(__ENV.CONCURRENT) || 5;
+const TOTAL_VU   = USERS * CONCURRENT;
+const LIMIT      = 40; // 리셋이 테스트 유저를 구독자로 만들므로 일일 한도 40 (DummyService: isSubscribe ? 40 : 20)
 
-// ─── 시나리오 설정 ────────────────────────────────────────────────────────────
+// ─── 커스텀 메트릭 ────────────────────────────────────────────────────────────
+const dummyDuration  = new Trend('dummy_req_duration_ms', true);
+// 거절 경로만의 응답 시간 = "거절 비용". V2(락, AOP 진입 후) vs V3(인터셉터, DB 진입 전) 비교 지표
+const rejectDuration = new Trend('reject_429_duration_ms', true);
+const successCount   = new Counter('success_200_count');
+const rejectCount    = new Counter('reject_429_count');
+const edge429Count   = new Counter('edge_429_count');          // Cloudflare 등 엣지 429 (앱 거절과 구분)
+const limitHitCount  = new Counter('limit_hit_400_count');     // 한도 소진 — 리셋하므로 0 이어야 정상
+const otherCount     = new Counter('unexpected_status_count'); // 5xx / 타임아웃
+const raceSuspect    = new Counter('race_condition_suspect');  // remainingCount 가 범위를 벗어남
+const lostUpdate     = new Counter('lost_update_count');       // handleSummary 에서 확정
+const droppedByPool  = new Counter('token_missing_count');
+
+// teardown -> handleSummary 는 별도 JS 런타임이라 모듈 변수가 전달되지 않는다. 값은 전부 메트릭으로 넘긴다
+// (arrival 스크립트와 같은 이유·같은 방식 — lib/dummytalk.js 주석 참고)
+const gServerP50      = new Gauge('server_p50_ms');
+const gServerP95      = new Gauge('server_p95_ms');
+const gServerP99      = new Gauge('server_p99_ms');
+const gServerTotal    = new Gauge('server_handled_total');
+const gDbDelta        = new Gauge('db_req_count_delta');
+const gCfgVersion     = new Gauge('cfg_getdummy_version');
+const gCfgInterceptor = new Gauge('cfg_interceptor_enabled');
+const gCfgVt          = new Gauge('cfg_virtual_threads');
+const gCfgPool        = new Gauge('cfg_hikari_pool_size');
+
+// ─── 시나리오 ─────────────────────────────────────────────────────────────────
 export const options = {
-  // p99까지 K6 터미널 요약에 표시 (Grafana 없이도 레이턴시 분포 확인 가능)
-  summaryTrendStats: ['avg', 'p(50)', 'p(90)', 'p(95)', 'p(99)', 'max'],
-
-  // setup() 로그인 루프는 순차 실행 — USERS=400(VU 2000)이면 원격 기준 수 분 소요 (기본 60s로는 부족)
-  setupTimeout: '10m',
-
-  scenarios: {
-    ddotg_spike: {
-      // per-vu-iterations: 각 VU가 정확히 N번 실행 후 종료 (ramping-vus와 달리 반복 없음)
-      // → 전체 1회 스파이크만 발생, 유지 구간 없음
-      executor: 'per-vu-iterations',
-      vus: USERS * CONCURRENT,
-      iterations: 1,
-      // VU 2000 스파이크 시 Tomcat 200 스레드 큐 대기가 길어짐 → 여유 확보
-      maxDuration: '5m',
+    scenarios: {
+        ddotg_spike: {
+            // per-vu-iterations: 각 VU 가 정확히 1번 실행 후 종료 -> 1회성 스파이크, 유지 구간 없음
+            executor: 'per-vu-iterations',
+            vus: TOTAL_VU,
+            iterations: 1,
+            maxDuration: '5m',
+        },
     },
-  },
-
-  thresholds: {
-    // 429는 responseCallback으로 expectedStatuses 처리 → http_req_failed 에서 제외됨
-    http_req_failed:        ['rate<0.1'],
-    // T3.Small 스파이크 기준 — 순간 폭증이므로 일반 부하보다 여유 설정
-    dummy_req_duration_ms:  ['p(95)<5000'],
-    // [핵심] Stage 1에서 이 threshold 실패 예상, Stage 2/3에서 0이어야 개선 증거
-    // (단, Stage 3는 TTL < 실제 처리시간이면 락 바이패스로 재발 가능 — dummy-spike-test.js 상단 참고)
-    race_condition_suspect: ['count<1'],
-    // Stage 2/3에서 fast_fail이 전체의 (CONCURRENT-1)/CONCURRENT 비율로 발생하는 것이 정상
-    // ex) CONCURRENT=5 → 같은 유저 5개 VU 중 1개만 통과, 4개는 차단 → rate ≈ 0.8
-  },
+    // 엣지 개입 시 오리진 직타 폴백용 (arrival 과 동일). 공개 인증서 경로로 되돌릴 땐 -e STRICT_TLS=true
+    insecureSkipTLSVerify: __ENV.STRICT_TLS !== 'true',
+    setupTimeout: '10m',
+    teardownTimeout: '2m',
+    summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+    thresholds: {
+        // 정합성 — 전략이 제 역할을 했다면 둘 다 0. V1(보호 없음)에서만 깨지는 것이 기대값이다
+        race_condition_suspect: ['count<1'],
+        lost_update_count:      ['count<1'],
+        // 회차 유효성 — 깨지면 그 회차는 해석 불가
+        limit_hit_400_count:    ['count<1'],
+        edge_429_count:         ['count<1'],
+        token_missing_count:    ['count<1'],
+    },
 };
 
-// ─── 선행 로그인 (setup은 단일 스레드, VU 시작 전 1회만 실행) ─────────────────
+// ─── setup: 관리자 -> 리셋 -> 스냅샷 -> 유저 풀 로그인 ────────────────────────
 export function setup() {
-  console.log(`[setup] ${USERS}명 로그인 시작, 총 VU=${USERS * CONCURRENT} (USERS=${USERS}, CONCURRENT=${CONCURRENT})`);
-  const tokenMap = {};
+    console.log(`[setup] 따닥 스파이크 — 유저 ${USERS}명 × 동시 ${CONCURRENT} = 총 ${TOTAL_VU} VU (1회 발사)`);
 
-  // memberId 1은 관리자 계정 → test2@test.com 부터 시작 (i=2 ~ USERS+1)
-  for (let i = 2; i <= USERS + 1; i++) {
-    const res = http.post(
-      `${BASE_URL}/api/members/login`,
-      JSON.stringify({ email: `test${i}@test.com`, password: 'Test1234!' }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-    const token = res.json('result.accessToken');
-    if (!token) {
-      console.error(`[setup] test${i}@test.com 로그인 실패 (status=${res.status})`);
+    const adminToken = adminLogin();
+    if (adminToken) {
+        const updated = loadTestReset(adminToken);
+        console.log(`[setup] load-test/reset → ${updated}명 초기화 (reqCount=0, 구독자 전환)`);
     }
-    tokenMap[String(i)] = token || '';
-  }
 
-  console.log(`[setup] 로그인 완료 → 스파이크 발사 준비`);
-  return tokenMap;
+    const state = loadTestState(adminToken);
+    if (state) {
+        console.log(`[setup] 서버 설정: getDummy v${state.getDummyVersion}, interceptor=${state.interceptorEnabled}, `
+            + `VT=${state.virtualThreads}, hikari=${state.hikariPoolSize}, 테스트 유저 ${state.testUserCount}명`);
+        if (state.testUserCount < USERS) {
+            console.error(`[setup] 시딩된 유저 ${state.testUserCount}명 < 필요 ${USERS}명 — TEST_LOAD_USERS_COUNT 확인`);
+        }
+    }
+
+    // 서버측 히스토그램 시작 스냅샷 (Micrometer 는 기동 이후 누적이라 회차값은 델타로 구한다)
+    const buckets = scrapeBuckets(TARGET_URI);
+
+    const pool = loginPool(USERS);
+    console.log(`[setup] 로그인 완료 ${Object.keys(pool.tokens).length}/${USERS} (실패 ${pool.failed}) → 스파이크 발사`);
+
+    return { adminToken, tokens: pool.tokens, base: { state, buckets } };
 }
 
-// ─── 메인 시나리오: 따닥 1회 발사 ────────────────────────────────────────────
-export default function (tokenMap) {
-  // VU → 유저 매핑: CONCURRENT개의 VU가 동일 유저에 배정 → 따닥 시뮬레이션
-  // ex) CONCURRENT=10: VU 1~10 → user2(test2@test.com), VU 11~20 → user3, ...
-  // memberId 1은 관리자 계정이므로 +2부터 시작
-  const userNum = Math.floor((__VU - 1) / CONCURRENT) + 2;
-  const token   = tokenMap[String(userNum)];
+// ─── 메인: CONCURRENT 개의 VU 가 같은 유저로 동시에 1발 ───────────────────────
+export default function (data) {
+    // VU 1~CONCURRENT -> user1, VU CONCURRENT+1~2*CONCURRENT -> user2 ...
+    const userNum = Math.floor((__VU - 1) / CONCURRENT) + 1;
+    const token = data.tokens[String(userNum)];
+    if (!token) { droppedByPool.add(1); return; }
 
-  if (!token) {
-    console.error(`[VU=${__VU}] user${userNum} 토큰 없음, 스킵`);
-    return;
-  }
+    group('getDummy_ddotg', () => {
+        const res = http.get(`${BASE}${TARGET_URI}`, {
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            // 429/400 은 설계상 정상 응답 -> http_req_failed 에서 제외
+            responseCallback: http.expectedStatuses(200, 400, 429),
+            // 고 VU 스파이크에서 큐 대기가 길어져도 데이터를 잃지 않도록 (k6 기본 60s 보다 짧게 잘라 회차가 늘어지는 것도 방지)
+            timeout: '30s',
+            tags: { name: 'getDummy' },
+        });
+        const elapsed = res.timings.duration;
+        dummyDuration.add(elapsed);
 
-  const headers = {
-    'Content-Type':  'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
+        if (res.status === 429) {
+            // 앱 429 는 APIResponse JSON("code" 필드)을 담고, 엣지(Cloudflare) 429 는 HTML 이다.
+            // 섞이면 "전략이 막았다" 와 "경로가 막았다" 를 구분할 수 없으므로 분리한다.
+            const body = res.body || '';
+            if (body.indexOf('"code"') < 0) { edge429Count.add(1); return; }
+            rejectCount.add(1);
+            rejectDuration.add(elapsed);
+            check(res, { '따닥 차단 (429 정상)': () => true });
+            return;
+        }
 
-  group('getDummy_ddotg', () => {
-    const start = Date.now();
-    const res   = http.get(`${BASE_URL}/api/dummies/dummy`, {
-      headers,
-      // 429 = 인터셉터(Stage3) 또는 분산락(Stage2) 따닥 차단 → 정상 동작, http_req_failed 제외
-      responseCallback: http.expectedStatuses(200, 400, 429),
-      // 고VU 시 Tomcat 큐 대기가 K6 기본 60s를 초과하면 측정 데이터가 통째로 유실됨 → 상향
-      timeout: '120s',
+        if (res.status === 400) {
+            let code = null;
+            try { code = res.json('code'); } catch (e) { /* noop */ }
+            if (code === 'DUMMY_4001') { limitHitCount.add(1); return; }
+            otherCount.add(1);
+            return;
+        }
+
+        if (res.status !== 200) {
+            otherCount.add(1);
+            check(res, { 'getDummy 200': () => false });
+            return;
+        }
+
+        successCount.add(1);
+        check(res, { 'getDummy 200': () => true });
+
+        // 레이스 감지: 정상이라면 remainingCount 는 [0, LIMIT] 안에 있어야 한다.
+        // 예전엔 경계가 20 으로 하드코딩돼 있었는데, 지금 테스트 유저는 리셋으로 구독자(40)가 되므로
+        // 정상 응답이 전부 레이스로 오판됐다. 경계를 한도와 맞춘다.
+        let remaining;
+        try { remaining = res.json('result.remainingCount'); } catch (e) { remaining = undefined; }
+        if (remaining !== undefined && remaining !== null && (remaining < 0 || remaining > LIMIT)) {
+            raceSuspect.add(1);
+            console.warn(`[RACE SUSPECT] VU=${__VU} user=test${userNum}@test.com remaining=${remaining} (한도 ${LIMIT})`);
+        }
     });
-    const elapsed = Date.now() - start;
-    dummyDuration.add(elapsed);
-
-    // [Stage 2/3] 따닥 즉시 차단
-    // Stage 2: @DistributedLock(waitTime=0) → CANT_GET_LOCK → GeneralException → 429 또는 500
-    // Stage 3: IdempotentRequestInterceptor → DUPLICATE_REQUEST → 429
-    if (res.status === 429) {
-      fastFailCount.add(1);
-      fastFailRate.add(1);
-      rejectDuration.add(elapsed); // 거절 비용: 인터셉터(DB 진입 전) vs 분산락(AOP 진입 후) 차이 측정
-      check(res, { '[Stage2/3] 따닥 즉시 차단 (429 정상)': () => true });
-      console.log(`[FAST FAIL] VU=${__VU}, user=test${userNum}@test.com → 인터셉터/분산락 차단`);
-      return;
-    }
-    fastFailRate.add(0); // 정상 통과는 rate에 0 기여
-
-    // 20회 정상 소진
-    if (res.status === 400) {
-      const code = res.json('code') ?? res.json('result.code');
-      if (code === 'DUMMY_4001') {
-        limitHitCount.add(1);
-        check(res, { '20회 제한 도달 (정상)': () => true });
-        return;
-      }
-    }
-
-    check(res, { 'getDummy 200': (r) => r.status === 200 });
-    if (res.status === 200) {
-      successCount.add(1);
-    }
-
-    // 레이스 컨디션 감지: remainingCount가 음수 or 20 초과 → Stage 1에서 발생 예상
-    const remaining = res.json('result.remainingCount');
-    if (remaining !== undefined && (remaining < 0 || remaining > 20)) {
-      raceSuspect.add(1);
-      console.warn(`[RACE SUSPECT] VU=${__VU}, user=test${userNum}@test.com, remaining=${remaining}`);
-    }
-  });
 }
 
-// ─── 결과 자동 수집: 회차별 압축 JSON 저장 ───────────────────────────────────
-// run-stage-matrix.ps1이 이 JSON들을 모아 스테이지별 마크다운 표(latest-per-VU) +
-// 전체 실행 이력 마크다운(run-history.md)을 자동 생성
-// 파일명: k6/results/<yyyyMMdd-HHmmss>_<STAGE>-vu<총VU>-<USERS>x<CONCURRENT>.json
-//   앞에 실행 시각(로컬)을 붙여 재실행해도 이전 결과를 덮어쓰지 않고 전부 보존
+// ─── teardown: 서버측 분위수 + DB 반영 건수 -> Gauge 로 전달 ──────────────────
+export function teardown(data) {
+    const base = data.base || {};
+    const nowBuckets = scrapeBuckets(TARGET_URI);
+    const q = (p) => quantileFromBuckets(base.buckets, nowBuckets, p);
+    const fmt = (v) => (v === null || v === undefined ? 'n/a' : (v * 1000).toFixed(1) + 'ms');
+    const serverP50 = q(0.5), serverP95 = q(0.95), serverP99 = q(0.99);
+    const serverTotal = bucketTotal(base.buckets, nowBuckets);
+
+    const now = loadTestState(data.adminToken);
+    const deltaSum = (now && base.state) ? (now.reqCountSum - base.state.reqCountSum) : null;
+
+    const toMs = (v) => (v === null || v === undefined ? -1 : Math.round(v * 100000) / 100);
+    gServerP50.add(toMs(serverP50));
+    gServerP95.add(toMs(serverP95));
+    gServerP99.add(toMs(serverP99));
+    gServerTotal.add(serverTotal);
+    gDbDelta.add(deltaSum === null ? -1 : deltaSum);
+
+    const cfg = base.state;
+    gCfgVersion.add(cfg ? cfg.getDummyVersion : -1);
+    gCfgInterceptor.add(cfg ? (cfg.interceptorEnabled ? 1 : 0) : -1);
+    gCfgVt.add(cfg ? (cfg.virtualThreads ? 1 : 0) : -1);
+    gCfgPool.add(cfg ? cfg.hikariPoolSize : -1);
+
+    console.log('\n[teardown] 서버측 p50/p95/p99 = ' + fmt(serverP50) + ' / ' + fmt(serverP95) + ' / ' + fmt(serverP99)
+        + '  |  서버 처리 ' + serverTotal + '건  |  Δ reqCount = ' + (deltaSum === null ? 'n/a (관리자 미지정)' : deltaSum)
+        + '  → 상세 판정은 아래 요약/결과 파일 참조');
+}
+
+// ─── handleSummary: 정합성 3개 불변식 판정 + 파일 저장 ────────────────────────
 export function handleSummary(data) {
-  const m = data.metrics;
-  const v = (name, stat) => {
-    if (!m[name] || m[name].values[stat] === undefined) return 0;
-    return Math.round(m[name].values[stat] * 100) / 100;
-  };
+    const m = data.metrics || {};
+    const cnt = (n) => (m[n] && m[n].values && m[n].values.count) || 0;
+    const gauge = (n) => {
+        const v = m[n] && m[n].values ? m[n].values.value : undefined;
+        return (v === undefined || v === -1) ? null : v;
+    };
 
-  const stage   = __ENV.STAGE || 'stageX';
-  const totalVu = USERS * CONCURRENT;
-  const now     = new Date(); // ran_at과 파일명 타임스탬프를 같은 시점으로 통일
-  const success = v('success_200_count', 'count');
-  const ff      = v('fast_fail_429_count', 'count');
-  const limit   = v('limit_hit_count', 'count');
+    const success = cnt('success_200_count');
+    const reject  = cnt('reject_429_count');
+    const limit   = cnt('limit_hit_400_count');
+    const other   = cnt('unexpected_status_count');
+    const missing = cnt('token_missing_count');
+    const dbDelta = gauge('db_req_count_delta');
+    const cfgVer  = gauge('cfg_getdummy_version');
+    const config = cfgVer === null ? null : {
+        getDummyVersion: cfgVer,
+        interceptorEnabled: gauge('cfg_interceptor_enabled') === 1,
+        virtualThreads: gauge('cfg_virtual_threads') === 1,
+        hikariPoolSize: gauge('cfg_hikari_pool_size'),
+    };
 
-  const summary = {
-    stage:        stage,
-    users:        USERS,
-    concurrent:   CONCURRENT,
-    total_vu:     totalVu,
-    avg:          v('dummy_req_duration_ms', 'avg'),
-    p50:          v('dummy_req_duration_ms', 'p(50)'),
-    p90:          v('dummy_req_duration_ms', 'p(90)'),
-    p95:          v('dummy_req_duration_ms', 'p(95)'),
-    p99:          v('dummy_req_duration_ms', 'p(99)'),
-    max:          v('dummy_req_duration_ms', 'max'),
-    // 거절 비용: 429 응답만의 레이턴시 — Stage3 인터셉터가 Stage2 락보다 싸다는 주장의 근거
-    reject_p95:   v('reject_429_duration_ms', 'p(95)'),
-    reject_p99:   v('reject_429_duration_ms', 'p(99)'),
-    success_200:  success,
-    fast_fail_429: ff,
-    fast_fail_rate: v('fast_fail_429_rate', 'rate'),
-    limit_hit:    limit,
-    race_suspect: v('race_condition_suspect', 'count'),
-    http_req_failed_rate: v('http_req_failed', 'rate'),
-    http_reqs_per_sec:    v('http_reqs', 'rate'),
-    // 검증식: 모든 VU가 성공/거절/한도소진 중 하나로 분류되어야 함 (불일치 = 유실 or 예외 응답)
-    vu_equation_ok: (success + ff + limit) === totalVu,
-    vu_equation_sum: success + ff + limit,
-    ran_at: now.toISOString(),
-  };
+    const verdict = {
+        users: USERS, concurrent: CONCURRENT, total_vu: TOTAL_VU,
+        success_200: success, reject_429: reject, edge_429: cnt('edge_429_count'),
+        limit_hit_400: limit, unexpected_status: other, token_missing: missing,
+        race_condition_suspect: cnt('race_condition_suspect'),
+        server_p50_ms: gauge('server_p50_ms'),
+        server_p95_ms: gauge('server_p95_ms'),
+        server_p99_ms: gauge('server_p99_ms'),
+        server_handled_total: gauge('server_handled_total'),
+        db_req_count_delta: dbDelta,
+        config: config,
+    };
 
-  // 로컬 시각 기준 yyyyMMdd-HHmmss (파일명에 콜론 등 금지문자 없이 정렬 가능한 형태)
-  const pad = (n) => String(n).padStart(2, '0');
-  const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-`
-           + `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    // (1) Lost Update — 같은 유저의 동시 요청이 서로의 reqCount 증가를 덮어썼는가
+    let lostLine;
+    if (dbDelta === null) {
+        lostLine = '  (1) Lost Update  : 판정 불가 (ADMIN_EMAIL/ADMIN_PASSWORD 미지정 또는 Admin API 실패)';
+    } else {
+        verdict.lost_update_count = Math.max(0, success - dbDelta);
+        verdict.lost_update_ok = verdict.lost_update_count === 0;
+        lostLine = '  (1) Lost Update  : success_200=' + success + ' vs Δ reqCount=' + dbDelta + ' → '
+            + (verdict.lost_update_ok ? '유실 없음 OK' : '[!] ' + verdict.lost_update_count + '건 유실');
+        if (m.lost_update_count) {
+            m.lost_update_count.values.count = verdict.lost_update_count;
+            if (m.lost_update_count.thresholds && m.lost_update_count.thresholds['count<1']) {
+                m.lost_update_count.thresholds['count<1'].ok = verdict.lost_update_ok;
+            }
+        }
+    }
 
-  // JSON = 표/그래프용 압축 요약, TXT = K6 터미널 요약 원본 (http_req_* 세부 분해 보존용)
-  // TXT를 남기는 이유: JSON엔 없는 http_req_blocked/tls_handshaking/waiting 분해가
-  //   레이턴시 원인 진단(TLS vs 큐 대기 vs 서버 처리)에 필요할 때가 있음
-  const base = `k6/results/${ts}_${stage}-vu${totalVu}-${USERS}x${CONCURRENT}`;
-  return {
-    [`${base}.json`]: JSON.stringify(summary, null, 2),
-    [`${base}.txt`]:  textSummary(data, { indent: ' ', enableColors: false }),
-    'stdout':         textSummary(data, { indent: ' ', enableColors: true }),
-  };
+    // (3) 응답 분류 누락 검증 — 총 VU 가 성공/거절/한도 중 하나로 전부 분류돼야 한다
+    const classified = success + reject + limit;
+    verdict.vu_equation_sum = classified;
+    verdict.vu_equation_ok = classified === TOTAL_VU;
+
+    const fmt = (v) => (v === null ? 'n/a' : v.toFixed(1) + 'ms');
+    const processingReport = [
+        '',
+        '────────────── 정합성 판정 (유저 ' + USERS + '명 × 동시 ' + CONCURRENT + ' = ' + TOTAL_VU + ' VU) ──────────────',
+        '  [서버 설정]      getDummy v' + (config ? config.getDummyVersion : '?')
+            + ' · interceptor=' + (config ? config.interceptorEnabled : '?')
+            + ' · VT=' + (config ? config.virtualThreads : '?')
+            + ' · hikari=' + (config ? config.hikariPoolSize : '?'),
+        '  [응답 분포]      200=' + success + ' · 429=' + reject + ' · 400(한도)=' + limit
+            + ' · 기타=' + other + ' · 토큰없음=' + missing,
+        '  [서버측 지연]    p50 / p95 / p99 = ' + fmt(verdict.server_p50_ms) + ' / ' + fmt(verdict.server_p95_ms)
+            + ' / ' + fmt(verdict.server_p99_ms),
+        '',
+        lostLine,
+        '  (2) 레이스 감지  : race_condition_suspect=' + verdict.race_condition_suspect
+            + ' (remainingCount 가 [0, ' + LIMIT + '] 을 벗어난 횟수)',
+        '  (3) 분류 검증식  : ' + TOTAL_VU + ' VU == 200+429+400 = ' + classified + ' → '
+            + (verdict.vu_equation_ok ? 'OK' : '[!] 불일치 — 타임아웃/5xx 로 유실된 응답이 있다'),
+        '',
+        '  ※ 429 는 정상 동작이다 — V2=분산락 획득 실패(CANT_GET_LOCK), V3·V4=인터셉터 SETNX 거절.',
+        '    따닥을 막았다는 증거이며, 그 비용은 reject_429_duration_ms 로 비교한다.',
+        '  ※ 이 회차는 성능이 아니라 불변식을 본다. 서버를 포화시키지 않는 VU 로 도는 것이 전제다.',
+        '──────────────────────────────────────────────────────────────────────────',
+    ].join('\n');
+
+    const tag = __ENV.TAG || __ENV.STAGE || tagFromState(config);
+    return summaryFiles(data, {
+        load: TOTAL_VU + 'vu',   // closed model -> CLAUDE_INIT 규칙상 vu 표기
+        duration: USERS + 'x' + CONCURRENT,
+        tag: tag,
+        scenario: 'closed model 따닥 스파이크 (per-vu-iterations, 유저 ' + USERS + '명 × 동시 ' + CONCURRENT + ', 1회 발사)',
+        params: { users: USERS, concurrent: CONCURRENT, total_vu: TOTAL_VU, daily_limit: LIMIT },
+        processingReport: processingReport,
+        extra: verdict,
+    });
 }
