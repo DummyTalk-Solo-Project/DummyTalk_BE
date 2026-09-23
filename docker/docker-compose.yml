@@ -32,8 +32,12 @@ services:
       #   (의심 지점: Redisson 3.18.0 RLock 내부, Hibernate L1 Cache 동기화)
       - JAVA_TOOL_OPTIONS=-Xms${JAVA_HEAP:-2g} -Xmx${JAVA_HEAP:-2g}
       - TEST_LOAD_USERS=true
-      # 테스트 유저 시딩 규모 = 본측정 최대 RATE × INTERVAL (300 × 5s = 1500). application.yml test.load-users-count 로 연결, 멱등
+      # 테스트 유저 시딩 규모 = 본측정 최대 RATE × INTERVAL (600 × 5s = 3000). application.yml test.load-users-count 로 연결, 멱등
       - TEST_LOAD_USERS_COUNT=${TEST_LOAD_USERS_COUNT:-300}
+      # 로그 레벨 — 부하 회차에서는 기본값(SQL OFF / 앱 INFO)을 쓰고, 로그 비용 대조 회차에서만 .env 로 올린다.
+      # 200rps 실측에서 로그가 초당 3,066건이었고 CPU(system) 가 99% 라 이 비용이 결과를 직접 흔들었다.
+      - LOG_LEVEL_SQL=${LOG_LEVEL_SQL:-OFF}
+      - LOG_LEVEL_APP=${LOG_LEVEL_APP:-INFO}
       # CP 스윕 실험용 — 셸에서 HIKARI_POOL_SIZE=20 docker compose up -d spring 처럼 값 지정, 미지정 시 10(기존 baseline)
       - HIKARI_POOL_SIZE=${HIKARI_POOL_SIZE:-10}
       - DB_HOST=postgresql
