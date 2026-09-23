@@ -123,16 +123,75 @@ deploy.yml 은 배포마다 `~/dummytalk/.env` 를 **새로 덮어쓴다.** 측�
 cd ~/dummytalk
 cat >> .env <<'EOF'
 JAVA_HEAP=2g
-TEST_LOAD_USERS_COUNT=1500
+TEST_LOAD_USERS_COUNT=3000
 HIKARI_POOL_SIZE=10
 EOF
 cp .env docker/.env
 sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
 sudo docker logs -f DummyTalk_Spring 2>&1 | grep -m1 "테스트 유저"   # "테스트 유저 1200명 생성 완료" (기존 300 제외)
 ```
-- `TEST_LOAD_USERS_COUNT` = 본측정 최대 RATE × INTERVAL (300 × 5s = 1500). 시딩은 멱등 — 늘려서 재기동만 하면 된다.
+- `TEST_LOAD_USERS_COUNT` = 본측정 최대 RATE × INTERVAL (600 × 5s = 3000). 시딩은 멱등 — 늘려서 재기동만 하면 된다.
+  - k6 는 회차마다 `RATE × INTERVAL` 명만 로그인시키므로, 많이 시딩해 둬도 회차 비용은 늘지 않는다.
 - `JAVA_HEAP` 은 회차 사이에 바꾸지 않는다 (바꾸면 다른 실험). compose 기본값이 2g 라 이 줄을 빠뜨려도 2g 로 뜬다.
 - CP 스윕은 `HIKARI_POOL_SIZE` 만 바꿔 `up -d spring` (nginx 는 resolver 로 새 IP 를 따라감).
+
+## 10-b. 관리자 승격 (재구축할 때마다 필요)
+
+k6 의 `/api/admin/load-test/reset`(회차 사이 reqCount 초기화)·`/state`(Lost Update 판정) 는 **ADMIN 권한**을 요구하는데,
+**코드에 ADMIN 을 만드는 경로가 없다** — 회원가입도 `TestMemberDataLoader` 도 전부 `MemberRole.MEMBER` 로 만든다.
+그래서 시딩된 테스트 유저 하나를 DB 에서 직접 승격한다. (인스턴스를 새로 만들면 다시 해야 한다 — 볼륨과 함께 사라짐)
+
+```bash
+cd ~/dummytalk
+sudo docker exec DummyTalk_Postgres psql   -U "$(grep ^DB_USERNAME= .env | cut -d= -f2)"   -d "$(grep ^DB_NAME= .env | cut -d= -f2)"   -c "UPDATE member SET role='ADMIN' WHERE email='test1@test.com'"
+# 확인 (1 이어야 한다)
+sudo docker exec DummyTalk_Postgres psql -U "$(grep ^DB_USERNAME= .env | cut -d= -f2)"   -d "$(grep ^DB_NAME= .env | cut -d= -f2)" -tAc "SELECT count(*) FROM member WHERE role='ADMIN'"
+```
+
+- 비밀번호는 `TestMemberDataLoader` 의 공통값 `Test1234!` → k6 인자: `-e ADMIN_EMAIL=test1@test.com -e ADMIN_PASSWORD='Test1234!'`
+- `test1@test.com` 은 부하 유저 풀에도 포함되지만 `getDummy` 는 역할을 보지 않으므로 측정에 영향 없고, 리셋 대상(`test%@test.com`)에도 포함돼 일관된다.
+- 자격증명은 문서·스크립트에 남기지 않고 `-e` 로만 넘긴다.
+
+## 10-c. V1~V4 동시성 전략 전환 (재배포 불필요)
+
+`.env` 3줄만 바꾸고 spring 컨테이너만 다시 띄우면 된다 (약 40초). 이미지 재빌드·GitHub Actions 불필요.
+
+| 회차 | `GETDUMMY_VERSION` | `INTERCEPTOR_ENABLED` | `VIRTUAL_THREADS` | 전략 |
+|---|---|---|---|---|
+| **V1** | 1 | false | false | 순수 `@Transactional` (동시성 보호 없음) |
+| **V2** | 2 | false | false | + `@DistributedLock(waitTime=0)` |
+| **V3** | 3 | true | false | + `IdempotentRequestInterceptor`(SETNX) |
+| **V4** | 3 | true | true | + Virtual Thread (요청 처리 스레드) |
+
+```bash
+cd ~/dummytalk
+# 예: V1 로 전환 (sed 로 세 줄을 덮어쓰고 없으면 추가)
+for kv in "GETDUMMY_VERSION=1" "INTERCEPTOR_ENABLED=false" "VIRTUAL_THREADS=false"; do
+  k="${kv%%=*}"; grep -q "^$k=" .env && sed -i "s|^$k=.*|$kv|" .env || echo "$kv" >> .env
+done
+cp .env docker/.env
+sudo docker compose -p dummytalk -f docker/docker-compose.yml --env-file .env up -d spring
+```
+
+**바꾼 뒤 반드시 실제 반영을 확인할 것** — 오늘 "V3 인 줄 알았는데 VT 가 켜져 있던" 일이 있었다:
+```bash
+curl -s https://ddotg.dev/api/admin/load-test/state -H "Authorization: Bearer <ADMIN AT>" | jq .result
+# getDummyVersion / interceptorEnabled / virtualThreads 가 의도대로인지
+```
+VT 가 실제로 꺼졌는지는 Tomcat 지표로도 교차 확인된다:
+```bash
+sudo docker exec DummyTalk_Prometheus wget -qO- http://spring:8080/actuator/prometheus | grep tomcat_threads_config_max
+#   VT off -> 200 (플랫폼 스레드 풀)   /   VT on -> -1 (풀 자체가 없음)
+```
+
+### 회차당 절차 (버전마다 반복)
+1. 위 전환 → `/api/admin/load-test/state` 확인
+2. **워밍업 필수** — 컨테이너 재시작으로 JIT 이 초기화된다. 생략하면 p50 이 158배로 나온 적이 있다
+   `k6 run ... -e RATE=50 -e DURATION=2m -e TAG=warmup k6/dummy-arrival-test.js`
+   (setup 로그에 `bucket 없음` 경고가 뜨면 콜드였다는 뜻 — 워밍업이 제 역할을 한 것)
+3. 3분 간격 → **축 A 처리량·지연**: `k6 run ... -e RATE=200 k6/dummy-arrival-test.js` → Grafana 캡쳐 3장
+4. 2분 간격 → **축 B 정합성**: `k6 run ... -e USERS=200 -e CONCURRENT=5 k6/dummy-spike-test.js`
+5. 결과 파일 2쌍이 `dev_notes/DummyTalk/results/` 에 생겼는지 확인 (파일명 TAG 로 버전이 구분된다)
 
 ## 11. 회차 전 체크리스트 (매 회차)
 ```bash
@@ -144,10 +203,15 @@ curl -s https://ddotg.dev/actuator/prometheus | grep -c 'http_server_requests_se
 - Grafana `http://<IP>:3000` → DummyTalk 폴더 → "DummyTalk · K6 부하테스트 (open model)" 로드 확인 (admin 초기 비밀번호는 최초 로그인 시 변경)
 - 회차 실행은 내 PC 에서 (레포 루트):
   ```bash
-  k6 run -e BASE_URL=https://ddotg.dev -e ADMIN_EMAIL=<관리자> -e ADMIN_PASSWORD=<비밀번호> -e RATE=50 -e DURATION=2m -e TAG=warmup k6/dummy-arrival-test.js
-  k6 run -e BASE_URL=https://ddotg.dev -e ADMIN_EMAIL=<관리자> -e ADMIN_PASSWORD=<비밀번호> -e RATE=50  k6/dummy-arrival-test.js
+  k6 run -e BASE_URL=https://ddotg.dev -e ADMIN_EMAIL=test1@test.com -e ADMIN_PASSWORD='Test1234!' -e RATE=50 -e DURATION=2m -e TAG=warmup k6/dummy-arrival-test.js
+  k6 run -e BASE_URL=https://ddotg.dev -e ADMIN_EMAIL=test1@test.com -e ADMIN_PASSWORD='Test1234!' -e RATE=50  k6/dummy-arrival-test.js
   ```
-- 회차마다: 결과 파일(`dev_notes/DummyTalk/results/`) 확인 → Grafana 창을 결과 파일의 시작~종료로 맞춰 캡쳐 1~4.
+- 회차마다: 결과 파일(`dev_notes/DummyTalk/results/`) 확인 → Grafana 캡쳐.
+  - 저장 위치: `dev_notes/DummyTalk/grafana dashboard/<회차 파일명>/1.jpg, 2.jpg, 3.jpg`
+    (1 = Row 1·2 부하/지연, 2 = Row 3 포화 순서·CP, 3 = Row 4·5 JVM/보조)
+  - 창은 결과 파일 헤더의 `시작 −30s ~ 종료 +30s`. 이보다 넓히면 setup(로그인) 구간이 섞여
+    범례의 **Mean 이 희석**된다 — 회차 비교에는 **Max 와 k6 총계**만 쓸 것 (CLAUDE_INIT 수치 해석 규칙 ②③).
+  - 회차마다 기록할 Grafana Max: 처리 rps · 429 비율 · 서버 p95/p99 · CP pending · CP acquire p95 · CPU system · GC max pause
 
 ## 12. 종료
 측정이 끝나면 **중지가 아니라 종료**(스토리지 과금까지 끊김). 종료 전:
@@ -164,3 +228,4 @@ curl -s https://ddotg.dev/actuator/prometheus | grep -c 'http_server_requests_se
 | `~/dummytalk/.env` | deploy.yml 이 Secrets 로 생성 + 10단계 측정용 키 |
 | Postgres/Redis/ES/Grafana 볼륨 데이터 | 첫 기동 시 DataLoader 가 시딩 (더미·희귀도·뱃지·테스트 유저) |
 | Grafana admin 비밀번호 | 최초 로그인 시 |
+| **ADMIN 역할 부여** (`test1@test.com`) | 10-b 단계 SQL — 코드에 생성 경로가 없다 |
