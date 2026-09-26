@@ -18,12 +18,8 @@ server:
       enabled: true
 
 spring:
-  # 요청 처리 스레드 모델 — V3(플랫폼 스레드) vs V4(Virtual Thread) 를 가르는 축.
-  # VirtualThreadConfig 가 이 값을 @ConditionalOnProperty 로 따라가므로 .env 만 바꾸면 전환된다(재배포 불필요).
-  # ⚠️ 이 값은 Tomcat 요청 executor 만 바꾼다. AsyncConfig 의 badge/mail VT executor 와
-  #    SchedulerConfig 의 VT 스케줄러는 4개 회차 내내 고정 — 뽑기마다 발행되는 DummyViewedEvent 를
-  #    플랫폼 풀(core 3 / max 10 / queue 50)로 되돌리면 200rps 에서 큐가 넘쳐 RejectedExecution 이 쏟아지고,
-  #    그건 "요청 스레드 모델" 비교와 무관한 잡음이기 때문이다. 단일 변수만 움직이려는 의도적 선택.
+  # 스레드 모델 — V1~V3(Platform Thread) vs V4(Virtual Thread) 를 가르는 축.
+  # VirtualThreadConfig가 이 값을 따라가므로 .env 만 바꾸면 전환 OK
   threads:
     virtual:
       enabled: ${VIRTUAL_THREADS:true}
@@ -144,17 +140,19 @@ test:
 # 이미지 재빌드·재배포 불필요. 서버가 실제로 어떤 조합으로 떠 있는지는
 # GET /api/admin/load-test/state 로 확인할 것 (회차 결과 파일 헤더에도 자동 기록된다).
 #
-# ⚠️ 축이 둘이다. 예전 주석에는 "스레드 모델" 축이 빠져 있어 V3 인 줄 알고 VT 가 켜진 채 측정한 적이 있다.
-#
 #  회차 | GETDUMMY_VERSION | INTERCEPTOR_ENABLED | VIRTUAL_THREADS | 전략
 #  -----|------------------|---------------------|-----------------|------------------------------------
 #  V1   | 1                | false               | false           | 순수 @Transactional (동시성 보호 없음)
 #  V2   | 2                | false               | false           | + @DistributedLock(waitTime=0)
 #  V3   | 3                | true                | false           | + IdempotentRequestInterceptor(SETNX)
-#  V4   | 3                | true                | true            | + Virtual Thread (요청 처리 스레드)
+#  V4   | 3                | true                | true            | + Virtual Thread (요청 + 비동기 전 구간)
 concurrency:
   getDummy-version: ${GETDUMMY_VERSION:3}       # 1 = V1(순수트랜잭션) / 2 = V2(분산락) / 3 = V3·V4(인터셉터, default)
   interceptor-enabled: ${INTERCEPTOR_ENABLED:true} # false = V1/V2 측정 시 인터셉터 미등록 (WebConfig 에서 분기)
+
+  # 비동기(AsyncConfig 의 badge/mail) 스레드 모델. -> PT VS VT
+  # 교차 실험(요청은 플랫폼, 비동기만 VT 등)이 필요할 때만 ASYNC_VIRTUAL_THREADS 로 덮어쓴다.
+  async-virtual-threads: ${ASYNC_VIRTUAL_THREADS:${VIRTUAL_THREADS:true}}
 
 # prod 프로파일 없이 배포 환경에서 Swagger 비활성화
 springdoc:
