@@ -38,11 +38,7 @@ public class BadgeService {
      */
     @Transactional
     public void checkAndAwardByDummyViewed(Long memberId, String rarityName, Boolean isPityTriggered, long totalDummyCount) {
-        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
-        if (member == null) {
-            log.warn("[BadgeService - checkAndAwardByDummyViewed()] Member {} not found, 뱃지 체크 건너뜀", memberId);
-            return;
-        }
+
 
         List<String> candidates = new ArrayList<>();
 
@@ -56,6 +52,12 @@ public class BadgeService {
 
         // SPECIAL 등급 획득 뱃지
         if ("SPECIAL".equals(rarityName)) candidates.add(BADGE_LEGEND);
+
+        // 대상인 지 Member 조회 보다 먼저
+        // 안그러면 커넥션 경합에 그대로 기여 + DB 조회 증가!
+        if (candidates.isEmpty()) return; // DB 를 치기 전에 빠져나간다 — 대다수 요청이 여기서 끝난다
+
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new MemberHandler(ErrorCode.MEMBER_NOT_FOUND));
 
         for (String badgeName : candidates) {
             awardIfNotOwned(member, badgeName);

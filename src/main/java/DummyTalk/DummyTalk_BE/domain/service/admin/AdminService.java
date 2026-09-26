@@ -66,6 +66,8 @@ public class AdminService {
     private int hikariPoolSize;
     @Value("${spring.threads.virtual.enabled:false}")
     private boolean virtualThreadsEnabled;
+    @Value("${concurrency.async-virtual-threads:true}")
+    private boolean asyncVirtualThreadsEnabled;
 
     @Value("${spring.ai.openai.api-key}")
     private String openAiKey;
@@ -262,6 +264,7 @@ public class AdminService {
                 .interceptorEnabled(interceptorEnabled)
                 .hikariPoolSize(hikariPoolSize)
                 .virtualThreads(virtualThreadsEnabled)
+                .asyncVirtualThreads(asyncVirtualThreadsEnabled)
                 .build();
     }
 }

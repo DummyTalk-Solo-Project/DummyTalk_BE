@@ -43,6 +43,8 @@ services:
       - GETDUMMY_VERSION=${GETDUMMY_VERSION:-3}
       - INTERCEPTOR_ENABLED=${INTERCEPTOR_ENABLED:-true}
       - VIRTUAL_THREADS=${VIRTUAL_THREADS:-true}
+      # 비동기(badge/mail) 스레드 모델. 미지정이면 application.yml 에서 VIRTUAL_THREADS 를 따라가므로 굳이 적을 필요 X
+      - ASYNC_VIRTUAL_THREADS=${ASYNC_VIRTUAL_THREADS:-${VIRTUAL_THREADS:-true}}
       # CP 스윕 실험용 — 셸에서 HIKARI_POOL_SIZE=20 docker compose up -d spring 처럼 값 지정, 미지정 시 10(기존 baseline)
       - HIKARI_POOL_SIZE=${HIKARI_POOL_SIZE:-10}
       - DB_HOST=postgresql
