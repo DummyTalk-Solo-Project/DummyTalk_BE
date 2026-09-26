@@ -45,6 +45,9 @@ public class AdminRespDTO {
         private Integer getDummyVersion; // concurrency.getDummy-version (1 순수TX / 2 분산락 / 3 인터셉터)
         private Boolean interceptorEnabled;
         private Integer hikariPoolSize;  // spring.datasource.hikari.maximum-pool-size
-        private Boolean virtualThreads;  // spring.threads.virtual.enabled
+        private Boolean virtualThreads;  // spring.threads.virtual.enabled — 요청 처리 스레드
+        // concurrency.async-virtual-threads — AsyncConfig 의 badge/mail. 기본은 virtualThreads 를 따라가지만
+        // ASYNC_VIRTUAL_THREADS 로 덮어쓸 수 있어, 둘이 어긋난 채 측정하지 않도록 별도로 남긴다
+        private Boolean asyncVirtualThreads;
     }
 }
